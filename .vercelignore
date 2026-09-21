@@ -1,0 +1,11 @@
+# Lista blanca: a Vercel sube SOLO la app estatica. Todo lo demas se queda
+# afuera y no se sirve: pruebas/fixtures (nombres, telefonos, sueldos),
+# DATOS-CONFIRMADOS.md y CONFIG-FUENTES.md (ids de planillas), PLAN,
+# CONTRATO, migraciones, la Edge Function, body.json, supabase/.temp.
+# Si la app necesita un archivo nuevo en la raiz, agregarlo aca a proposito.
+/*
+!/index.html
+!/favicon.svg
+!/css
+!/js
+!/vercel.json
