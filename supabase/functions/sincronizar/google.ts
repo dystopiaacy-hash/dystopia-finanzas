@@ -104,17 +104,26 @@ export function rangoHoja(titulo: string): string {
   return `'${titulo.replace(/'/g, "''")}'`;
 }
 
-// Todas las hojas pedidas de una planilla en una sola llamada.
-// FORMATTED_VALUE: obligatorio (ver _shared/formato.js). Devuelve una matriz por titulo.
-export async function leerHojas(token: string, spreadsheetId: string, titulos: string[]): Promise<Map<string, string[][]>> {
-  const qs = new URLSearchParams({ valueRenderOption: 'FORMATTED_VALUE', majorDimension: 'ROWS' });
+// Solo los campos que usa grid.js. Sin este filtro la respuesta trae formato
+// de celda completo, bordes, validaciones, formato condicional, etc.
+export const CAMPOS_GRID =
+  'sheets(properties(title),data(startRow,rowData(values(formattedValue,effectiveValue,effectiveFormat/numberFormat/type))))';
+
+// Todas las hojas pedidas de una planilla en una sola llamada, como grid:
+// por celda, el texto mostrado, el valor real y el tipo de formato. Devuelve
+// el bloque data[0] de cada hoja, por titulo. Ver _shared/grid.js y
+// CONTRATO.md seccion 0 (por que NO se usa values.get con FORMATTED_VALUE).
+export async function leerGrid(token: string, spreadsheetId: string, titulos: string[]): Promise<Map<string, unknown>> {
+  const qs = new URLSearchParams({ includeGridData: 'true', fields: CAMPOS_GRID });
   for (const t of titulos) qs.append('ranges', rangoHoja(t));
-  const res = await pedir(`${API}/${encodeURIComponent(spreadsheetId)}/values:batchGet?${qs}`, {
+  const res = await pedir(`${API}/${encodeURIComponent(spreadsheetId)}?${qs}`, {
     headers: { authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw await errorDe(res, `lectura de ${spreadsheetId}`);
-  const j = await res.json();
-  const out = new Map<string, string[][]>();
-  (j.valueRanges ?? []).forEach((vr: any, i: number) => out.set(titulos[i], vr.values ?? []));
+  const texto = await res.text();
+  console.log(`[google] grid ${spreadsheetId.slice(0, 6)}: ${titulos.length} hojas, ${texto.length} bytes`);
+  const j = JSON.parse(texto);
+  const out = new Map<string, unknown>();
+  for (const hoja of j.sheets ?? []) out.set(hoja.properties?.title, hoja.data?.[0] ?? {});
   return out;
 }

@@ -7,13 +7,13 @@
 //   Cuerpo (opcional, JSON):
 //     { "fuente_id": 5 }                   solo esa fuente
 //     { "fuente_id": 5, "aceptar_encabezado": true }  acepta un encabezado nuevo
-//     { "dry_run": true }                  lee y parsea, NO escribe nada; devuelve el resumen
-//     { "dry_run": true, "detalle": true } ademas, por fuente: filas cargadas, rechazadas
-//                                          (fila tal como llego de la API y normalizada) e
-//                                          items de Opps. Solo con dry_run: sigue sin escribir.
+//     { "dry_run": true }                  lee y parsea, NO escribe nada; devuelve solo conteos
+//   La respuesta nunca trae contenido de filas (nombres, telefonos, montos):
+//   solo conteos, estados y mensajes. El detalle queda en fin_filas_rechazadas.
 //
-// Por fuente: abre una corrida (en_curso), lee la hoja por gid con
-// FORMATTED_VALUE, normaliza con el locale de la planilla, parsea y escribe
+// Por fuente: abre una corrida (en_curso), lee la hoja por gid como GRID
+// (texto mostrado + valor real + tipo de formato por celda, ver
+// _shared/grid.js y CONTRATO.md seccion 0), parsea y escribe
 // TODO con fin_sync_escribir (005): una transaccion por fuente. Si una
 // fuente falla, las demas siguen y la que fallo conserva sus datos.
 // Nunca escribe en Google Sheets.
@@ -22,8 +22,8 @@
 // (la verificacion la hace este codigo, en auth.ts: sb_secret_ o fundador).
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { tokenDeAcceso, metadatos, leerHojas } from './google.ts';
-import { normalizarMatriz } from '../_shared/formato.js';
+import { tokenDeAcceso, metadatos, leerGrid } from './google.ts';
+import { matrizDesdeGrid } from '../_shared/grid.js';
 import { procesarFuente } from '../_shared/procesar.js';
 import { autorizar, CLAVE_SERVICIO } from './auth.ts';
 
@@ -84,47 +84,12 @@ async function cerrarConError(sb: SupabaseClient, corridaId: number, mensaje: st
   if (error) console.error(`no se pudo cerrar la corrida ${corridaId}: ${error.message}`);
 }
 
-type Resultado = { fuente_id: number; cliente_id: string; tipo: string; estado: string; mensaje?: string | null; escrito?: unknown; detalle?: unknown };
-
-function montosPagos(f: Fuente, crudo: string[][], pagos: any[]) {
-  const enc = (crudo[f.fila_encabezado - 1] ?? []).map((v) => String(v ?? '').trim().toLowerCase());
-  const col = (campo: string) => {
-    for (const a of f.alias.filter((x) => x.campo === campo)) {
-      const i = enc.indexOf(a.alias.trim().toLowerCase());
-      if (i > -1) return i;
-    }
-    return -1;
-  };
-  const cf = col('fecha'), cm = col('monto');
-  return pagos.map((x) => [x.fila_planilla, x.fecha, x.monto_usd, crudo[x.fila_planilla - 1]?.[cf] ?? null, crudo[x.fila_planilla - 1]?.[cm] ?? null]);
-}
-
-// Solo dry_run + detalle: lo necesario para comparar fila por fila contra los fixtures.
-function detalleDe(f: Fuente, locale: string | undefined, crudo: string[][], normalizada: unknown[][], r: any) {
-  const d = r.datos;
-  const filasCargadas = f.tipo === 'pagos' ? d.pagos.map((x: any) => x.fila_planilla)
-    : f.tipo === 'cuotas' ? [...new Set(d.cuotas.map((x: any) => x.fila_planilla))] : undefined;
-  return {
-    locale,
-    filas_api: crudo.length,
-    encabezado_api: crudo.slice(0, Math.max(1, f.fila_encabezado)),
-    filas_cargadas: filasCargadas,
-    cuotas: f.tipo === 'cuotas' ? d.cuotas : undefined,
-    // [mes, fila, col, categoria, item, monto parseado, texto de la celda tal como llego de la API]
-    items: f.tipo === 'opps' ? d.pnl.map((x: any) => [x.mes, x.fila_planilla, x.columna_planilla, x.categoria, x.item, x.monto_usd,
-      crudo[x.fila_planilla - 1]?.[x.columna_planilla - 1] ?? null]) : undefined,
-    // Pagos: [fila, fecha parseada, monto parseado, texto API de fecha, texto API de monto]. Sin nombres.
-    montos: f.tipo === 'pagos' ? montosPagos(f, crudo, d.pagos) : undefined,
-    rechazadas: d.rechazadas.map((x: any) => ({
-      fila: x.fila_planilla, motivo: x.motivo, valor_crudo: x.valor_crudo,
-      api: crudo[x.fila_planilla - 1] ?? null, normalizada: normalizada[x.fila_planilla - 1] ?? null,
-    })),
-  };
-}
+type Resultado = { fuente_id: number; cliente_id: string; tipo: string; estado: string; mensaje?: string | null; escrito?: unknown };
+type Lectura = { grid?: unknown; locale?: string; titulo?: string; error?: string };
 
 async function sincronizarFuente(
-  sb: SupabaseClient, f: Fuente, lectura: { matriz?: string[][]; locale?: string; titulo?: string; error?: string },
-  opciones: { dryRun: boolean; aceptarEncabezado: boolean; detalle: boolean },
+  sb: SupabaseClient, f: Fuente, lectura: Lectura,
+  opciones: { dryRun: boolean; aceptarEncabezado: boolean },
 ): Promise<Resultado> {
   const base = { fuente_id: f.id, cliente_id: f.cliente_id, tipo: f.tipo };
   let corridaId = 0;
@@ -142,7 +107,7 @@ async function sincronizarFuente(
     if (lectura.titulo !== f.nombre_hoja_esperado) {
       avisos.push(`la hoja se llama '${lectura.titulo}' y se esperaba '${f.nombre_hoja_esperado}' (se leyo igual por gid)`);
     }
-    const matriz = normalizarMatriz(lectura.matriz ?? [], lectura.locale);
+    const matriz = matrizDesdeGrid(lectura.grid, lectura.locale);
     const previo = await corridaPrevia(sb, f.id);
     const r = await procesarFuente(f, matriz, previo, { aceptarEncabezado: opciones.aceptarEncabezado });
     const mensaje = [...avisos, r.mensaje, `locale ${lectura.locale}`].filter(Boolean).join(' · ');
@@ -157,10 +122,7 @@ async function sincronizarFuente(
       return { ...base, estado: 'error', mensaje: r.mensaje };
     }
     if (opciones.dryRun) {
-      return {
-        ...base, estado: r.estado, mensaje, escrito: { ...r.stats, controles: r.controles.length },
-        detalle: opciones.detalle ? detalleDe(f, lectura.locale, lectura.matriz ?? [], matriz, r) : undefined,
-      };
+      return { ...base, estado: r.estado, mensaje, escrito: { ...r.stats, controles: r.controles.length } };
     }
     const { data, error } = await sb.rpc('fin_sync_escribir', {
       p_corrida: corridaId, p_estado: r.estado, p_mensaje: mensaje, p_hash: r.hash,
@@ -176,7 +138,7 @@ async function sincronizarFuente(
   }
 }
 
-async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean; aceptarEncabezado: boolean; detalle: boolean }) {
+async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean; aceptarEncabezado: boolean }) {
   const sb = createClient(URL_SB, CLAVE_SERVICIO!, { auth: { persistSession: false } });
   const fuentes = await cargarFuentes(sb, opciones.fuenteId);
   const resultados: Resultado[] = [];
@@ -185,12 +147,12 @@ async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean;
   let errorToken: string | null = null;
   try { token = await tokenDeAcceso(); } catch (e) { errorToken = `no se pudo autenticar con Google: ${(e as Error).message}`; }
 
-  // Una lectura de metadatos y una batchGet por planilla (5 planillas = 10 llamadas).
+  // Una lectura de metadatos y una de grid por planilla (5 planillas = 10 llamadas).
   const porPlanilla = new Map<string, Fuente[]>();
   for (const f of fuentes) porPlanilla.set(f.spreadsheet_id, [...(porPlanilla.get(f.spreadsheet_id) ?? []), f]);
 
   for (const [spreadsheetId, grupo] of porPlanilla) {
-    const lecturas = new Map<number, { matriz?: string[][]; locale?: string; titulo?: string; error?: string }>();
+    const lecturas = new Map<number, Lectura>();
     try {
       if (!token) throw new Error(errorToken ?? 'sin token de Google');
       const meta = await metadatos(token, spreadsheetId);
@@ -203,8 +165,12 @@ async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean;
         if (!titulos.includes(hoja.titulo)) titulos.push(hoja.titulo);
       }
       if (titulos.length) {
-        const valores = await leerHojas(token, spreadsheetId, titulos);
-        for (const l of lecturas.values()) if (l.titulo) l.matriz = valores.get(l.titulo) ?? [];
+        const grids = await leerGrid(token, spreadsheetId, titulos);
+        for (const l of lecturas.values()) {
+          if (!l.titulo) continue;
+          if (!grids.has(l.titulo)) l.error = `la respuesta de Google no trajo la hoja '${l.titulo}'`;
+          else l.grid = grids.get(l.titulo);
+        }
       }
     } catch (e) {
       for (const f of grupo) if (!lecturas.get(f.id)?.error) lecturas.set(f.id, { error: (e as Error).message });
@@ -237,7 +203,6 @@ Deno.serve(async (req) => {
   const opciones = {
     fuenteId, dryRun,
     aceptarEncabezado: cuerpo.aceptar_encabezado === true && fuenteId !== null,
-    detalle: cuerpo.detalle === true && dryRun,
   };
 
   const inicio = Date.now();

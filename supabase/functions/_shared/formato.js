@@ -1,19 +1,18 @@
-// _shared/formato.js — normaliza una matriz leida de Google Sheets con
-// valueRenderOption = FORMATTED_VALUE antes de pasarla a los parsers.
+// _shared/formato.js — normaliza las celdas de TEXTO que trae el grid de
+// Google Sheets (ver grid.js) antes de pasarlas a los parsers.
 //
-// Por que FORMATTED_VALUE: una fecha colada en una celda de monto tiene que
-// llegar como TEXTO ("12/06/2026") para que el parser la detecte y la
-// rechace. Con UNFORMATTED_VALUE llega como serial (46185) y se sumaria como
-// plata.
-//
-// El costo: los numeros llegan con el formato del locale de la planilla
-// ("1.321,90" en es_AR, "1,321.90" en en_US) y las fechas con el orden del
-// locale (d/m o m/d). parseMonto de comun.js adivina el separador y con
-// "1.321" (mil trescientos en es_AR) daria 1.321. Por eso aca se reescribe
-// cada celda con el locale explicito de la planilla, sin adivinar:
+// Numeros y fechas ya NO pasan por aca: el grid trae su valor real y su tipo
+// (grid.js). Esto queda para texto con forma de numero o de fecha que alguien
+// escribio en una celda con formato texto: "1.321,90" en es_AR, "1,321.90" en
+// en_US, "15/03/2026". parseMonto de comun.js adivina el separador y con
+// "1.321" (mil trescientos en es_AR) daria 1.321. Por eso se reescribe cada
+// texto con el locale explicito de la planilla, sin adivinar:
 //   - numero con formato  -> "1321.9"   (punto decimal, sin miles)
 //   - fecha m/d o d/m     -> "AAAA-MM-DD"
 //   - todo lo demas       -> igual que vino
+// Historia: antes se leia con FORMATTED_VALUE y esto era la unica barrera.
+// No alcanzaba (fechas "d.m" como montos, fechas sin anio, montos
+// redondeados): ver CONTRATO.md seccion 0.
 // ES module sin dependencias: corre en Node (pruebas) y en Deno.
 
 // Locales de Sheets que escriben la fecha con el mes primero.
@@ -79,8 +78,12 @@ export function normalizarCelda(v, { mesPrimero = false, decimal = '.' } = {}) {
   return s;
 }
 
+export function opcionesDeLocale(locale) {
+  return { mesPrimero: MES_PRIMERO.has(locale), decimal: separadorDecimal(locale) };
+}
+
 // Matriz completa. locale = spreadsheet.properties.locale (ej. "es_AR").
 export function normalizarMatriz(matriz, locale) {
-  const opciones = { mesPrimero: MES_PRIMERO.has(locale), decimal: separadorDecimal(locale) };
+  const opciones = opcionesDeLocale(locale);
   return (matriz || []).map((fila) => (fila || []).map((v) => normalizarCelda(v, opciones)));
 }
