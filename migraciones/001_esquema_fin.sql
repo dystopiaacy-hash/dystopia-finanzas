@@ -54,7 +54,7 @@ create table if not exists public.fin_fuentes (
   tipo                 text    not null check (tipo in ('pagos', 'opps', 'cuotas', 'data', 'trazabilidad', 'pagos_historico')),
   forma                text    check (forma in ('cuotas_ancho', 'cuotas_plano', 'desde_pagos')),
   fila_encabezado      int     not null default 1 check (fila_encabezado >= 1),
-  anio                 int     check (anio between 2024 and 2027),
+  anio                 int     check (anio between 2020 and 2100),
   tope_monto           numeric default 10000 check (tope_monto is null or tope_monto > 0),
   activo               boolean not null default true,
   creado               timestamptz not null default now(),
@@ -262,6 +262,16 @@ begin
   foreach t in array array['fin_fuentes', 'fin_alias_columnas', 'fin_personas', 'fin_comision_agencia', 'fin_tipo_cambio']
   loop
     execute format('grant insert, update, delete on table public.%I to authenticated', t);
+  end loop;
+  -- service_role: saltea RLS, pero igual necesita el GRANT de tabla. Son dos
+  -- capas distintas. Sin esto la Edge Function puede fallar con
+  -- "permission denied" en la fase 4.
+  foreach t in array array[
+    'fin_fuentes', 'fin_alias_columnas', 'fin_personas', 'fin_comision_agencia',
+    'fin_sync_corridas', 'fin_filas_rechazadas', 'fin_tipo_cambio',
+    'fin_pagos', 'fin_pnl', 'fin_pnl_saldos', 'fin_reparto', 'fin_cuotas']
+  loop
+    execute format('grant all on table public.%I to service_role', t);
   end loop;
 end $$;
 

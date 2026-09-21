@@ -1,0 +1,31 @@
+Archivos finales — 2026-09-21
+
+QUE CAMBIO
+
+001_esquema_fin.sql — dos cambios:
+  1. linea 57: anio check (anio between 2020 and 2100)
+     Antes decia 2024 a 2027. En 2028 el seed dejaba de andar.
+  2. bloque 4 de permisos: se agrego un grant all a service_role sobre las
+     12 tablas fin_*. service_role saltea RLS pero igual necesita el GRANT
+     de tabla. Sin esto la Edge Function puede fallar con
+     "permission denied" en la fase 4.
+
+PROMPT-SESION-B.txt — reescrito completo, ya trae:
+  - FORMATTED_VALUE al leer Google Sheets
+  - la red de seguridad del rango 45000 a 47500 en ingresos
+  - error y parcial tan visibles como revisar en Salud de sincronizacion
+  - el recordatorio del cast ::text en tgenabled
+  - fin_reparto solo fundador
+
+SIN CAMBIOS: 000_inspeccion.sql, 002_seed_config.sql, 003_vistas.sql.
+Van igual para que reemplaces la carpeta migraciones/ entera y no quede
+ninguna version vieja dando vueltas.
+
+ORDEN PARA CORRER EN SUPABASE
+
+  000_inspeccion.sql   solo lectura. Mira si hay CHECK sobre crm_members.rol
+  001_esquema_fin.sql  control: 12 tablas, rls=true, anon_lee=false, politicas>0
+  002_seed_config.sql  control: 12 fuentes activas, 58 alias, sin placeholders
+  003_vistas.sql       control: 5 vistas, security_invoker=true, anon_lee=false
+
+Una por vez. Si una control no da lo esperado, no sigas.

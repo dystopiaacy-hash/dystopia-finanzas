@@ -1,0 +1,92 @@
+Dystopia Finanzas, sesion B. Las migraciones 000, 001, 002 y 003 ya estan
+corridas en Supabase y las tablas fin_* existen.
+
+Lee de PLAN.md SOLO "REGLAS GENERALES", "FASE 4" y "FASE 5". Nada mas.
+Para el resto, grep. CONTRATO.md lo consultas por grep, no entero.
+
+Vas a ejecutar las FASES 4 y 5 seguidas, sin pedirme OK entre fases.
+Paras solo en los casos de "CUANDO PARAR".
+
+CREDENCIALES Y RUTAS
+[PEGAR: URL de Supabase, publishable key, confirmacion de que el secreto
+de la service account de Google ya esta cargado, y la ruta local del repo
+de dystopia-seguimiento para copiar el CSS]
+
+FASE 4 — Edge Function de sincronizacion
+
+Antes de escribirla, decime en dos lineas como vas a manejar que Google
+devuelva 429 y que la hoja no exista. Despues seguis solo.
+
+Reglas obligatorias de esta fase:
+
+- Al leer Google Sheets usa valueRenderOption FORMATTED_VALUE, NO
+  UNFORMATTED_VALUE. La deteccion de fechas coladas en celdas de monto
+  depende de que la fecha llegue como texto. Con UNFORMATTED_VALUE llega
+  como serial y se suma como si fuera plata.
+
+- Red de seguridad independiente del formato: si un monto de la zona
+  REVENUE cae entre 45000 y 47500, o sea el rango de seriales de fechas
+  2023 a 2030, marca el mes como 'revisar' con motivo
+  'posible serial de fecha en ingresos'. NO lo rechaces: mauro junio
+  tiene un ingreso real de 46637 ahi adentro. Solo avisa.
+
+- La service account nunca en el frontend ni en el repo. Solo secreto de
+  Supabase.
+
+- Si falla una fuente, las demas siguen. Los datos viejos de la fuente que
+  fallo se conservan. Reemplazo completo por fuente dentro de una
+  transaccion.
+
+- La funcion tiene que poder invocarse a mano por HTTP para probarla sin
+  esperar al cron.
+
+- 004_cron.sql lo escribis pero NO lo ejecutas. pg_cron 1.6.4 y pg_net
+  0.20.4 ya estan habilitados. Si compares tgenabled, casteá a ::text: en
+  Seguimiento eso dio error 42725.
+
+FASE 5 — Frontend
+
+Diseño identico a Dystopia CRM y Seguimiento. Extrae el CSS del repo de
+Seguimiento, no lo reinventes.
+
+Las 6 vistas de la FASE 5 del plan. Ademas:
+
+- En Salud de sincronizacion, `requiere_revision` hoy solo marca estado
+  'revisar'. La pantalla tiene que mostrar igual de visibles los estados
+  'error' y 'parcial'. Una fuente caida no puede verse menos urgente que
+  una con un total que no cuadra.
+
+- Cada numero que venga de una fila de planilla lleva link directo a la
+  celda:
+  https://docs.google.com/spreadsheets/d/<id>/edit#gid=<gid>&range=A<fila>
+
+- Barra superior con links a las otras dos apps.
+
+- fin_reparto es SOLO para fundador. No la expongas en ninguna vista ni
+  pantalla compartida. Son las comisiones de la agencia.
+
+GATE ANTES DE DARTE POR TERMINADO
+
+Levanta la app en local, abrila con el browser y verifica vos mismo:
+ - Login funciona y redirige.
+ - Las 6 vistas cargan sin error en consola.
+ - Conciliacion muestra al menos una diferencia distinta de cero, o
+   explica por que todo cuadra.
+ - Un link a celda de planilla tiene el formato correcto y abre.
+No me digas que esta listo sin haber abierto la app.
+
+CUANDO PARAR
+
+- Si una vista necesita un dato que no existe en ninguna tabla fin_*.
+- Si para que algo ande te tentas de escribir a Google Sheets: pará. La
+  app es de solo lectura, sin excepciones.
+- Si necesitas una migracion nueva: escribila como 005_*.sql, NO la
+  ejecutes, avisame y segui con lo que puedas.
+- Si un permiso falla con "permission denied" desde la Edge Function:
+  pará. En 001 ya hay un grant all a service_role sobre las 12 tablas, asi
+  que si igual falla es otra cosa y no quiero que la parchees.
+
+AL FINAL
+
+Informe de 5 puntos como en la sesion A, mas el checklist de prueba
+manual para que yo revise.
