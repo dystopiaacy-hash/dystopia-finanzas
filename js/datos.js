@@ -53,7 +53,7 @@ export const salud = async () => {
 
 export async function corridas(fuenteId, limite = 10) {
   const { data, error } = await sb.from('fin_sync_corridas')
-    .select('id,inicio,fin,estado,filas_leidas,filas_cargadas,filas_rechazadas,filas_descartadas,mensaje')
+    .select('*')
     .eq('fuente_id', fuenteId).order('inicio', { ascending: false }).limit(limite);
   if (error) throw error;
   return data || [];

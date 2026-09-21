@@ -46,24 +46,36 @@ export function clienteChip(id) {
 export const ESTADOS = {
   error: { nivel: 'rojo', texto: 'Error', orden: 0 },
   colgada: { nivel: 'rojo', texto: 'Colgada', orden: 0 },
+  con_cortes: { nivel: 'rojo', texto: 'Se cortó', orden: 0 },
   parcial: { nivel: 'rojo', texto: 'Parcial', orden: 1 },
   revisar: { nivel: 'amarillo', texto: 'Revisar', orden: 2 },
   sin_corridas: { nivel: 'rojo', texto: 'Nunca corrió', orden: 1 },
   desactualizada: { nivel: 'amarillo', texto: 'Desactualizada', orden: 3 },
   en_curso: { nivel: 'gris', texto: 'En curso', orden: 4 },
   ok: { nivel: 'verde', texto: 'OK', orden: 5 },
+  // Solo en el historial: la vista nunca muestra una pendiente u omitida como
+  // última corrida (006). Omitida = la función murió antes de llegar: no falló.
+  pendiente: { nivel: 'gris', texto: 'Pendiente', orden: 4 },
+  omitida: { nivel: 'gris', texto: 'No se intentó', orden: 5 },
   inactiva: { nivel: 'gris', texto: 'Inactiva', orden: 6 }
 };
 
 /* Estado efectivo de una fila de fin_v_salud_sync. requiere_revision de la
    vista solo mira 'revisar': acá error, parcial, colgada y nunca corrió
-   pesan igual o más. */
+   pesan igual o más.
+   con_cortes: la función se cortó (memoria, CPU, tiempo) en esta fuente en
+   las últimas 24 h, aunque la última corrida haya terminado bien. Sin esto,
+   la corrida siguiente taparía el corte y nadie lo vería.
+   desactualizada: también para 'revisar' (antes solo 'ok'), si no, una fuente
+   en revisar que deja de sincronizar no avisa nunca. */
 export function estadoFuente(f, ahora = Date.now()) {
   if (!f.activo) return 'inactiva';
   if (!f.corrida_id) return 'sin_corridas';
   const min = (ahora - new Date(f.inicio).getTime()) / 60000;
   if (f.estado === 'en_curso') return min > COLGADA_MIN ? 'colgada' : 'en_curso';
-  if (f.estado === 'ok' && min > DESACTUALIZADA_MIN) return 'desactualizada';
+  if (f.estado === 'error') return 'error';
+  if (Number(f.cortes_24h) > 0) return 'con_cortes';
+  if ((f.estado === 'ok' || f.estado === 'revisar') && min > DESACTUALIZADA_MIN) return 'desactualizada';
   return ESTADOS[f.estado] ? f.estado : 'error';
 }
 

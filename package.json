@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node pruebas/correr.mjs && node pruebas/formato.mjs",
-    "check:fn": "deno check --node-modules-dir=none supabase/functions/sincronizar/index.ts"
+    "check:fn": "deno check --node-modules-dir=none supabase/functions/sincronizar/index.ts",
+    "test:fn": "deno test --node-modules-dir=none --allow-read pruebas/corte.test.ts"
   }
 }

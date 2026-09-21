@@ -246,7 +246,8 @@ console.log(`  pagos: tierra de nadie (${montoMaximoReal}..${serialMin} y > ${se
 // 3. El codigo lee por grid, con fields, y no por values.get.
 // ---------------------------------------------------------------------------
 const google = readFileSync(join(RAIZ, 'supabase/functions/sincronizar/google.ts'), 'utf8');
-const index = readFileSync(join(RAIZ, 'supabase/functions/sincronizar/index.ts'), 'utf8');
+// index.ts (HTTP) + nucleo.ts (el trabajo): se revisan juntos.
+const index = ['index.ts', 'nucleo.ts'].map((n) => readFileSync(join(RAIZ, 'supabase/functions/sincronizar', n), 'utf8')).join('\n');
 if (/valueRenderOption|values:batchGet|\/values\//.test(google)) falla('[codigo] google.ts vuelve a leer con values.get / valueRenderOption: NO (ver CONTRATO.md seccion 0)');
 if (!/includeGridData/.test(google)) falla('[codigo] google.ts no pide includeGridData');
 for (const campo of ['formattedValue', 'effectiveValue', 'effectiveFormat/numberFormat/type']) {

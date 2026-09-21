@@ -285,9 +285,91 @@ El PLAN decía "si una fuente falla se aborta entera". Queda así:
 | Total de la planilla ≠ suma de ítems | `revisar` | Sí, con los ítems reales. |
 | Fecha o texto en celda de monto | `revisar` | Sí; la fila va a rechazadas. |
 | Monto ambiguo con formato de fecha (sección 0) | `revisar` | Sí; la fila va a rechazadas con su COMPROBANTE en el control. |
+| Payload de la hoja > `FIN_PAYLOAD_UMBRAL_BYTES` (sección 4.2) | `revisar` | Sí; control `payload grande`. |
+| La función muere (memoria, CPU, tiempo) | `error` con `corte` | No. Ver sección 4.2. |
 | Todo cuadra | `ok` | Sí. |
 
 Las filas rechazadas o descartadas nunca abortan una corrida: se registran.
+
+## 4.2 Cuando la función muere: ninguna corrida queda invisible (006, 2026-09-21)
+
+Una Edge Function que el runtime mata (memoria, CPU, tiempo) no ejecuta
+ningún `catch`. Antes de la 006, una muerte **durante la lectura** no dejaba
+rastro: la corrida se abría recién después de leer y parsear la planilla, así
+que las fuentes seguían mostrando la última corrida buena. Con el cron
+prendido nadie lo habría visto.
+
+### Ciclo de vida (`fin_sync_corridas.estado`)
+
+```
+pendiente ──> en_curso ──> ok | revisar | parcial | error
+    │             │
+    │             └─ muere ──> error  (corte = motivo)
+    └──────────── muere ──> omitida (corte = motivo)
+```
+
+1. Al arrancar, la invocación **barre** lo que dejó abierto otra invocación
+   hace más de `HUERFANA_MIN` (10 min, mayor que los 400 s de wall clock
+   máximo): `en_curso` → `error` con `corte = 'sin_cierre'`; `pendiente` →
+   `omitida`.
+2. Abre **todas** sus corridas en `pendiente` (mismo `invocacion`), antes de
+   hablar con Google.
+3. Fuente por fuente, **en serie**: `en_curso` justo antes de leerla, una hoja
+   por llamada a Google, `payload_bytes` escrito **antes** del `JSON.parse`,
+   procesa y cierra.
+
+Si muere en la fuente 3: la 3 queda `en_curso` → `error` (se intentó y murió,
+**con** su `payload_bytes` si llegó a descargar); la 4..12 quedan `pendiente`
+→ `omitida` (no fallaron: no arrancaron). Salud muestra **1** problema, no 12:
+`fin_v_salud_sync` ignora `pendiente` y `omitida` como última corrida y cuenta
+aparte `cortes_24h` y `omitidas_24h`.
+
+`beforeunload` (motivo del runtime en `detail.reason`): marca las corridas
+abiertas con ese motivo. Es best effort: no es `async`, no usa `waitUntil`,
+las escrituras salen en segundo plano y los filtros por estado impiden pisar
+una corrida que ya cerró. Si no llega a escribir, el barrido del paso 1 la
+cierra como `sin_cierre` en la invocación siguiente (≤ 15 min con el cron).
+
+En Salud:
+- `error` con `corte`: la corrida murió; el mensaje dice el motivo y el payload.
+- **Se cortó** (rojo, requiere acción): hubo un corte en las últimas 24 h
+  aunque la última corrida haya terminado bien. Sin esto, la corrida
+  siguiente tapaba el corte.
+- **Desactualizada**: ahora también para `revisar` (antes solo `ok`).
+- `omitida`: gris, solo en el historial y como "no se intentó N× en 24 h".
+
+### Payload por fuente
+
+`payload_bytes` = bytes de la respuesta de Google para esa hoja (grid
+filtrado con `fields`). Medición del 2026-09-21: mauro pagos ~2,5 MB, pico de
+heap ~29 MB parseándola, contra 256 MB de límite (igual en Pro): margen ~4×
+en payload antes de que el heap se acerque al límite. Por encima de
+`FIN_PAYLOAD_UMBRAL_BYTES` (secreto de la función; default 5 MB, el doble de
+hoy) la corrida queda en `revisar` con el control `payload grande`: los datos
+se cargan igual, es un aviso para verlo venir antes de un 546. Cambiar el
+umbral no requiere redeploy:
+`supabase secrets set FIN_PAYLOAD_UMBRAL_BYTES=<bytes> --project-ref <ref>`.
+
+Pruebas: `npm run test:fn` (`pruebas/corte.test.ts`: muere en la fuente 3,
+muere descargando, beforeunload que no bloquea, umbral, dry_run, barrido).
+
+### 546 del 2026-09-21 — cerrado
+
+- **Qué:** un único `POST /functions/v1/sincronizar` con HTTP 546 el
+  2026-09-21 a las 14:40:00 UTC (11:40 ART), 26,3 s, sobre el deploy **v4**
+  de la función. Log de la función en el mismo milisegundo (14:40:00.958):
+  `Memory limit exceeded` → `Shutdown`.
+- **Causa probable:** el v4 fue un deploy intermedio, anterior al commit
+  `dbe6c3d` (14:42 UTC, "lectura por grid (fields filtrado)"). v4 y v5
+  tardaban ~26 s por invocación; desde el v6 (primer deploy con la medición
+  de payloads, que sigue en `google.ts`) tardan 8–11 s. Lo más probable es
+  que el v4 pidiera el grid sin el filtro `fields` (formato completo de cada
+  celda) y el parseo superara los 256 MB. No se puede confirmar: la API solo
+  devuelve el fuente de la última versión.
+- **Por qué se cierra:** ninguna invocación del v6 en adelante dio distinto
+  de 200 (incluidas el dry_run y la primera sync real, v8). Con el código
+  actual el peor caso medido es ~29 MB de heap. La 006 (esta sección) hace
+  que una muerte futura quede escrita y visible en Salud.
 
 ## 5. Cuotas (`fin_cuotas`) — forma declarada en `fin_fuentes.forma`
 

@@ -9,6 +9,11 @@ import { vacio, clienteChip, badgeEstado, estadoFuente, requiereAccion, ESTADOS,
 
 const TIPOS = { pagos: 'Pagos', opps: 'Opps (P&L)', cuotas: 'Cuotas' };
 const num = v => (v == null ? '—' : String(v));
+const MB = v => (v == null ? '—'
+  : Number(v) < 1e5 ? `${Math.max(1, Math.round(Number(v) / 1e3)).toLocaleString('es-AR')} KB`
+  : `${(Number(v) / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 })} MB`);
+const MOTIVOS_CORTE = { memory: 'memoria', cpu: 'CPU', wall_clock: 'tiempo máximo', early_drop: 'el runtime la soltó', termination: 'apagado del runtime', sin_cierre: 'sin cierre, motivo desconocido' };
+const motivoCorte = m => MOTIVOS_CORTE[m] || m || 'desconocido';
 
 export async function vistaSalud(el, vigente) {
   const [filas, mapaFuentes] = await Promise.all([salud(), fuentes()]);
@@ -29,7 +34,7 @@ export async function vistaSalud(el, vigente) {
     <div class="salud-banner ${urgentes.length ? 'hay' : 'nada'}">
       ${urgentes.length
         ? `<strong>${urgentes.length} ${urgentes.length === 1 ? 'fuente requiere' : 'fuentes requieren'} acción</strong>
-           ${['error', 'colgada', 'parcial', 'sin_corridas', 'revisar', 'desactualizada'].filter(cuenta)
+           ${['error', 'colgada', 'con_cortes', 'parcial', 'sin_corridas', 'revisar', 'desactualizada'].filter(cuenta)
              .map(c => `${badgeEstado(c)} ${cuenta(c)}`).join(' ')}`
         : '<strong>Todas las fuentes activas sincronizaron bien.</strong>'}
     </div>
@@ -39,11 +44,11 @@ export async function vistaSalud(el, vigente) {
       <div class="card table-card">
         <table class="data-table">
           <thead><tr><th>Cliente</th><th>Hoja</th><th>Estado</th><th>Última corrida</th>
-            <th class="num">Leídas</th><th class="num">Cargadas</th><th class="num">Rechazadas</th><th></th></tr></thead>
+            <th class="num">Leídas</th><th class="num">Cargadas</th><th class="num">Rechazadas</th><th class="num">Payload</th><th></th></tr></thead>
           <tbody>${resto.map(f => `<tr>
             <td>${clienteChip(f.cliente_id)}</td><td>${esc(TIPOS[f.tipo] || f.tipo)} · ${esc(f.nombre_hoja_esperado)}</td>
-            <td>${badgeEstado(f.clave)}</td><td>${fmtFechaHora(f.inicio)}</td>
-            <td class="num">${num(f.filas_leidas)}</td><td class="num">${num(f.filas_cargadas)}</td><td class="num">${num(f.filas_rechazadas)}</td>
+            <td>${badgeEstado(f.clave)}</td><td>${fmtFechaHora(f.inicio)}${Number(f.omitidas_24h) ? `<div class="txt-gris">no se intentó ${f.omitidas_24h} ${Number(f.omitidas_24h) === 1 ? 'vez' : 'veces'} en 24 h</div>` : ''}</td>
+            <td class="num">${num(f.filas_leidas)}</td><td class="num">${num(f.filas_cargadas)}</td><td class="num">${num(f.filas_rechazadas)}</td><td class="num">${MB(f.payload_bytes)}</td>
             <td>${f.corrida_id ? `<button type="button" class="btn btn-sm" data-hist="${f.fuente_id}">Historial</button>` : ''}</td>
           </tr>`).join('')}</tbody>
         </table>
@@ -88,6 +93,8 @@ function tarjeta(f, mapaFuentes) {
         <span>Cargadas <strong>${num(f.filas_cargadas)}</strong></span>
         <span>Rechazadas <strong>${num(f.filas_rechazadas)}</strong></span>
         <span>Descartadas <strong>${num(f.filas_descartadas)}</strong></span>
+        <span>Payload <strong>${MB(f.payload_bytes)}</strong></span>
+        ${Number(f.omitidas_24h) ? `<span class="txt-gris">No se intentó ${f.omitidas_24h}× en 24 h</span>` : ''}
       </div>` : ''}
       ${controles.length ? `<ul class="salud-controles">${controles.slice(0, 12).map(c => `<li>${control(c, fuente)}</li>`).join('')}
         ${controles.length > 12 ? `<li class="txt-gris">y ${controles.length - 12} más…</li>` : ''}</ul>` : ''}
@@ -105,6 +112,14 @@ function mensajeDe(f) {
   if (f.clave === 'sin_corridas') return 'Nunca se sincronizó. ¿Está deployada la Edge Function y corrida la 005?';
   if (f.clave === 'colgada') return `La corrida empezó ${fmtFechaHora(f.inicio)} y nunca terminó (la función se cortó). Los datos anteriores siguen intactos.`;
   if (f.clave === 'desactualizada') return `La última corrida buena es de ${fmtFechaHora(f.inicio)}. ¿Está activo el cron (004)?`;
+  if (f.clave === 'error' && f.corte) {
+    return `La función se cortó durante esta corrida (${motivoCorte(f.corte)})${f.payload_bytes != null ? `, con un payload de ${MB(f.payload_bytes)}` : ''}. No se tocó ningún dato: se muestra lo de la última corrida buena. Ver los logs de la función.`;
+  }
+  if (f.clave === 'con_cortes') {
+    const veces = Number(f.cortes_24h) === 1 ? 'una vez' : `${f.cortes_24h} veces`;
+    return `La función se cortó ${veces} en las últimas 24 h (la última, ${fmtFechaHora(f.ultimo_corte)}, por ${motivoCorte(f.ultimo_corte_motivo)}). `
+      + `La última corrida terminó en ${(ESTADOS[f.estado] || ESTADOS.error).texto.toLowerCase()}. Si se repite, mirar el payload y los logs.`;
+  }
   if (f.clave === 'error') {
     const m = f.mensaje || 'Error sin detalle.';
     return /ning[uú]n dato/i.test(m) ? m : `${m} — no se tocó ningún dato: se muestra lo de la última corrida buena.`;
@@ -135,6 +150,10 @@ function controlAmbiguo(c, fuente) {
 
 function control(c, fuente) {
   if (String(c.motivo || '').startsWith(AMBIGUO)) return controlAmbiguo(c, fuente);
+  if (c.motivo === 'payload grande') {
+    return `<strong>payload grande</strong> · la hoja pesa ${MB(c.payload_bytes)} y el umbral es ${MB(c.umbral_bytes)}. `
+      + 'Se cargó igual; es un aviso de memoria (límite de la función: 256 MB). Si sigue creciendo, archivar filas viejas o subir el umbral.';
+  }
   const partes = [];
   if (c.mes) partes.push(`<strong>${esc(MESES[c.mes - 1])}</strong>`);
   partes.push(esc(c.motivo || 'control'));
@@ -155,9 +174,9 @@ async function correr(boton, cuerpo, el, vigente) {
       abrirModal({
         titulo: 'Prueba sin escribir', ancho: true,
         cuerpo: `<p class="aviso-texto">Se leyeron las planillas y se parsearon; no se escribió nada. ${r.segundos} s.</p>
-          <table class="data-table data-table-dense"><thead><tr><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Detalle</th></tr></thead>
+          <table class="data-table data-table-dense"><thead><tr><th>Cliente</th><th>Tipo</th><th>Estado</th><th class="num">Payload</th><th>Detalle</th></tr></thead>
           <tbody>${(r.resultados || []).map(x => `<tr><td>${clienteChip(x.cliente_id)}</td><td>${esc(x.tipo)}</td>
-            <td>${badgeEstado(ESTADOS[x.estado] ? x.estado : 'error')}</td>
+            <td>${badgeEstado(ESTADOS[x.estado] ? x.estado : 'error')}</td><td class="num">${MB(x.payload_bytes)}</td>
             <td title="${esc(x.mensaje || '')}">${esc(x.escrito ? `cargaría ${x.escrito.cargadas}, rechazaría ${x.escrito.rechazadas}` : '')} ${esc(x.mensaje || '')}</td></tr>`).join('')}</tbody></table>`
       });
     } else {
@@ -192,10 +211,10 @@ async function verHistorial(fuenteId) {
     const filas = await corridas(fuenteId);
     m.el.querySelector('.modal-body').innerHTML = `
       <table class="data-table data-table-dense"><thead><tr><th>Inicio</th><th>Estado</th><th class="num">Leídas</th>
-        <th class="num">Cargadas</th><th class="num">Rechazadas</th><th>Mensaje</th></tr></thead>
+        <th class="num">Cargadas</th><th class="num">Rechazadas</th><th class="num">Payload</th><th>Mensaje</th></tr></thead>
       <tbody>${filas.map(c => `<tr><td>${fmtFechaHora(c.inicio)}</td><td>${badgeEstado(ESTADOS[c.estado] ? c.estado : 'error')}</td>
-        <td class="num">${num(c.filas_leidas)}</td><td class="num">${num(c.filas_cargadas)}</td><td class="num">${num(c.filas_rechazadas)}</td>
-        <td title="${esc(c.mensaje || '')}">${esc(c.mensaje || '')}</td></tr>`).join('')}</tbody></table>`;
+        <td class="num">${num(c.filas_leidas)}</td><td class="num">${num(c.filas_cargadas)}</td><td class="num">${num(c.filas_rechazadas)}</td><td class="num">${MB(c.payload_bytes)}</td>
+        <td title="${esc(c.mensaje || '')}">${c.corte ? `<strong>Corte: ${esc(motivoCorte(c.corte))}.</strong> ` : ''}${esc(c.mensaje || '')}</td></tr>`).join('')}</tbody></table>`;
   } catch (e) {
     m.el.querySelector('.modal-body').innerHTML = `<p class="aviso-texto">${esc(e.message)}</p>`;
   }

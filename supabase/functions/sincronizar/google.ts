@@ -109,21 +109,34 @@ export function rangoHoja(titulo: string): string {
 export const CAMPOS_GRID =
   'sheets(properties(title),data(startRow,rowData(values(formattedValue,effectiveValue,effectiveFormat/numberFormat/type))))';
 
-// Todas las hojas pedidas de una planilla en una sola llamada, como grid:
-// por celda, el texto mostrado, el valor real y el tipo de formato. Devuelve
-// el bloque data[0] de cada hoja, por titulo. Ver _shared/grid.js y
-// CONTRATO.md seccion 0 (por que NO se usa values.get con FORMATTED_VALUE).
-export async function leerGrid(token: string, spreadsheetId: string, titulos: string[]): Promise<Map<string, unknown>> {
+// UNA hoja por llamada, como grid: por celda, el texto mostrado, el valor real
+// y el tipo de formato. Ver _shared/grid.js y CONTRATO.md seccion 0 (por que
+// NO se usa values.get con FORMATTED_VALUE).
+// Se separa en dos pasos a proposito: descargarHoja devuelve el texto y su
+// tamanio en bytes SIN parsearlo, para que la corrida registre payload_bytes
+// antes del JSON.parse (que es donde mas memoria se usa). Si la funcion muere
+// parseando, el tamanio ya quedo escrito. Una hoja por vez tambien baja el
+// pico: mauro eran 3 hojas y 2,9 MB en una sola respuesta.
+export interface Descarga { texto: string; bytes: number }
+
+export async function descargarHoja(token: string, spreadsheetId: string, titulo: string): Promise<Descarga> {
   const qs = new URLSearchParams({ includeGridData: 'true', fields: CAMPOS_GRID });
-  for (const t of titulos) qs.append('ranges', rangoHoja(t));
+  qs.append('ranges', rangoHoja(titulo));
   const res = await pedir(`${API}/${encodeURIComponent(spreadsheetId)}?${qs}`, {
     headers: { authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw await errorDe(res, `lectura de ${spreadsheetId}`);
-  const texto = await res.text();
-  console.log(`[google] grid ${spreadsheetId.slice(0, 6)}: ${titulos.length} hojas, ${texto.length} bytes`);
+  if (!res.ok) throw await errorDe(res, `lectura de '${titulo}' en ${spreadsheetId}`);
+  const crudo = await res.arrayBuffer();
+  const bytes = crudo.byteLength;
+  const texto = new TextDecoder().decode(crudo);
+  console.log(`[google] grid ${spreadsheetId.slice(0, 6)} '${titulo}': ${bytes} bytes`);
+  return { texto, bytes };
+}
+
+// El bloque data[0] de la hoja pedida.
+export function gridDeTexto(texto: string, titulo: string): unknown {
   const j = JSON.parse(texto);
-  const out = new Map<string, unknown>();
-  for (const hoja of j.sheets ?? []) out.set(hoja.properties?.title, hoja.data?.[0] ?? {});
-  return out;
+  const hoja = (j.sheets ?? []).find((s: any) => s.properties?.title === titulo);
+  if (!hoja) throw new Error(`la respuesta de Google no trajo la hoja '${titulo}'`);
+  return hoja.data?.[0] ?? {};
 }

@@ -5,3 +5,7 @@ node_modules/
 # Los fixtures tienen nombres de alumnos, telefonos y sueldos del equipo.
 # No van al repo, ni siquiera privado.
 pruebas/fixtures/
+
+# Restos locales: cuerpo de prueba de curl y cache del CLI de Supabase.
+body.json
+supabase/.temp/
