@@ -1,0 +1,8 @@
+{
+  "name": "dystopia-finanzas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node pruebas/correr.mjs"
+  }
+}

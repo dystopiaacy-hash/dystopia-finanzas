@@ -94,7 +94,9 @@ Toda fila leída termina en exactamente uno de tres destinos. Se verifica
 | Sin alumno y sin monto numérico (resto de casos) | descartada | `sin_alumno_sin_monto` |
 | Sin alumno pero con monto | rechazada | `falta alumno` |
 | Alumno pero monto vacío | rechazada | `falta monto` |
-| Monto no numérico (`REFUND`, `si`, una fecha) | rechazada | `monto no numerico` |
+| Monto con el texto `REFUND` (cualquier mayúscula) | rechazada | `refund sin monto numerico` |
+| Monto que es una fecha (`2026-08-31`) | rechazada | `fecha en celda de monto` |
+| Otro monto no numérico (`si`, texto libre) | rechazada | `monto no numerico` |
 | `abs(monto) > tope_monto` de la fuente | rechazada | `monto fuera de rango, probable moneda local sin convertir` |
 | Fecha vacía | rechazada | `falta fecha` |
 | Fecha que no parsea | rechazada | `fecha no parsea` |
@@ -135,9 +137,37 @@ Toda fila leída termina en exactamente uno de tres destinos. Se verifica
   `Net Cash Flow`, `% Net Cash Flow`, `Dividends Released`,
   `Retained Earnings`, `Opening Balance:`, `Closing Balance:`.
 - Cualquier categoría puede faltar en cualquier mes de cualquier cliente.
-- Fila con monto y sin ítem: se guarda con `item` NULL (la planilla la suma).
-- Controles (no se guardan): suma de gastos del mes = `Total Expenses`, suma
-  del bloque REVENUE = `Total Revenue`, margen 0.01.
+  Si falta, los ítems desde la fila donde otros meses tienen esa etiqueta
+  van con categoría `sin_categoria`, no se meten en la anterior. Lo mismo
+  para ítems entre `EXPENSES` y la primera categoría. (Hoy: lucas mayo y
+  junio, donde `Others` recién aparece en julio.)
+- Fila con monto y sin ítem: se guarda con `item` NULL.
+- Monto que es una fecha: `fin_filas_rechazadas`, motivo
+  `fecha en celda de monto`, y el mes queda `revisar`. NUNCA se suma el
+  serial de la fecha (lucas septiembre: `Dominio` = `2026-05-26`, que la
+  planilla suma como 46168).
+- Otro monto no numérico en REVENUE/gastos/reparto: rechazada
+  `monto no numerico`, mes `revisar`.
+
+### Fuente de verdad: los ítems. Los totales de la planilla son control.
+
+Los números de la app son SIEMPRE la suma de los ítems, nunca el
+`Total Expenses` / `Total Revenue` de la planilla. Esos totales son fórmulas
+que la gente edita y pueden omitir filas (liam mayo excluye `skool` 9; agus
+febrero, `Stripe AF` 516.45; teo agosto, `Juli Disenio` 42.5; mauro junio,
+`comision sillo` 137.87; lucas junio, `gasto comisiones blas` 39.5).
+
+- Si ítems ≠ `Total Expenses` o `Total Revenue` (margen 0.01): el mes se
+  carga igual y la corrida queda `revisar`, con el detalle en
+  `fin_sync_corridas.controles` (mes, control, ítems, planilla, diferencia).
+  Aparece en `fin_v_salud_sync`.
+- Gate de la prueba (`pruebas/correr.mjs`), estructural: toda fila del
+  bloque entre `REVENUE` y `Total Expenses` con ítem y monto numérico queda
+  capturada, sin saltear ni inventar filas. Se verifica escaneando el
+  bloque, no contra la fórmula.
+- Gate: ningún gasto de Opps mayor a 40000 (síntoma de un serial de fecha
+  colado). No se aplica a REVENUE: hay ventas mensuales reales de 46637 a
+  96544 (agus, mauro).
 
 ### Reparto de ganancia (`fin_reparto`)
 
@@ -147,6 +177,27 @@ distinta de `Opening Balance:` y monto numérico es un reparto: beneficiario
 suma del reparto del mes = `Retained Earnings` del mes, margen 0.01.
 Solo `es_fundador()` lo ve. En esos meses `opening_balance` y
 `closing_balance` quedan NULL.
+
+- Monto numérico SIN etiqueta después de `Retained Earnings` (también
+  debajo de `Closing Balance:`): `fin_filas_rechazadas`, motivo
+  `posible reparto sin beneficiario`. No se inventa beneficiario (liam
+  febrero: 4267 + 13563.42 = Retained Earnings).
+- Etiqueta de reparto sin monto (teo enero y abril: `DYSTOPIA`): se ignora.
+
+## 4.1 Cuándo se aborta una corrida (cambia la regla del PLAN)
+
+El PLAN decía "si una fuente falla se aborta entera". Queda así:
+
+| Situación | Estado | ¿Toca datos? |
+|---|---|---|
+| Falta una columna obligatoria | `error` | No. Se conserva lo anterior. |
+| Cambió el hash de encabezado | `error` | No. Se conserva lo anterior. |
+| Estructura irreconocible (Opps sin fila de meses, meses repetidos) | `error` | No. |
+| Total de la planilla ≠ suma de ítems | `revisar` | Sí, con los ítems reales. |
+| Fecha o texto en celda de monto | `revisar` | Sí; la fila va a rechazadas. |
+| Todo cuadra | `ok` | Sí. |
+
+Las filas rechazadas o descartadas nunca abortan una corrida: se registran.
 
 ## 5. Cuotas (`fin_cuotas`) — forma declarada en `fin_fuentes.forma`
 

@@ -20,6 +20,7 @@ with pnl as (
          sum(monto_usd) filter (where categoria = 'staff')     as staff,
          sum(monto_usd) filter (where categoria = 'softwares') as softwares,
          sum(monto_usd) filter (where categoria = 'others')    as others,
+         sum(monto_usd) filter (where categoria = 'sin_categoria') as sin_categoria,
          sum(monto_usd) filter (where categoria <> 'revenue')  as gastos_total
   from public.fin_pnl
   group by cliente_id, anio, mes
@@ -42,6 +43,7 @@ select coalesce(p.cliente_id, g.cliente_id) as cliente_id,
        coalesce(p.staff, 0)                 as staff,
        coalesce(p.softwares, 0)             as softwares,
        coalesce(p.others, 0)                as others,
+       coalesce(p.sin_categoria, 0)         as sin_categoria,
        coalesce(p.gastos_total, 0)          as gastos_total,
        coalesce(p.revenue_declarado, 0) - coalesce(p.gastos_total, 0) as net_cash_flow,
        s.opening_balance,
@@ -158,6 +160,8 @@ select f.id as fuente_id,
        c.filas_rechazadas,
        c.filas_descartadas,
        c.mensaje,
+       c.controles,
+       (c.estado = 'revisar')        as requiere_revision,
        now() - c.inicio as antiguedad
 from public.fin_fuentes f
 left join lateral (

@@ -108,15 +108,18 @@ create table if not exists public.fin_sync_corridas (
   fuente_id         bigint not null references public.fin_fuentes(id) on delete cascade,
   inicio            timestamptz not null default now(),
   fin               timestamptz,
-  estado            text not null default 'en_curso' check (estado in ('en_curso', 'ok', 'error', 'parcial')),
+  estado            text not null default 'en_curso' check (estado in ('en_curso', 'ok', 'revisar', 'error', 'parcial')),
   filas_leidas      int,
   filas_cargadas    int,
   filas_rechazadas  int,
   filas_descartadas int,
   mensaje           text,
-  hash_encabezado   text
+  hash_encabezado   text,
+  controles         jsonb
 );
 create index if not exists fin_sync_corridas_fuente_idx on public.fin_sync_corridas (fuente_id, inicio desc);
+comment on column public.fin_sync_corridas.estado is 'error = falta columna obligatoria o cambio el hash de encabezado: no se toca ningun dato. revisar = se cargo con los items reales pero un total de la planilla no cuadra (o hubo una fecha en celda de monto).';
+comment on column public.fin_sync_corridas.controles is 'Detalle de lo que dejo la corrida en revisar: [{mes, motivo, control, items, planilla, diferencia}].';
 
 create table if not exists public.fin_filas_rechazadas (
   id              bigint generated always as identity primary key,
@@ -179,12 +182,14 @@ create table if not exists public.fin_pnl (
   sync_id          bigint  references public.fin_sync_corridas(id) on delete set null,
   anio             int     not null,
   mes              int     not null check (mes between 1 and 12),
-  categoria        text    not null check (categoria in ('revenue', 'staff', 'softwares', 'others')),
+  categoria        text    not null check (categoria in ('revenue', 'staff', 'softwares', 'others', 'sin_categoria')),
   item             text,
   monto_usd        numeric not null,
   fila_planilla    int     not null,
   columna_planilla int     not null
 );
+comment on column public.fin_pnl.categoria is 'sin_categoria = item en un mes donde falta la etiqueta de su categoria. No se reasigna a la anterior.';
+comment on table public.fin_pnl is 'Los numeros de la app son SIEMPRE la suma de estos items, nunca el Total Expenses/Revenue de la planilla (eso es solo control).';
 create index if not exists fin_pnl_cliente_mes_idx on public.fin_pnl (cliente_id, anio, mes);
 create index if not exists fin_pnl_fuente_idx on public.fin_pnl (fuente_id);
 
