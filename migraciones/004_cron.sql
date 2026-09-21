@@ -12,7 +12,9 @@
 -- ---------------------------------------------------------------------------
 -- Paso 0 (una sola vez, A MANO en el SQL Editor, fuera de este archivo):
 --   select vault.create_secret('https://alxdjcdfpdayucassfub.supabase.co/functions/v1/sincronizar', 'fin_sync_url');
---   select vault.create_secret('<service_role key: Project Settings > API Keys>', 'fin_sync_service_key');
+--   select vault.create_secret('<una secret key sb_secret_...: Project Settings > API Keys>', 'fin_sync_service_key');
+--   OJO: tiene que ser una sb_secret_ nueva. La service_role key LEGACY (JWT
+--   eyJ...) la funcion la rechaza a proposito (ver sincronizar/auth.ts).
 -- ---------------------------------------------------------------------------
 
 begin;

@@ -1,12 +1,16 @@
 // sincronizar/index.ts — Edge Function: Google Sheets (solo lectura) -> tablas fin_*.
 //
 // POST /functions/v1/sincronizar
-//   Authorization: Bearer <service_role key>   (cron, ver 004_cron.sql)
-//               o  Bearer <JWT de un fundador> (boton "Sincronizar ahora" o curl)
+//   Authorization: Bearer <sb_secret_... del proyecto>  (cron y curl; la
+//                  service_role key LEGACY en JWT se rechaza, ver auth.ts)
+//               o  Bearer <JWT de un fundador>          (boton "Sincronizar ahora")
 //   Cuerpo (opcional, JSON):
 //     { "fuente_id": 5 }                   solo esa fuente
 //     { "fuente_id": 5, "aceptar_encabezado": true }  acepta un encabezado nuevo
 //     { "dry_run": true }                  lee y parsea, NO escribe nada; devuelve el resumen
+//     { "dry_run": true, "detalle": true } ademas, por fuente: filas cargadas, rechazadas
+//                                          (fila tal como llego de la API y normalizada) e
+//                                          items de Opps. Solo con dry_run: sigue sin escribir.
 //
 // Por fuente: abre una corrida (en_curso), lee la hoja por gid con
 // FORMATTED_VALUE, normaliza con el locale de la planilla, parsea y escribe
@@ -15,16 +19,15 @@
 // Nunca escribe en Google Sheets.
 //
 // Deploy: supabase functions deploy sincronizar --no-verify-jwt
-// (la verificacion la hace este codigo: service_role o fundador).
+// (la verificacion la hace este codigo, en auth.ts: sb_secret_ o fundador).
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.116.0';
 import { tokenDeAcceso, metadatos, leerHojas } from './google.ts';
 import { normalizarMatriz } from '../_shared/formato.js';
 import { procesarFuente } from '../_shared/procesar.js';
+import { autorizar, CLAVE_SERVICIO } from './auth.ts';
 
 const URL_SB = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const TIPOS = new Set(['pagos', 'opps', 'cuotas']);
 
 const CORS = {
@@ -35,21 +38,6 @@ const CORS = {
 
 function responder(cuerpo: unknown, status = 200) {
   return new Response(JSON.stringify(cuerpo, null, 2), { status, headers: { ...CORS, 'content-type': 'application/json' } });
-}
-
-// service_role (cron) o un usuario logueado cuyo rol sea fundador.
-async function autorizado(req: Request): Promise<string | null> {
-  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  if (token === SERVICE_KEY) return 'cron';
-  const comoUsuario = createClient(URL_SB, ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false },
-  });
-  const { data: u } = await comoUsuario.auth.getUser(token);
-  if (!u?.user) return null;
-  const { data: fundador } = await comoUsuario.rpc('es_fundador');
-  return fundador === true ? `fundador:${u.user.email}` : null;
 }
 
 interface Fuente {
@@ -96,11 +84,47 @@ async function cerrarConError(sb: SupabaseClient, corridaId: number, mensaje: st
   if (error) console.error(`no se pudo cerrar la corrida ${corridaId}: ${error.message}`);
 }
 
-type Resultado = { fuente_id: number; cliente_id: string; tipo: string; estado: string; mensaje?: string | null; escrito?: unknown };
+type Resultado = { fuente_id: number; cliente_id: string; tipo: string; estado: string; mensaje?: string | null; escrito?: unknown; detalle?: unknown };
+
+function montosPagos(f: Fuente, crudo: string[][], pagos: any[]) {
+  const enc = (crudo[f.fila_encabezado - 1] ?? []).map((v) => String(v ?? '').trim().toLowerCase());
+  const col = (campo: string) => {
+    for (const a of f.alias.filter((x) => x.campo === campo)) {
+      const i = enc.indexOf(a.alias.trim().toLowerCase());
+      if (i > -1) return i;
+    }
+    return -1;
+  };
+  const cf = col('fecha'), cm = col('monto');
+  return pagos.map((x) => [x.fila_planilla, x.fecha, x.monto_usd, crudo[x.fila_planilla - 1]?.[cf] ?? null, crudo[x.fila_planilla - 1]?.[cm] ?? null]);
+}
+
+// Solo dry_run + detalle: lo necesario para comparar fila por fila contra los fixtures.
+function detalleDe(f: Fuente, locale: string | undefined, crudo: string[][], normalizada: unknown[][], r: any) {
+  const d = r.datos;
+  const filasCargadas = f.tipo === 'pagos' ? d.pagos.map((x: any) => x.fila_planilla)
+    : f.tipo === 'cuotas' ? [...new Set(d.cuotas.map((x: any) => x.fila_planilla))] : undefined;
+  return {
+    locale,
+    filas_api: crudo.length,
+    encabezado_api: crudo.slice(0, Math.max(1, f.fila_encabezado)),
+    filas_cargadas: filasCargadas,
+    cuotas: f.tipo === 'cuotas' ? d.cuotas : undefined,
+    // [mes, fila, col, categoria, item, monto parseado, texto de la celda tal como llego de la API]
+    items: f.tipo === 'opps' ? d.pnl.map((x: any) => [x.mes, x.fila_planilla, x.columna_planilla, x.categoria, x.item, x.monto_usd,
+      crudo[x.fila_planilla - 1]?.[x.columna_planilla - 1] ?? null]) : undefined,
+    // Pagos: [fila, fecha parseada, monto parseado, texto API de fecha, texto API de monto]. Sin nombres.
+    montos: f.tipo === 'pagos' ? montosPagos(f, crudo, d.pagos) : undefined,
+    rechazadas: d.rechazadas.map((x: any) => ({
+      fila: x.fila_planilla, motivo: x.motivo, valor_crudo: x.valor_crudo,
+      api: crudo[x.fila_planilla - 1] ?? null, normalizada: normalizada[x.fila_planilla - 1] ?? null,
+    })),
+  };
+}
 
 async function sincronizarFuente(
   sb: SupabaseClient, f: Fuente, lectura: { matriz?: string[][]; locale?: string; titulo?: string; error?: string },
-  opciones: { dryRun: boolean; aceptarEncabezado: boolean },
+  opciones: { dryRun: boolean; aceptarEncabezado: boolean; detalle: boolean },
 ): Promise<Resultado> {
   const base = { fuente_id: f.id, cliente_id: f.cliente_id, tipo: f.tipo };
   let corridaId = 0;
@@ -133,7 +157,10 @@ async function sincronizarFuente(
       return { ...base, estado: 'error', mensaje: r.mensaje };
     }
     if (opciones.dryRun) {
-      return { ...base, estado: r.estado, mensaje, escrito: { ...r.stats, controles: r.controles.length } };
+      return {
+        ...base, estado: r.estado, mensaje, escrito: { ...r.stats, controles: r.controles.length },
+        detalle: opciones.detalle ? detalleDe(f, lectura.locale, lectura.matriz ?? [], matriz, r) : undefined,
+      };
     }
     const { data, error } = await sb.rpc('fin_sync_escribir', {
       p_corrida: corridaId, p_estado: r.estado, p_mensaje: mensaje, p_hash: r.hash,
@@ -149,8 +176,8 @@ async function sincronizarFuente(
   }
 }
 
-async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean; aceptarEncabezado: boolean }) {
-  const sb = createClient(URL_SB, SERVICE_KEY, { auth: { persistSession: false } });
+async function sincronizar(opciones: { fuenteId: number | null; dryRun: boolean; aceptarEncabezado: boolean; detalle: boolean }) {
+  const sb = createClient(URL_SB, CLAVE_SERVICIO!, { auth: { persistSession: false } });
   const fuentes = await cargarFuentes(sb, opciones.fuenteId);
   const resultados: Resultado[] = [];
 
@@ -191,8 +218,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return responder({ error: 'usar POST' }, 405);
 
-  const quien = await autorizado(req);
-  if (!quien) return responder({ error: 'no autorizado: hace falta la service_role key o un usuario fundador' }, 401);
+  const quien = await autorizar(req);
+  if (!quien) return responder({ error: 'no autorizado: hace falta una secret key sb_secret_ del proyecto o un usuario fundador' }, 401);
+  if (!CLAVE_SERVICIO) {
+    console.error('[auth] no hay ninguna sb_secret_ configurada (SUPABASE_SECRET_KEYS / SUPABASE_SERVICE_ROLE_KEY): no se puede hablar con la base');
+    return responder({ error: 'la funcion no tiene una secret key sb_secret_ para hablar con la base' }, 500);
+  }
 
   let cuerpo: any = {};
   try {
@@ -202,7 +233,12 @@ Deno.serve(async (req) => {
     return responder({ error: 'el cuerpo no es JSON valido' }, 400);
   }
   const fuenteId = Number.isInteger(cuerpo.fuente_id) ? cuerpo.fuente_id : null;
-  const opciones = { fuenteId, dryRun: cuerpo.dry_run === true, aceptarEncabezado: cuerpo.aceptar_encabezado === true && fuenteId !== null };
+  const dryRun = cuerpo.dry_run === true;
+  const opciones = {
+    fuenteId, dryRun,
+    aceptarEncabezado: cuerpo.aceptar_encabezado === true && fuenteId !== null,
+    detalle: cuerpo.detalle === true && dryRun,
+  };
 
   const inicio = Date.now();
   try {
