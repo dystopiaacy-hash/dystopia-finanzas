@@ -1,0 +1,58 @@
+/* =====================================================================
+   Dystopia Finanzas — lo propio de esta app. Todo lo demás (base, layout,
+   componentes, responsive, vistas) es copia textual de Seguimiento: no se
+   redefine acá ningún color ni medida, solo se usan sus variables.
+   Se carga último.
+   ===================================================================== */
+
+/* ===== Barra de apps (arriba del contenido) ===== */
+.apps-bar{display:flex;align-items:center;gap:var(--sp-1);padding:var(--sp-2) var(--sp-8);border-bottom:1px solid var(--border-soft);background:var(--bg-alt);position:sticky;top:0;z-index:5;}
+.apps-link{font-weight:700;font-size:var(--fs-meta);color:var(--text-dim);padding:var(--sp-1) var(--sp-3);border-radius:999px;}
+.apps-link:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+.apps-link.actual{background:var(--accent-soft);color:var(--accent);}
+
+/* ===== Utilidades ===== */
+.grow{flex:1;}
+.cli-chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;}
+.card-titulo{font-weight:800;font-size:var(--fs-card);color:var(--ink);padding:var(--sp-3) var(--sp-4) var(--sp-2);}
+.card.nota{margin-bottom:var(--sp-4);font-size:var(--fs-body);color:var(--text-dim);}
+.detalle-grid{align-items:start;}
+.detalle-grid .data-table td{max-width:200px;}
+
+/* Número con link a su celda de la planilla */
+.celda-link{color:inherit;text-decoration:underline dotted var(--accent-line);text-decoration-thickness:2px;text-underline-offset:3px;}
+.celda-link:hover{color:var(--accent);text-decoration-color:var(--accent);}
+.celda-link::after{content:'↗';font-size:10px;margin-left:3px;color:var(--text-faint);}
+
+/* ===== P&L del cliente ===== */
+.mes-btn{background:none;border:0;padding:2px 6px;border-radius:var(--radius-sm);font:inherit;font-weight:700;color:var(--text-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.04em;}
+.mes-btn:hover{background:var(--surface-2);color:var(--ink);}
+.mes-btn.activo{background:var(--accent-soft);color:var(--accent);}
+.pnl-tabla td.col-activa{background:var(--accent-soft);}
+.pnl-tabla tr.pnl-fuerte td{font-weight:800;color:var(--ink);}
+.pnl-tabla tr.pnl-sub td:first-child{padding-left:var(--sp-8);color:var(--text-dim);}
+
+/* ===== Salud de sincronización ===== */
+.salud-banner{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;padding:var(--sp-3) var(--sp-4);border-radius:var(--radius);margin-bottom:var(--sp-4);font-size:var(--fs-body);}
+.salud-banner.hay{background:var(--danger-soft);color:var(--danger);}
+.salud-banner.nada{background:var(--success-soft);color:var(--success);}
+.salud-banner strong{margin-right:var(--sp-2);}
+.salud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:var(--sp-4);}
+/* Mismo tamaño y peso para error, parcial y revisar: solo cambia el color. */
+.salud-card{border-left:5px solid var(--badge-color);display:flex;flex-direction:column;gap:var(--sp-2);}
+.salud-card.sem-rojo{background:color-mix(in srgb, var(--sem-rojo) 4%, var(--surface));}
+.salud-card.sem-amarillo{background:color-mix(in srgb, var(--sem-amarillo) 6%, var(--surface));color:inherit;}
+.salud-head{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;}
+.salud-hoja{font-weight:700;color:var(--ink);font-size:var(--fs-body);}
+.salud-msg{font-size:var(--fs-body);color:var(--text);line-height:1.45;word-break:break-word;}
+.salud-nums{display:flex;gap:var(--sp-3);flex-wrap:wrap;font-size:var(--fs-meta);color:var(--text-dim);}
+.salud-nums strong{font-family:var(--font-mono);color:var(--ink);}
+.salud-controles{margin:0;padding-left:var(--sp-5);font-size:var(--fs-meta);color:var(--text-dim);display:flex;flex-direction:column;gap:2px;}
+.salud-acciones{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-1);}
+
+@media(max-width:1440px){ .apps-bar{padding:var(--sp-2) var(--sp-5);} }
+@media(max-width:860px){
+  .apps-bar{padding:var(--sp-2) var(--sp-4);}
+  .salud-grid{grid-template-columns:1fr;}
+  .detalle-grid{grid-template-columns:1fr;}
+}
