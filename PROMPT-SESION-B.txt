@@ -8,9 +8,31 @@ Vas a ejecutar las FASES 4 y 5 seguidas, sin pedirme OK entre fases.
 Paras solo en los casos de "CUANDO PARAR".
 
 CREDENCIALES Y RUTAS
-[PEGAR: URL de Supabase, publishable key, confirmacion de que el secreto
-de la service account de Google ya esta cargado, y la ruta local del repo
-de dystopia-seguimiento para copiar el CSS]
+
+- Supabase URL: https://alxdjcdfpdayucassfub.supabase.co
+- Publishable key: sb_publishable_EIkOqy24hED4t707eKnpDA_7s0DR4mE
+  (VERIFICAR contra Project Settings > API Keys antes de usarla; si no
+  coincide, usa la del dashboard y avisame)
+- Secreto de Google YA CARGADO en Supabase Edge Functions > Secrets:
+  nombre GOOGLE_SA_JSON, contenido = el JSON completo de la service
+  account. Lo leés con Deno.env.get('GOOGLE_SA_JSON') y JSON.parse.
+  NO lo pidas por separado ni esperes GOOGLE_PRIVATE_KEY.
+- Service account: dystopia-finanzas-sync@dystopia-finanzas.iam.gserviceaccount.com
+  Tiene permiso de LECTOR sobre las 5 planillas de Finanzas. No tiene ni
+  va a tener permiso de escritura.
+- Repo de Seguimiento para copiar el CSS y la estructura:
+  C:\Users\Admin\Downloads\dystopia-seguimiento
+- Proyecto actual: C:\Users\Admin\Downloads\dystopia-finanzas
+
+ESTADO DE LA BASE (verificado hoy, no lo vuelvas a consultar)
+
+- 000, 001, 002 y 003 corridas OK.
+- 12 tablas fin_*, todas con RLS, ninguna legible por anon, todas con
+  politica. fin_personas tiene 2 politicas.
+- 22 fuentes cargadas, 12 activas. 58 alias de columnas.
+- 5 vistas con security_invoker = true, ninguna legible por anon.
+- crm_members NO tiene CHECK sobre rol.
+- service_role ya tiene grant all sobre las 12 tablas fin_*.
 
 FASE 4 — Edge Function de sincronizacion
 
