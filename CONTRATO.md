@@ -5,6 +5,94 @@ fixtures reales (2026-09-21) y con las decisiones de Joaquín sobre esas
 diferencias. Es la fuente de `002_seed_config.sql` y de `parsers/contrato.js`.
 Si cambia algo acá, cambia en los dos.
 
+## 0. Cómo se lee Google Sheets: GRID, no `FORMATTED_VALUE` (2026-09-21)
+
+**Regla.** Cada hoja se lee con `spreadsheets.get` + `includeGridData=true`,
+pidiendo solo estos campos (`fields`):
+
+```
+sheets(properties(title),data(startRow,rowData(values(formattedValue,effectiveValue,effectiveFormat/numberFormat/type))))
+```
+
+Por celda llega el texto que se ve, el valor real y el **tipo** de formato.
+`supabase/functions/_shared/grid.js` lo convierte en la matriz de los parsers:
+
+| Celda | Llega al parser como |
+|---|---|
+| Número (NUMBER, CURRENCY, sin formato) | el valor real, sin el redondeo del formato |
+| PERCENT, TIME | el texto que se ve (no son montos: se rechazan) |
+| Texto | el texto, normalizado con el locale de la planilla (`formato.js`) |
+| DATE / DATE_TIME, valor en `serialMin..serialMax` | fecha completa `AAAA-MM-DD`, se vea como se vea |
+| DATE / DATE_TIME, valor ≤ `montoMaximoReal` | el número (pago real en celda con formato de fecha pegado) |
+| DATE / DATE_TIME, cualquier otro valor ("tierra de nadie") | marcada como ambigua: **no se carga nunca** |
+
+**El rango vive en un solo lugar:** `RANGO_FECHA_EN_MONTO` en `grid.js`.
+
+| Constante | Valor | Por qué |
+|---|---|---|
+| `montoMaximoReal` | 3250 | el pago más alto de las 5 cuentas (relevado 2026-09-21) |
+| `serialMin` | 43831 | 2020-01-01, el primer serial de fecha plausible |
+| `serialMax` | 47848 | 2030-12-31, el último |
+
+Entre 3250 y 43831 no hay ningún dato real, así que la regla no puede
+confundir un monto con una fecha. Un pago de más de 3250 en una celda con
+formato de fecha queda rechazado y visible: si pasa, se sube
+`montoMaximoReal` ahí y en ningún otro lado.
+
+**Qué pasa con una celda marcada como ambigua.**
+- En una columna de monto se rechaza con `monto ambiguo con formato de fecha`,
+  y el mes queda `revisar`. La corrida guarda el `COMPROBANTE` de la fila en el
+  control, y la vista de Salud lo muestra: es el único dato que permite
+  reconstruir el monto.
+- En una columna de fecha sigue siendo fecha. Por ejemplo, 2001-12-09 da
+  `fecha fuera de rango`, como siempre.
+
+**Casos reales que la motivan.** Son pagos tipeados en celdas con formato de
+fecha: Sheets los guardó como **fechas del año 1324/1328/1254**.
+- agus F5 = `1/7/1324`, se ve `1324.07` con el formato `yyyy.mm`.
+- agus F37 = `1/4/1328`, se ve `1328.4` con `yyyy.m`.
+- teo E178 = `1254.11` con `yyyy.m`.
+
+El monto no se puede recuperar de la celda, por dos razones:
+- `1328.4` y `1328.04` dan la misma fecha.
+- El comprobante de agus F37 dice `1.421,9`: 93,50 USD más que lo que se ve.
+
+Se rechazan, y una persona las corrige en la planilla mirando el comprobante.
+
+**Ojo con los exports.** En el `.xlsx` esas celdas aparecen como texto,
+porque Excel no guarda fechas anteriores a 1900. La fuente de verdad es la
+planilla, no el export ni los fixtures.
+
+### Por qué `values.get` con `FORMATTED_VALUE` NO alcanza
+
+Esa era la regla original. Salió de un fixture donde la fecha llegaba como
+texto ISO, pero eso era un artefacto de cómo se generó el fixture, no de
+cómo responde Sheets. El dry_run contra las planillas reales mostró tres fallas:
+
+| | Qué pasa | Caso real |
+|---|---|---|
+| A | Una fecha colada en un monto, con formato `d.m`, llega como `"26.5"` y **se carga como 26,5 USD**, sin aviso: se saltea la detección de fecha y la red 45000–47500 | lucas Opps septiembre f27 (`Dominio`, fecha 2026-05-26); lucas Pagos f154 (fecha 2026-08-31, se ve `31.8`) |
+| B | Una fecha con formato sin año llega como `"14/05"`: **el año se pierde** y la fila se rechaza | 8 pagos reales (liam f75, teo f91, mauro f473/474/566, lucas f155) y liam Cuotas f3/f6: **532 USD de cobranza pendiente** que desaparecían |
+| C | El monto llega **redondeado al formato de la celda** | liam/teo Opps agosto 10,8 → `11`; 26,5 → `27`; 335,6643357 → `335,66`; 9 pagos de lucas con un solo decimal |
+
+**Tamaño de la respuesta** (medido 2026-09-21):
+
+| Hoja | Sin `fields` | Con `fields` |
+|---|---|---|
+| mauro Data (CRM), la más grande | 169,5 MB | 5,8 MB |
+| liam Data (CRM) | 180,0 MB | 3,3 MB |
+| mauro Pagos, la más grande de las activas | — | 2,5 MB |
+
+Pedir sin filtro tumba la Edge Function (546, sin recursos).
+
+**Defensa en profundidad.** Las dos barreras de antes siguen, aunque con el
+grid ya no deberían dispararse:
+- el rechazo `fecha en celda de monto`;
+- la red 45000–47500 sobre ingresos de Opps, que avisa y no rechaza (mauro junio 46637 es real).
+
+`pruebas/formato.mjs` falla si alguien vuelve a `valueRenderOption`, saca
+`includeGridData` o `fields`, o repite los números del rango en otro archivo.
+
 ## 1. Alias de columnas de PAGOS (`fin_alias_columnas`)
 
 Una fila por (cliente, campo canónico, alias). El alias se compara
@@ -96,6 +184,7 @@ Toda fila leída termina en exactamente uno de tres destinos. Se verifica
 | Alumno pero monto vacío | rechazada | `falta monto` |
 | Monto con el texto `REFUND` (cualquier mayúscula) | rechazada | `refund sin monto numerico` |
 | Monto que es una fecha (`2026-08-31`) | rechazada | `fecha en celda de monto` |
+| Monto en celda con formato de fecha, valor en la tierra de nadie (sección 0) | rechazada | `monto ambiguo con formato de fecha` |
 | Otro monto no numérico (`si`, texto libre) | rechazada | `monto no numerico` |
 | `abs(monto) > tope_monto` de la fuente | rechazada | `monto fuera de rango, probable moneda local sin convertir` |
 | Fecha vacía | rechazada | `falta fecha` |
@@ -195,6 +284,7 @@ El PLAN decía "si una fuente falla se aborta entera". Queda así:
 | Estructura irreconocible (Opps sin fila de meses, meses repetidos) | `error` | No. |
 | Total de la planilla ≠ suma de ítems | `revisar` | Sí, con los ítems reales. |
 | Fecha o texto en celda de monto | `revisar` | Sí; la fila va a rechazadas. |
+| Monto ambiguo con formato de fecha (sección 0) | `revisar` | Sí; la fila va a rechazadas con su COMPROBANTE en el control. |
 | Todo cuadra | `ok` | Sí. |
 
 Las filas rechazadas o descartadas nunca abortan una corrida: se registran.

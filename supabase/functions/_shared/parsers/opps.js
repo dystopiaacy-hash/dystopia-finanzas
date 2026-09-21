@@ -15,7 +15,7 @@
 // `error` solo se setea por estructura irreconocible (sin fila de meses,
 // meses repetidos, sin anio): ahi la corrida no toca datos.
 
-import { esVacio, normalizar, texto, parseMonto, parseFecha, redondear } from './comun.js';
+import { esVacio, normalizar, texto, parseMonto, parseFecha, redondear, esAmbiguo, MOTIVO_MONTO_AMBIGUO } from './comun.js';
 
 export const MARGEN = 0.01;
 export const MOTIVO_FECHA_EN_MONTO = 'fecha en celda de monto';
@@ -133,7 +133,11 @@ function parseBloque(matriz, filaMeses, b, mes, anio, out, mapaCategorias) {
     const n = parseMonto(m.crudo);
 
     if (n === null) {
-      if (parseFecha(m.crudo)) {
+      if (esAmbiguo(m.crudo)) {
+        // En cualquier zona: un numero que no sabemos que es no se carga nunca.
+        rechazar(nro, MOTIVO_MONTO_AMBIGUO, m.crudo, fila);
+        revisar(MOTIVO_MONTO_AMBIGUO, { fila_planilla: nro, item: lab, valor: String(m.crudo) });
+      } else if (parseFecha(m.crudo)) {
         rechazar(nro, MOTIVO_FECHA_EN_MONTO, m.crudo, fila);
         revisar(MOTIVO_FECHA_EN_MONTO, { fila_planilla: nro, item: lab, valor: String(m.crudo) });
       } else if (['revenue', 'gastos', 'reparto'].includes(zona)) {

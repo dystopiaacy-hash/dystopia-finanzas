@@ -14,7 +14,7 @@
 
 import {
   FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseFecha,
-  fechaEnRango, celdasConDatos, filaCruda,
+  fechaEnRango, celdasConDatos, filaCruda, esAmbiguo, MOTIVO_MONTO_AMBIGUO,
 } from './comun.js';
 
 // Shape normalizado: igual en todas las formas, null donde no aplica.
@@ -63,13 +63,17 @@ function validarCuota(base, crudo, cfg, etiqueta) {
   const sufijo = etiqueta ? ` (${etiqueta})` : '';
   if (esVacio(crudo.monto)) return { motivo: `falta monto${sufijo}`, valor: null };
   q.monto = parseMonto(crudo.monto);
-  if (q.monto === null) return { motivo: `monto no numerico${sufijo}`, valor: crudo.monto };
+  if (q.monto === null) {
+    return { motivo: `${esAmbiguo(crudo.monto) ? MOTIVO_MONTO_AMBIGUO : 'monto no numerico'}${sufijo}`, valor: crudo.monto };
+  }
   if (cfg.tope !== null && Math.abs(q.monto) > cfg.tope) {
     return { motivo: `monto fuera de rango, probable moneda local sin convertir${sufijo}`, valor: crudo.monto };
   }
   if (!esVacio(crudo.monto_cobrado)) {
     q.monto_cobrado = parseMonto(crudo.monto_cobrado);
-    if (q.monto_cobrado === null) return { motivo: `monto cobrado no numerico${sufijo}`, valor: crudo.monto_cobrado };
+    if (q.monto_cobrado === null) {
+      return { motivo: `${esAmbiguo(crudo.monto_cobrado) ? MOTIVO_MONTO_AMBIGUO : 'monto cobrado no numerico'}${sufijo}`, valor: crudo.monto_cobrado };
+    }
   }
   if (!esVacio(crudo.fecha_pago)) {
     q.fecha_pago = parseFecha(crudo.fecha_pago);

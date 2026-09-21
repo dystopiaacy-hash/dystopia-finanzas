@@ -12,6 +12,7 @@
 import { parsePagos } from './parsers/pagos.js';
 import { parseOpps } from './parsers/opps.js';
 import { parseCuotas } from './parsers/cuotas.js';
+import { MOTIVO_MONTO_AMBIGUO } from './parsers/comun.js';
 
 // Red de seguridad independiente del formato: seriales de fecha 2023..2030.
 // Un ingreso real puede caer aca (mauro junio: 46637), por eso solo avisa.
@@ -97,11 +98,17 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
     cargadas = r.stats.filas_cargadas ?? r.filas.length;
     leidas = r.stats.filas_leidas;
     descartadas = r.stats.descartadas;
-    const fechasEnMonto = rechazadas.filter((x) => x.motivo === 'fecha en celda de monto');
-    for (const x of fechasEnMonto) {
-      controles.push({ motivo: 'fecha en celda de monto', fila_planilla: x.fila_planilla, valor: x.valor_crudo });
+    // Fecha en celda de monto o monto ambiguo con formato de fecha: el mes queda en revisar.
+    const aRevisar = rechazadas.filter((x) => x.motivo === 'fecha en celda de monto' || x.motivo.startsWith(MOTIVO_MONTO_AMBIGUO));
+    for (const x of aRevisar) {
+      const c = { motivo: x.motivo, fila_planilla: x.fila_planilla, valor: x.valor_crudo };
+      // Monto ambiguo: el COMPROBANTE es el unico dato de la fila que permite
+      // reconstruir el monto (agus f37: la celda se ve 1328.4 y el comprobante
+      // dice 1.421,9). Va al control para que Salud lo muestre.
+      if (x.motivo.startsWith(MOTIVO_MONTO_AMBIGUO)) c.comprobante = x.comprobante ?? null;
+      controles.push(c);
     }
-    if (fechasEnMonto.length) estado = 'revisar';
+    if (aRevisar.length) estado = 'revisar';
   }
 
   // Hoja que viene sin ninguna fila valida cuando antes tenia datos: casi

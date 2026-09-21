@@ -19,6 +19,29 @@
 // 45000..47500 de procesar.js.
 
 import { normalizarCelda, opcionesDeLocale } from './formato.js';
+import { marcarAmbiguo } from './parsers/comun.js';
+
+// Celda con formato de FECHA (DATE / DATE_TIME) y valor numerico: que es?
+// Pasa: hay pagos reales guardados en celdas con formato de fecha pegado de
+// otra columna (agus f5 1324.07 'yyyy.mm', agus f37 1328.4 y teo f178
+// 1254.11 'yyyy.m'). Y hay fechas reales coladas en celdas de monto (lucas
+// opps sep f27 '26.5', lucas pagos f154 '31.8'). Se decide por el VALOR:
+//   valor <= montoMaximoReal              -> es un monto: se usa el numero.
+//   serialMin <= valor <= serialMax        -> es una fecha: 'AAAA-MM-DD'
+//                                            (en una columna de monto el
+//                                            parser la rechaza, como siempre).
+//   cualquier otro valor (tierra de nadie) -> ambiguo: se rechaza con
+//                                            'monto ambiguo con formato de
+//                                            fecha' y el mes queda en revisar.
+// Por que estos numeros (relevado sobre las 5 cuentas, 2026-09-21):
+//   3250  = el pago mas alto de todo el sistema.
+//   43831 = 2020-01-01, el primer serial de fecha plausible.
+//   47848 = 2030-12-31, el ultimo.
+// Entre 3250 y 43831 no hay ningun dato real: por eso la regla no puede
+// confundir un monto con una fecha. Si aparece un pago de mas de 3250 en
+// una celda con formato de fecha, queda rechazado y visible (no se carga un
+// numero que no sabemos que es): subir montoMaximoReal ACA, en un solo lugar.
+export const RANGO_FECHA_EN_MONTO = Object.freeze({ montoMaximoReal: 3250, serialMin: 43831, serialMax: 47848 });
 
 const TIPOS_FECHA = new Set(['DATE', 'DATE_TIME']);
 const TIPOS_TEXTO = new Set(['PERCENT', 'TIME']);
@@ -42,7 +65,13 @@ export function valorDeCelda(c, opciones) {
   if (!ev) return texto === '' ? '' : normalizarCelda(texto, opciones);
   if (typeof ev.numberValue === 'number') {
     const tipo = c.effectiveFormat?.numberFormat?.type;
-    if (TIPOS_FECHA.has(tipo)) return serialAIso(ev.numberValue);
+    if (TIPOS_FECHA.has(tipo)) {
+      const v = ev.numberValue;
+      const { montoMaximoReal, serialMin, serialMax } = RANGO_FECHA_EN_MONTO;
+      if (v >= serialMin && v <= serialMax) return serialAIso(v);
+      if (Math.abs(v) <= montoMaximoReal) return v;
+      return marcarAmbiguo(texto, v, serialAIso(v));
+    }
     if (TIPOS_TEXTO.has(tipo)) return texto;
     return ev.numberValue;
   }

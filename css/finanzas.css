@@ -56,3 +56,7 @@
   .salud-grid{grid-template-columns:1fr;}
   .detalle-grid{grid-template-columns:1fr;}
 }
+
+/* Monto ambiguo con formato de fecha: el comprobante es lo que permite corregir la fila */
+.ctl-ambiguo{display:inline-flex;flex-direction:column;gap:2px;}
+.ctl-comprobante{color:var(--ink);font-weight:600;}

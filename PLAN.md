@@ -322,6 +322,23 @@ Esto es lo más delicado y va ANTES que la UI.
 ### FASE 4 — Edge Function de sincronización
 - `sincronizar/index.ts`: lee Google Sheets con una service account, aplica
   los parsers, escribe en una transacción por fuente, registra la corrida.
+- **Lectura por GRID** (`spreadsheets.get` + `includeGridData` con `fields`
+  filtrado), NO `values.get` con `FORMATTED_VALUE`. Por celda: texto que se
+  ve, valor real y tipo de formato.
+  - Una celda DATE es fecha si su valor cae entre 43831 y 47848 (2020–2030),
+    y es un monto si vale 3250 o menos (el pago más alto real).
+  - Cualquier otro valor es un monto ambiguo: se rechaza, el mes queda en
+    `revisar` y Salud muestra el COMPROBANTE de la fila.
+  - El rango vive solo en `RANGO_FECHA_EN_MONTO` (`_shared/grid.js`).
+  - Por qué FORMATTED_VALUE no alcanza: fechas `d.m` cargadas como montos,
+    fechas sin año que pierden el año, y montos redondeados al formato. Los
+    casos reales y la medición del payload están en CONTRATO.md sección 0.
+- Se siguen rechazando la fecha en celda de monto y la red 45000–47500:
+  defensa en profundidad.
+- Autorización: solo una `sb_secret_` del proyecto o el JWT de un fundador.
+  La service_role legacy (JWT) se rechaza a propósito (`sincronizar/auth.ts`),
+  y cada negativa deja una línea de log con el motivo, sin la key.
+- `dry_run` devuelve solo conteos y estados, nunca contenido de filas.
 - Service account en secreto de Supabase. Nunca en el frontend, nunca en el
   repo.
 - Si falla una fuente, las demás siguen. Los datos viejos de la fuente que

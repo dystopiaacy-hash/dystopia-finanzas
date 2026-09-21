@@ -16,6 +16,7 @@
 import {
   FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseMontoInicial,
   parseFecha, fechaEnRango, celdasConDatos, filaCruda, monedaDeMetodo, redondear,
+  esAmbiguo, MOTIVO_MONTO_AMBIGUO,
 } from './comun.js';
 
 export const MOTIVO_TOPE = 'monto fuera de rango, probable moneda local sin convertir';
@@ -105,7 +106,8 @@ export function parsePagos(matriz, config = {}) {
     }
     if (esVacio(montoCrudo)) { rechazar('falta monto', null); continue; }
     if (monto === null) {
-      const motivo = /refund/i.test(String(montoCrudo)) ? MOTIVO_REFUND
+      const motivo = esAmbiguo(montoCrudo) ? MOTIVO_MONTO_AMBIGUO
+        : /refund/i.test(String(montoCrudo)) ? MOTIVO_REFUND
         : parseFecha(montoCrudo) ? MOTIVO_FECHA_EN_MONTO : 'monto no numerico';
       rechazar(motivo, montoCrudo);
       continue;

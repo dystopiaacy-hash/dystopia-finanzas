@@ -4,6 +4,22 @@
 export const FECHA_MIN = '2024-01-01';
 export const FECHA_MAX = '2027-12-31';
 
+// Celda con formato de fecha cuyo valor cae en la tierra de nadie (ver
+// RANGO_FECHA_EN_MONTO en grid.js): como MONTO no se sabe que es; como FECHA
+// si (la celda tiene formato de fecha). grid.js la entrega marcada:
+//   - parseMonto la ve como no numerica y los parsers la rechazan con
+//     MOTIVO_MONTO_AMBIGUO (el mes queda en 'revisar'). Nunca se carga.
+//   - parseFecha devuelve la fecha completa, asi en una columna de fecha
+//     sigue el camino de siempre (ej. 2001-12-09 -> 'fecha fuera de rango').
+export const MOTIVO_MONTO_AMBIGUO = 'monto ambiguo con formato de fecha';
+const PREFIJO_AMBIGUO = `${MOTIVO_MONTO_AMBIGUO}: `;
+export function marcarAmbiguo(textoMostrado, valor, fechaIso) {
+  return `${PREFIJO_AMBIGUO}${textoMostrado} (valor ${valor}, fecha ${fechaIso})`;
+}
+export function esAmbiguo(v) {
+  return typeof v === 'string' && v.startsWith(PREFIJO_AMBIGUO);
+}
+
 export function esVacio(v) {
   return v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
 }
@@ -61,6 +77,10 @@ function isoValida(a, m, d) {
 // ISO (con o sin hora/fraccion), dd/mm/aaaa (dia primero, Argentina) y
 // numero de serie de Google Sheets.
 export function parseFecha(v) {
+  if (esAmbiguo(v)) {
+    const a = String(v).match(/fecha (\d{4})-(\d{2})-(\d{2})\)$/);
+    return a ? isoValida(+a[1], +a[2], +a[3]) : null;
+  }
   if (typeof v === 'number') {
     if (!Number.isFinite(v) || v < 20000 || v > 80000) return null;
     const t = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);

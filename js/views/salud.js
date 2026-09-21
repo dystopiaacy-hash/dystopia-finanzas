@@ -3,7 +3,7 @@
    parcial, colgada y nunca corrió se muestran con el MISMO peso que revisar
    (tarjeta grande arriba, mismo tamaño) y error va primero: una fuente caída
    no puede verse menos urgente que un total que no cuadra. */
-import { esc, fmtFechaHora, toast, confirmar, abrirModal } from '../ui.js';
+import { esc, fmtFechaHora, toast, confirmar, abrirModal, urlSegura } from '../ui.js';
 import { salud, corridas, rechazadas, fuentes, sincronizarAhora, numCelda, usd, MESES } from '../datos.js';
 import { vacio, clienteChip, badgeEstado, estadoFuente, requiereAccion, ESTADOS, botonRecargar } from './comunes.js';
 
@@ -113,7 +113,28 @@ function mensajeDe(f) {
   return f.mensaje || 'La corrida cargó los datos, pero hay controles que no cuadran.';
 }
 
+/* 'monto ambiguo con formato de fecha': la celda tiene una fecha (ej. 1/7/1324
+   mostrada como "1324.07") y el monto real no se puede saber desde ella. Se
+   muestra lo que se ve, la fecha que hay de verdad y el COMPROBANTE de la fila,
+   que es lo unico que permite reconstruir el monto (agus f37: se ve 1328.4 y
+   el comprobante dice 1.421,9). */
+const AMBIGUO = 'monto ambiguo con formato de fecha';
+const RE_MARCA = /^monto ambiguo con formato de fecha: (.*) \(valor (.*), fecha (.*)\)$/;
+
+function controlAmbiguo(c, fuente) {
+  const m = String(c.valor ?? '').match(RE_MARCA);
+  const celda = m ? `se ve "${esc(m[1])}" pero la celda tiene la fecha ${esc(m[3])}` : esc(c.valor ?? '');
+  const url = c.comprobante ? urlSegura(c.comprobante) : '';
+  const comp = !c.comprobante ? '<span class="txt-rojo">la fila no tiene comprobante</span>'
+    : url ? `<a href="${esc(url)}" target="_blank" rel="noopener">abrir comprobante ↗</a>`
+    : `«${esc(c.comprobante)}»`;
+  return `<span class="ctl-ambiguo"><span><strong>${esc(c.motivo)}</strong> · ${numCelda(`fila ${c.fila_planilla}`, fuente, c.fila_planilla)} · ${celda}</span>
+    <span class="ctl-comprobante">Comprobante: ${comp}</span>
+    <span class="txt-gris">No se cargó. Corregir la celda en la planilla mirando el comprobante, no lo que se ve.</span></span>`;
+}
+
 function control(c, fuente) {
+  if (String(c.motivo || '').startsWith(AMBIGUO)) return controlAmbiguo(c, fuente);
   const partes = [];
   if (c.mes) partes.push(`<strong>${esc(MESES[c.mes - 1])}</strong>`);
   partes.push(esc(c.motivo || 'control'));

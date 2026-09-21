@@ -13,6 +13,10 @@
 //      B  liam cuotas f3  CUOTA 1 fecha 2026-07-02 mostrada "02-07" (se perdia la fila y 532 USD pendientes)
 //      B  liam cuotas f6  CUOTA 1 fecha 2026-06-14 mostrada "14/06"
 //      C  liam opps  ago f46 AG  10,8 mostrado "11"                 (se cargaba 11)
+// 2b. Celdas con formato de FECHA en columnas de monto (RANGO_FECHA_EN_MONTO de
+//    grid.js): las 3 celdas reales (agus f5 = 1/7/1324 yyyy.mm, agus f37 y teo
+//    f178 yyyy.m) y toda la tierra de nadie se rechazan con 'monto ambiguo con
+//    formato de fecha' + comprobante; <= 3250 carga; 43831..47848 es fecha.
 // 3. El codigo de la Edge Function lee por grid con `fields` y no usa
 //    valueRenderOption. Si alguien lo cambia, falla aca.
 // 4. Siguen las dos barreras de defensa en profundidad: 'fecha en celda de
@@ -23,7 +27,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizarCelda, normalizarMatriz } from '../supabase/functions/_shared/formato.js';
-import { matrizDesdeGrid, isoASerial } from '../supabase/functions/_shared/grid.js';
+import { matrizDesdeGrid, isoASerial, RANGO_FECHA_EN_MONTO } from '../supabase/functions/_shared/grid.js';
+import { MOTIVO_MONTO_AMBIGUO } from '../supabase/functions/_shared/parsers/comun.js';
 import { procesarFuente, MOTIVO_SERIAL } from '../supabase/functions/_shared/procesar.js';
 import { CONFIG } from './config.mjs';
 
@@ -129,6 +134,115 @@ for (const c of CASOS) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. Celdas con formato de FECHA en columnas de monto (RANGO_FECHA_EN_MONTO).
+//     Las 3 reales (confirmadas en la PLANILLA, 2026-09-21): alguien tipeo el
+//     monto en una celda con formato de fecha y Sheets lo guardo como una
+//     FECHA del anio 1324/1328/1254 (agus F5 = 1/7/1324, se ve "1324.07" con
+//     yyyy.mm). En el .xlsx aparecen como texto porque Excel no guarda fechas
+//     anteriores a 1900: el export mentia, la fuente de verdad es la planilla.
+//     El monto NO se puede recuperar de la celda: 1328.4 y 1328.04 dan la
+//     misma fecha, y el comprobante de agus f37 dice 1.421,9 (93,50 USD mas
+//     que lo que se ve). Tienen que RECHAZARSE como 'monto ambiguo con formato
+//     de fecha', con el mes en revisar y el COMPROBANTE en el control, para
+//     que una persona las corrija mirando el comprobante.
+// ---------------------------------------------------------------------------
+const celdaFecha = (valor, patron, texto) => ({
+  formattedValue: texto, effectiveValue: { numberValue: valor },
+  effectiveFormat: { numberFormat: { type: 'DATE', pattern: patron } },
+});
+console.log('\nCeldas con formato de fecha en columnas de monto:');
+const REALES_FORMATO_FECHA = [
+  { id: 'agus f5', cuenta: 'agus', col: 6, fila: 5, fecha: '1324-07-01', patron: 'yyyy.mm', texto: '1324.07' },
+  { id: 'agus f37', cuenta: 'agus', col: 6, fila: 37, fecha: '1328-04-01', patron: 'yyyy.m', texto: '1328.4' },
+  { id: 'teo f178', cuenta: 'teo', col: 5, fila: 178, fecha: '1254-11-01', patron: 'yyyy.m', texto: '1254.11' },
+];
+for (const c of REALES_FORMATO_FECHA) {
+  const crudo = leer(c.cuenta, 'pagos');
+  const grid = aGrid(crudo, LOCALES.es_AR);
+  grid.rowData[c.fila - 1].values[c.col - 1] = celdaFecha(isoASerial(c.fecha), c.patron, c.texto);
+  const res = await procesarFuente(fuenteDe(c.cuenta, 'pagos'), matrizDesdeGrid(grid, 'es_AR'), null);
+  const b = base[`${c.cuenta}/pagos`];
+  const rech = res.datos && res.datos.rechazadas.find((r) => r.fila_planilla === c.fila);
+  const ctl = res.controles.find((x) => x.fila_planilla === c.fila);
+  // El comprobante del control tiene que ser el de la fila (texto o link de Drive).
+  const colComp = crudo[0].findIndex((h) => String(h ?? '').trim().toUpperCase() === 'COMPROBANTE');
+  const compFixture = crudo[c.fila - 1][colComp];
+  const compEsperado = compFixture === null || compFixture === undefined ? null : String(compFixture).trim();
+  const resto = (d) => d.pagos.filter((p) => p.fila_planilla !== c.fila).map((p) => `${p.fila_planilla}:${p.fecha}:${p.monto_usd}`).join();
+  const checks = {
+    'no carga': res.datos && !res.datos.pagos.some((p) => p.fila_planilla === c.fila),
+    'motivo ambiguo': rech && rech.motivo === MOTIVO_MONTO_AMBIGUO,
+    'mes en revisar': res.estado === 'revisar',
+    'comprobante en el control': ctl && ctl.motivo === MOTIVO_MONTO_AMBIGUO && ctl.comprobante === compEsperado,
+    'marca con lo que se ve y la fecha': rech && rech.valor_crudo.includes(c.texto) && rech.valor_crudo.includes(c.fecha),
+    'el resto igual': res.datos && resto(res.datos) === resto(b.datos) && res.datos.pagos.length === b.datos.pagos.length - 1,
+  };
+  const mal = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);
+  if (mal.length) falla(`[formato fecha ${c.id}] ${c.fecha} ('${c.texto}', ${c.patron}): falla ${mal.join(', ')}`);
+  console.log(`  ${c.id.padEnd(9)} ${c.fecha} se ve ${c.texto.padEnd(8)} ${mal.length ? 'MAL' : 'rechazada, revisar, con comprobante'}`);
+}
+
+// Tierra de nadie: ni monto real (<= montoMaximoReal) ni fecha plausible
+// (serialMin..serialMax). No se carga NUNCA: rechazada + mes en revisar.
+const { montoMaximoReal, serialMin, serialMax } = RANGO_FECHA_EN_MONTO;
+async function pagoConMonto(celda) {
+  const crudo = leer('liam', 'pagos');
+  const grid = aGrid(crudo, LOCALES.es_AR);
+  const L = LOCALES.es_AR;
+  grid.rowData.push({ values: [celdaGrid('2026-02-10T00:00:00', L), celdaGrid('X', L), celdaGrid('Alumno prueba', L), {}, celdaGrid('FEE', L), celda] });
+  const res = await procesarFuente(fuenteDe('liam', 'pagos'), matrizDesdeGrid(grid, 'es_AR'), null);
+  return { res, fila: grid.rowData.length };
+}
+const ESPERADOS = [
+  // [valor, que tiene que pasar]
+  [12000, 'ambiguo'], [montoMaximoReal + 0.01, 'ambiguo'], [serialMin - 1, 'ambiguo'], [serialMax + 1, 'ambiguo'], [60000, 'ambiguo'],
+  [montoMaximoReal, 'carga'], [900, 'carga'],
+  [serialMin, 'fecha'], [isoASerial('2026-06-12'), 'fecha'], [serialMax, 'fecha'],
+];
+for (const [valor, esperado] of ESPERADOS) {
+  const { res, fila } = await pagoConMonto(celdaFecha(valor, 'dd/mm/yyyy', String(valor)));
+  const rech = res.datos && res.datos.rechazadas.find((r) => r.fila_planilla === fila);
+  const cargo = res.datos && res.datos.pagos.some((p) => p.fila_planilla === fila && p.monto_usd === valor);
+  const obtenido = cargo ? 'carga'
+    : rech && rech.motivo === MOTIVO_MONTO_AMBIGUO && res.estado === 'revisar' ? 'ambiguo'
+    : rech && rech.motivo === 'fecha en celda de monto' && res.estado === 'revisar' ? 'fecha' : `otro (${rech ? rech.motivo : 'sin rechazo'}, ${res.estado})`;
+  if (obtenido !== esperado) falla(`[tierra de nadie] celda DATE con valor ${valor} en monto: se esperaba '${esperado}' y dio '${obtenido}'`);
+}
+console.log(`  pagos: tierra de nadie (${montoMaximoReal}..${serialMin} y > ${serialMax}) rechaza, <= ${montoMaximoReal} carga, ${serialMin}..${serialMax} es fecha`);
+
+// Tierra de nadie tambien en cuotas y en Opps.
+{
+  const crudo = leer('liam', 'cuotas');
+  const grid = aGrid(crudo, LOCALES.es_AR);
+  grid.rowData[2].values[2] = celdaFecha(12000, 'yyyy.m', '1932.11');   // CUOTA 1 monto de la fila 3
+  const res = await procesarFuente(fuenteDe('liam', 'cuotas'), matrizDesdeGrid(grid, 'es_AR'), null);
+  const r = res.datos && res.datos.rechazadas.find((x) => x.fila_planilla === 3);
+  if (!r || !r.motivo.startsWith(MOTIVO_MONTO_AMBIGUO) || res.estado === 'ok' || res.datos.cuotas.some((q) => q.fila_planilla === 3)) {
+    falla(`[tierra de nadie] cuotas: no se rechazo como ambiguo (${r ? r.motivo : 'sin rechazo'}, ${res.estado})`);
+  } else console.log(`  cuotas: '${r.motivo}' -> ${res.estado}`);
+}
+{
+  const crudo = leer('liam', 'opps');
+  const grid = aGrid(crudo, LOCALES.es_AR);
+  const item = base['liam/opps'].datos.pnl.find((x) => x.categoria === 'revenue');
+  grid.rowData[item.fila_planilla - 1].values[item.columna_planilla - 1] = celdaFecha(12000, 'yyyy.m', '1932.11');
+  const res = await procesarFuente(fuenteDe('liam', 'opps'), matrizDesdeGrid(grid, 'es_AR'), null);
+  const cargo = res.datos.pnl.some((x) => x.fila_planilla === item.fila_planilla && x.mes === item.mes);
+  const marcado = res.controles.some((x) => x.mes === item.mes && x.motivo === MOTIVO_MONTO_AMBIGUO);
+  if (cargo || !marcado || res.estado !== 'revisar') falla('[tierra de nadie] opps: un ingreso ambiguo se cargo o no dejo el mes en revisar');
+  else console.log(`  opps: ingreso ambiguo en ${item.mes}/f${item.fila_planilla} rechazado, mes en revisar`);
+}
+// En una columna de FECHA la celda DATE es fecha aunque caiga en la tierra de
+// nadie (liam pagos f183..188 tienen 2001-12-09): 'fecha fuera de rango', como siempre.
+{
+  const r = base['liam/pagos'].datos.rechazadas.filter((x) => x.fila_planilla >= 183 && x.fila_planilla <= 188);
+  const crudo = leer('liam', 'pagos');
+  const res = await procesarFuente(fuenteDe('liam', 'pagos'), matrizDesdeGrid(aGrid(crudo, LOCALES.es_AR), 'es_AR'), null);
+  const g = res.datos.rechazadas.filter((x) => x.fila_planilla >= 183 && x.fila_planilla <= 188);
+  if (!g.length || g.some((x, i) => x.motivo !== r[i].motivo || x.motivo !== 'fecha fuera de rango')) falla('[fecha] una celda DATE de 2001 en la columna de fecha no dio fecha fuera de rango');
+}
+
+// ---------------------------------------------------------------------------
 // 3. El codigo lee por grid, con fields, y no por values.get.
 // ---------------------------------------------------------------------------
 const google = readFileSync(join(RAIZ, 'supabase/functions/sincronizar/google.ts'), 'utf8');
@@ -141,6 +255,18 @@ for (const campo of ['formattedValue', 'effectiveValue', 'effectiveFormat/number
 if (!/fields:\s*CAMPOS_GRID/.test(google)) falla('[codigo] leerGrid no filtra con fields: el payload vuelve a ser enorme');
 if (!/matrizDesdeGrid\(/.test(index) || /normalizarMatriz\(/.test(index)) falla('[codigo] index.ts no arma la matriz con matrizDesdeGrid');
 if (/detalle/.test(index.replace(/^\s*\/\/.*$/gm, ''))) falla('[codigo] index.ts vuelve a tener un modo detalle: la respuesta no puede traer contenido de filas');
+// El rango se define UNA vez (grid.js, RANGO_FECHA_EN_MONTO). Ningun otro archivo repite los numeros.
+{
+  const { readdirSync, statSync } = await import('node:fs');
+  const archivos = [];
+  const recorrer = (d) => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) recorrer(p); else if (/\.(js|ts|mjs|sql)$/.test(n)) archivos.push(p); } };
+  for (const d of ['supabase/functions', 'js', 'migraciones']) recorrer(join(RAIZ, d));
+  for (const p of archivos) {
+    if (p.endsWith(join('_shared', 'grid.js'))) continue;
+    const s = readFileSync(p, 'utf8');
+    for (const n of ['3250', '43831', '47848']) if (new RegExp(`\\b${n}\\b`).test(s)) falla(`[codigo] ${p.slice(RAIZ.length + 1)} repite ${n}: el rango vive solo en RANGO_FECHA_EN_MONTO (grid.js)`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // 4. Defensa en profundidad: las dos barreras siguen.
