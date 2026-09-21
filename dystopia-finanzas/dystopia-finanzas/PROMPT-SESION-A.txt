@@ -1,0 +1,75 @@
+Proyecto nuevo: Dystopia Finanzas. En la carpeta ya estan PLAN.md,
+pruebas/fixtures/ con datos reales de las 5 cuentas y .gitignore.
+
+Lee COMPLETOS y una sola vez, ahora, estos tres archivos:
+  PLAN.md
+  CONFIG-FUENTES.md
+  DATOS-CONFIRMADOS.md
+Son los unicos que lees enteros en toda la sesion.
+
+CONFIG-FUENTES.md y DATOS-CONFIRMADOS.md tienen valores ya verificados
+contra las planillas reales y contra Supabase. NO los vuelvas a consultar,
+NO los asumas distinto y NO inventes placeholders donde ya hay un valor.
+
+Vas a ejecutar las FASES 1, 2 y 3 seguidas, sin parar a pedirme OK entre
+fases. Pares solo en los casos de la seccion "CUANDO PARAR" de abajo.
+
+ORDEN DE TRABAJO
+
+1) FASE 1. Escribi migraciones/000_inspeccion.sql y CONTRATO.md.
+   Casi toda la inspeccion ya esta hecha y volcada en DATOS-CONFIRMADOS.md.
+   Lo unico que 000_inspeccion.sql tiene que agregar es la consulta de
+   CHECK constraints sobre crm_members.rol que figura ahi.
+   No ejecutes nada.
+
+2) FASE 2. Escribi 001_esquema_fin.sql, 002_seed_config.sql y
+   003_vistas.sql. El seed sale ENTERO de CONFIG-FUENTES.md, con los
+   spreadsheet_id y gid reales. No debe quedar ni un PEGAR_AQUI.
+   Las fuentes de tipo `form` no se insertan. Las de CRM se insertan con
+   activo = false. No ejecutes nada.
+
+3) FASE 3. Escribi los 3 parsers y pruebas/correr.mjs, y CORRELO contra
+   los fixtures hasta que pase. Este es el gate real de la sesion.
+
+QUE TIENE QUE VERIFICAR pruebas/correr.mjs
+
+Por cada una de las 5 cuentas:
+ a) parsers/opps.js: la suma de los gastos que parseaste por mes tiene que
+    dar igual al "Total Expenses" que trae la planilla, con margen de 0.01.
+    Lo mismo "Total Revenue" contra la suma del bloque REVENUE.
+ b) parsers/pagos.js: filas_leidas = filas_cargadas + rechazadas +
+    descartadas_en_silencio. Ninguna fila puede desaparecer sin quedar
+    contada en alguna de las tres.
+ c) parsers/cuotas.js: las 3 formas (liam, mauro, teo) devuelven filas
+    normalizadas con el mismo shape.
+ d) Ninguna fecha parseada cae fuera del rango 2024-01-01 a 2027-12-31.
+    Si cae fuera es que parseaste mal el formato, no que el dato es raro.
+ e) Ningun monto queda en NaN ni en null si la fila se dio por cargada.
+
+El script imprime una tabla final por cuenta y sale con codigo 1 si algo
+falla. Corrilo con node, sin dependencias externas, solo ES modules.
+
+CUANDO PARAR Y PREGUNTARME
+
+- Si algo que encontras contradice DATOS-CONFIRMADOS.md: pará y decimelo.
+- Si un parser no logra cuadrar los totales despues de 3 intentos serios:
+  pará y explicame que no cuadra y con que numeros. No relajes el margen
+  de 0.01 para que pase. Eso seria hacer trampa.
+- Si encontras en los fixtures algo que contradice la seccion 2 del
+  PLAN.md: pará y decimelo. El plan lo escribi yo sobre los mismos datos,
+  asi que una contradiccion significa que uno de los dos esta mal.
+
+REGLAS QUE NO SE NEGOCIAN
+
+- NUNCA ejecutes SQL. Ni con MCP ni de ninguna forma.
+- Ningun .js de mas de 500 lineas.
+- No toques pruebas/fixtures/, son de solo lectura.
+- No escribas el frontend. Eso es la sesion B.
+- git commit al cerrar cada fase, con mensaje descriptivo.
+
+AL FINAL DE TODO, informame en un solo mensaje:
+1. Archivos creados, con el largo en lineas de cada uno.
+2. Decisiones que tomaste por tu cuenta.
+3. Supuestos a validar con la agencia.
+4. Que encontraste en los datos que yo no habia previsto.
+5. El orden exacto en que tengo que correr las migraciones en Supabase.

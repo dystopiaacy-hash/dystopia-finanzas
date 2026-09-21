@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+.vercel/
+# Los fixtures tienen nombres de alumnos, telefonos y sueldos del equipo.
+# No van al repo, ni siquiera privado.
+pruebas/fixtures/
