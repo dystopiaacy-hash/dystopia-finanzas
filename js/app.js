@@ -157,6 +157,7 @@ async function iniciarApp() {
     return;
   }
   renderLayout(app, salir);
+  window.montarNavAreas(document.getElementById('nav-areas'), yo.rol);
   registrarRutas();
   iniciarRouter();
 }

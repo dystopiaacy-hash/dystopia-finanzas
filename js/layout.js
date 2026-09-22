@@ -20,6 +20,7 @@ export function renderLayout(app, onSalir) {
         <div class="brand-mark">DYS<span>TOPIA</span></div>
         <div class="brand-sub">Finanzas</div>
       </div>
+      <nav id="nav-areas"></nav>
       <nav class="nav-list" id="nav" aria-label="Navegación"></nav>
       <div class="sidebar-foot">
         <span id="user-email" title="${esc(yo.email)}">${esc(yo.email)}</span>
