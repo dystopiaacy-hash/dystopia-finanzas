@@ -25,7 +25,7 @@
 // NULL + celda rechazada con el valor crudo.
 
 import {
-  FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseFecha, fechaEnRango, filaCruda,
+  FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseFecha, parseFechaTexto, fechaEnRango, filaCruda,
 } from './comun.js';
 
 export const MOTIVO_CELDA = 'celda rechazada, la fila se cargo sin este valor';
@@ -84,12 +84,13 @@ function mapearColumnas(encabezado, alias) {
   return { col, faltan, errores };
 }
 
+// Encabezado repetido = la celda de fecha repite el encabezado de su columna.
+// No se cuentan coincidencias sueltas como en Pagos: lucas f51 es una llamada
+// real con "Calificacion" y "Programa" pegados en esas celdas, y tiene que
+// cargarse (con la calificacion rechazada como celda).
 function esEncabezadoRepetido(fila, encabezado, col) {
-  let iguales = 0;
-  for (const ks of Object.values(col)) {
-    for (const k of ks) if (!esVacio(fila[k]) && normalizar(fila[k]) === normalizar(encabezado[k])) iguales++;
-  }
-  return iguales >= 2;
+  const k = col.fecha_llamada[0];
+  return !esVacio(fila[k]) && normalizar(fila[k]) === normalizar(encabezado[k]);
 }
 
 export function parseData(matriz, config = {}) {
@@ -148,7 +149,8 @@ export function parseData(matriz, config = {}) {
 
     const fechaCruda = celda(fila, 'fecha_llamada');
     if (esVacio(fechaCruda)) { rechazarFila('falta fecha_llamada', null); continue; }
-    const fecha = parseFecha(fechaCruda);
+    // Mezcla de celdas fecha y texto de GHL (CONTRATO-DATA.md §4.2).
+    const fecha = parseFecha(fechaCruda) ?? parseFechaTexto(fechaCruda);
     if (!fecha) {
       rechazarFila(typeof fechaCruda === 'string' && /[a-z]/i.test(fechaCruda) ? MOTIVO_FECHA_TEXTO : 'fecha no parsea', fechaCruda);
       continue;

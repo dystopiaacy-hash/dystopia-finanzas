@@ -98,6 +98,32 @@ export function parseFecha(v) {
   return null;
 }
 
+// Fecha en texto como la escribe GHL por API en las hojas Data:
+// "Saturday, September 5, 2026 7:00 PM" (a veces con un espacio adelante).
+// Devuelve 'AAAA-MM-DD' o null. Solo ese patron exacto, en ingles (en los 4
+// CRM no hay meses ni dias en castellano, relevado 2026-09-22); nada parecido
+// se adivina ("July 7 2016, 6 PM", "friday, september 22", "9:00AM" -> null).
+// ZONA HORARIA: el resultado es un date, no un instante. Anio, mes y dia se
+// sacan del texto y la hora se descarta: NUNCA new Date(texto), que interpreta
+// en la zona del servidor y corre el dia en las llamadas de la noche.
+// El dia de la semana se exige en el patron pero no se contrasta con la fecha.
+const MESES_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
+  'august', 'september', 'october', 'november', 'december'];
+const RE_FECHA_GHL = new RegExp(
+  '^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), '
+  + '(January|February|March|April|May|June|July|August|September|October|November|December) '
+  + '(\\d{1,2}), (\\d{4}) (?:1[0-2]|0?[1-9]):[0-5]\\d (?:AM|PM)$');
+
+export function parseFechaTexto(v) {
+  if (typeof v !== 'string') return null;
+  const m = v.trim().match(RE_FECHA_GHL);
+  if (!m) return null;
+  const mes = MESES_EN.indexOf(m[1].toLowerCase()) + 1;
+  const dia = Number(m[2]);
+  if (mes < 1 || dia < 1 || dia > 31) return null;
+  return isoValida(Number(m[3]), mes, dia);
+}
+
 export function fechaEnRango(iso, min = FECHA_MIN, max = FECHA_MAX) {
   return iso >= min && iso <= max;
 }

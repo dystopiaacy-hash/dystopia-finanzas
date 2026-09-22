@@ -5,13 +5,19 @@
 // con los alias de migraciones/014_alias_data.sql (se leen del archivo, no de
 // una copia). Verifica:
 //  1. NADA FUERA DE DOMINIO LLEGA A LA BASE. Los tres casos de la consigna:
-//       - fecha en texto (" Saturday, September 5, 2026 7:00 PM", liam)
+//       - fecha en texto (" Saturday, September 5, 2026 7:00 PM", liam):
+//         llega como '2026-09-05', nunca como texto
 //       - #DIV/0! en show_up y calificacion (mauro)
 //       - show_up inventado ("Ghosteado", mauro; real, 1 celda)
-//     ninguno aparece en datos.llamadas (lo que va a fin_sync_escribir) y
-//     cada uno queda en datos.rechazadas con su valor crudo.
+//     ninguno aparece crudo en datos.llamadas (lo que va a fin_sync_escribir);
+//     #DIV/0! y Ghosteado quedan en datos.rechazadas con su valor crudo.
 //     Ademas: todo show_up / calificacion de datos.llamadas esta en el
 //     dominio del CHECK de migraciones/013_llamadas.sql (leido del archivo).
+//  1b. Fechas en texto de GHL REALES de las 4 planillas (parseFechaTexto de
+//     comun.js): las nocturnas (9 y 10 PM) no corren el dia en ninguna zona
+//     horaria, y las que no siguen el patron exacto se siguen rechazando.
+//     Se corre en UTC+14, UTC-3 y UTC-12 cambiando process.env.TZ adentro
+//     del proceso (la variable TZ de la linea de comandos no aplica en Windows).
 //  2. #DIV/0!, 0 y un valor inventado rechazan la CELDA, no la fila.
 //  3. liam: fecha_llamada sale de la columna 2 por posicion, closer de la 1.
 //  4. mauro: nombre = Nombre + Apellido; encabezado con salto de linea.
@@ -27,6 +33,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { procesarFuente } from '../supabase/functions/_shared/procesar.js';
 import { parseData, MOTIVO_FECHA_TEXTO, MOTIVO_CELDA } from '../parsers/data.js';
+import { parseFechaTexto } from '../parsers/comun.js';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fallas = [];
@@ -100,7 +107,8 @@ const MATRIZ = {
     ENC.lucas,
     fila('lucas', { 1: 'Diego Sosa', 2: '2026-08-12', 3: 'Fran ', 4: 'SI', 5: 'Se desconoce', 9: 'LANDING', 15: 'Mentoria', 16: '900' }),
     fila('lucas', { 1: 'Eva Gomez', 2: '2026-08-13', 3: 'franco ', 4: 'por closer', 5: 'NO CALIFICADO' }),
-    fila('lucas', { 1: 'Fede Luna', 2: '2026-08-14', 3: 'German ', 4: 'NO', 5: 'Calificacion' }),
+    fila('lucas', { 1: 'Fede Luna', 2: '2026-08-14', 3: 'German ', 4: 'NO', 5: 'Calificacion', 15: 'Programa' }),   // real, f51
+    fila('lucas', ENC.lucas.map((h, k) => [k + 1, h]).reduce((o, [k, h]) => ({ ...o, [k]: h }), {})),          // encabezado repetido
   ],
   teo: [
     ENC.teo,
@@ -147,9 +155,7 @@ for (const [cli, r] of Object.entries(R)) {
 const rech = (cli) => R[cli].datos.rechazadas;
 const llam = (cli, f) => R[cli].datos.llamadas.find((l) => l.fila_planilla === f);
 
-check(rech('liam').some((x) => x.fila_planilla === 3 && x.motivo === MOTIVO_FECHA_TEXTO && x.valor_crudo === FECHA_TEXTO),
-  'liam f3: la fecha en texto no quedo en rechazadas con su valor crudo');
-check(!llam('liam', 3), 'liam f3: la fila con fecha en texto se cargo');
+check(llam('liam', 3)?.fecha_llamada === '2026-09-05', `liam f3: la fecha en texto no se cargo como 2026-09-05 (${llam('liam', 3)?.fecha_llamada})`);
 check(rech('mauro').filter((x) => x.fila_planilla === 2 && x.valor_crudo === '#DIV/0!').length === 2,
   'mauro f2: #DIV/0! en show_up y calificacion no quedaron las dos en rechazadas');
 check(rech('mauro').some((x) => x.fila_planilla === 4 && x.valor_crudo === INVENTADO && x.motivo.startsWith('show_up')),
@@ -193,11 +199,57 @@ check(llam('lucas', 2)?.closer === 'Fran' && llam('lucas', 2)?.cc_dia1 === 900, 
 check(llam('lucas', 3)?.show_up === 'cancelado por closer', "lucas: 'por closer' no se mapeo");
 check(llam('teo', 4)?.show_up === 'cancelado por closer', "teo: 'Cancelado por Closer' no se mapeo");
 
+check(llam('lucas', 4)?.nombre === 'Fede Luna', 'lucas f4: fila real con dos celdas iguales al encabezado se descarto');
+check(!llam('lucas', 5) && R.lucas.stats.descartadas === 1, 'lucas f5: el encabezado repetido no se descarto');
+
 // 6. Corte y descartes.
 const pl = parseData(MATRIZ.liam, { alias: ALIAS.liam });
 check(pl.stats.filas_leidas === 4 && pl.stats.cola_sin_fecha === 2, `liam: corte por fecha (leidas ${pl.stats.filas_leidas}, cola ${pl.stats.cola_sin_fecha})`);
 check(pl.descartadas.length === 1 && pl.descartadas[0].fila_planilla === 4, 'liam f4: la vacia intercalada no se descarto');
 check(rech('teo').some((x) => x.fila_planilla === 3 && x.motivo === 'falta fecha_llamada'), 'teo f3: fila sin fecha no quedo rechazada');
+
+// 1b. Fechas en texto reales: [cliente, fila, texto tal cual en el xlsx, esperado].
+const REALES = [
+  ['liam', 275, ' Wednesday, August 5, 2026 10:00 PM', '2026-08-05'],   // nocturna
+  ['liam', 1499, ' Thursday, September 24, 2026 6:00 PM', '2026-09-24'],
+  ['lucas', 483, ' Tuesday, September 8, 2026 2:00 PM', '2026-09-08'],
+  ['teo', 240, ' Thursday, July 16, 2026 10:00 PM', '2026-07-16'],      // nocturna
+  ['mauro', 566, 'Monday, June 1, 2026 9:00 PM', '2026-06-01'],         // nocturna, sin espacio
+  ['mauro', 567, 'Monday, June 1, 2026 9:20 PM', '2026-06-01'],
+  ['mauro', 2, 'Saturday, May 30, 2026 12:00 PM', '2026-05-30'],
+  ['liam', 201, ' Saturday, July 4, 2026 a la tarde', null],
+  ['liam', 204, 'Tuesday, July 7 2016, 6 PM', null],
+  ['liam', 207, 'Saturday, July, 11, 2026, 6.30 PM ', null],
+  ['liam', 208, 'Wednesday, July 8, 2026', null],
+  ['liam', 452, 'Monday, September 14, 09:00 AM', null],
+  ['lucas', 265, '11/062026', null],
+  ['lucas', 380, 'bloqueo(abuela)', null],
+  ['teo', 177, 'Monady, June 15, 2026 3:00 PM', null],
+  ['teo', 293, 'Thursday, August 20, 2026, 8:00 PM', null],
+  ['teo', 353, 'friday, september 22, 2026', null],
+  ['mauro', 704, 'Tuesday, June 23 2026 9:00AM', null],
+];
+const TZ_ORIGINAL = process.env.TZ;
+for (const zona of ['Pacific/Kiritimati', 'America/Argentina/Buenos_Aires', 'Etc/GMT+12']) {
+  process.env.TZ = zona;
+  for (const [cli, f, txt, esperado] of REALES) {
+    const got = parseFechaTexto(txt);
+    check(got === esperado, `[${zona}] parseFechaTexto ${cli} f${f} ${JSON.stringify(txt)}: dio ${got}, se esperaba ${esperado}`);
+  }
+}
+if (TZ_ORIGINAL === undefined) delete process.env.TZ; else process.env.TZ = TZ_ORIGINAL;
+for (const txt of ['Monday, Junio 1, 2026 9:00 PM', 'Monday, June 0, 2026 9:00 PM', 'Monday, June 32, 2026 9:00 PM',
+  'Monday, February 30, 2026 9:00 PM', 'Monday, June 1, 2026 13:00 PM']) {
+  check(parseFechaTexto(txt) === null, `parseFechaTexto ${JSON.stringify(txt)} deberia ser null`);
+}
+// Las mismas por el parser: la nocturna se carga con su dia; la que no matchea se rechaza.
+const noche = [ENC.teo,
+  fila('teo', { 1: 'Nocturna', 2: ' Thursday, July 16, 2026 10:00 PM', 3: 'Franco Lagrega', 4: 'SI' }),
+  fila('teo', { 1: 'Coma de mas', 2: 'Thursday, August 20, 2026, 8:00 PM', 3: 'Franco Lagrega', 4: 'SI' })];
+const pn = parseData(noche, { alias: ALIAS.teo });
+check(pn.filas.length === 1 && pn.filas[0].fecha_llamada === '2026-07-16', `teo nocturna: ${JSON.stringify(pn.filas)}`);
+check(pn.rechazadas.length === 1 && pn.rechazadas[0].motivo === MOTIVO_FECHA_TEXTO
+  && pn.rechazadas[0].valor_crudo === 'Thursday, August 20, 2026, 8:00 PM', `teo texto que no matchea: ${JSON.stringify(pn.rechazadas)}`);
 
 // 8. posicion que no coincide.
 const malo = ALIAS.liam.map((a) => (a.campo === 'fecha_llamada' ? { ...a, posicion: 3 } : a));
