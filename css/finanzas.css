@@ -5,12 +5,6 @@
    Se carga último.
    ===================================================================== */
 
-/* ===== Barra de apps (arriba del contenido) ===== */
-.apps-bar{display:flex;align-items:center;gap:var(--sp-1);padding:var(--sp-2) var(--sp-8);border-bottom:1px solid var(--border-soft);background:var(--bg-alt);position:sticky;top:0;z-index:5;}
-.apps-link{font-weight:700;font-size:var(--fs-meta);color:var(--text-dim);padding:var(--sp-1) var(--sp-3);border-radius:999px;}
-.apps-link:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
-.apps-link.actual{background:var(--accent-soft);color:var(--accent);}
-
 /* ===== Utilidades ===== */
 .grow{flex:1;}
 .cli-chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;}
@@ -50,9 +44,7 @@
 .salud-controles{margin:0;padding-left:var(--sp-5);font-size:var(--fs-meta);color:var(--text-dim);display:flex;flex-direction:column;gap:2px;}
 .salud-acciones{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-1);}
 
-@media(max-width:1440px){ .apps-bar{padding:var(--sp-2) var(--sp-5);} }
 @media(max-width:860px){
-  .apps-bar{padding:var(--sp-2) var(--sp-4);}
   .salud-grid{grid-template-columns:1fr;}
   .detalle-grid{grid-template-columns:1fr;}
 }

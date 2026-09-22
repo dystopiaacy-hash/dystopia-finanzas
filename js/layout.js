@@ -1,7 +1,6 @@
-/* Layout (replica Seguimiento): barra de apps arriba, sidebar con marca,
+/* Layout (replica Seguimiento): sidebar con marca (y nav-areas),
    navegación y pie (email + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
-import { APPS } from './config.js';
 import { yo, esFundador, veFinanzas, veCobranzas, etiquetaRol } from './sesion.js';
 
 /* [ruta, etiqueta, subtítulo, visible()] */
@@ -28,11 +27,6 @@ export function renderLayout(app, onSalir) {
       </div>
     </aside>
     <main class="main">
-      <nav class="apps-bar" aria-label="Apps de Dystopia">
-        ${APPS.map(a => a.url
-          ? `<a class="apps-link" href="${esc(a.url)}" rel="noopener">${esc(a.nombre)}</a>`
-          : `<span class="apps-link actual" aria-current="page">${esc(a.nombre)}</span>`).join('')}
-      </nav>
       <div class="main-inner">
         <header class="topbar view-head">
           <div class="client-head">

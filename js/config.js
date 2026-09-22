@@ -7,14 +7,6 @@ export const SUPABASE_KEY = 'sb_publishable_EIkOqy24hED4t707eKnpDA_7s0DR4mE';
 /* Zona horaria de negocio: hoy y vencimientos se calculan acá, nunca en UTC. */
 export const TZ = 'America/Argentina/Buenos_Aires';
 
-/* Barra superior: las otras dos apps. SUPUESTO a confirmar: dominios de Vercel
-   derivados del nombre de los repos (dystopia-crm, dystopia-seguimiento). */
-export const APPS = [
-  { id: 'crm', nombre: 'CRM', url: 'https://dystopia-crm.vercel.app' },
-  { id: 'seguimiento', nombre: 'Seguimiento', url: 'https://dystopia-seguimiento.vercel.app' },
-  { id: 'finanzas', nombre: 'Finanzas', url: null }
-];
-
 /* Salud de sincronización: el cron corre cada 15 min. Una fuente sin corrida
    buena hace más de esto se marca desactualizada; una corrida 'en_curso' más
    vieja que COLGADA_MIN se considera caída. */
