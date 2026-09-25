@@ -36,6 +36,11 @@ export const pnlMensual = () =>
 export const conciliacion = () =>
   todas(() => sb.from('fin_v_conciliacion').select('*').order('anio').order('mes'));
 
+/* Cash collected por cliente / mes / categoría de concepto (032). */
+export const cashPorConcepto = () =>
+  todas(() => sb.from('fin_v_cash_collected_concepto')
+    .select('cliente_id,anio,mes,categoria,pagos,monto_usd').order('anio').order('mes').order('cliente_id').order('categoria'));
+
 export const cobranzas = () =>
   todas(() => sb.from('fin_v_cobranzas').select('*').order('fecha_pago', { ascending: true, nullsFirst: false }));
 

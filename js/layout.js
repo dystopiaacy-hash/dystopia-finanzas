@@ -7,6 +7,7 @@ import { yo, esFundador, veFinanzas, veCobranzas, etiquetaRol } from './sesion.j
 const VISTAS = [
   ['resumen', 'Resumen agencia', 'Todos los clientes', veFinanzas],
   ['conciliacion', 'Conciliación', 'Opps contra Pagos', veFinanzas],
+  ['conceptos', 'Cash por concepto', 'Torta por categoría', veFinanzas],
   ['cobranzas', 'Cobranzas', 'Cuotas pendientes', veCobranzas],
   ['mis-numeros', 'Mis números', 'Closers y setters', () => true],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]

@@ -10,6 +10,7 @@ import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
 import { vistaConciliacion } from './views/conciliacion.js';
+import { vistaConceptos } from './views/conceptos.js';
 import { vistaCobranzas } from './views/cobranzas.js';
 import { vistaMisNumeros } from './views/mis-numeros.js';
 import { vistaSalud } from './views/salud.js';
@@ -106,6 +107,11 @@ function registrarRutas() {
     renderNav({ vista: 'conciliacion' });
     setHeader('Conciliación', 'Total Revenue de Opps contra la suma de Pagos del mismo mes');
     montar(vistaConciliacion);
+  }));
+  ruta('conceptos', guardia(veFinanzas, () => {
+    renderNav({ vista: 'conceptos' });
+    setHeader('Cash por concepto', 'Cash collected del mes por categoría de concepto');
+    montar(vistaConceptos);
   }));
   ruta('cobranzas', guardia(veCobranzas, () => {
     renderNav({ vista: 'cobranzas' });

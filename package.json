@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node pruebas/correr.mjs && node pruebas/formato.mjs && node pruebas/data.mjs",
+    "test": "node pruebas/correr.mjs && node pruebas/formato.mjs && node pruebas/data.mjs && node pruebas/conceptos.mjs",
     "check:fn": "deno check --node-modules-dir=none supabase/functions/sincronizar/index.ts",
     "test:fn": "deno test --node-modules-dir=none --allow-read pruebas/corte.test.ts"
   }
