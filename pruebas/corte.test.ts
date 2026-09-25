@@ -13,7 +13,7 @@
 // Uso: deno test --no-check=remote -A pruebas/corte.test.ts   (o npm run test:fn)
 
 import { assert, assertEquals } from 'jsr:@std/assert@1';
-import { ABIERTAS, alApagar, barrerHuerfanas, sincronizar, type Google } from '../supabase/functions/sincronizar/nucleo.ts';
+import { ABIERTAS, alApagar, barrerHuerfanas, MOTIVO_RECHAZOS, sincronizar, type Google } from '../supabase/functions/sincronizar/nucleo.ts';
 import { aplicarUmbralPayload, MOTIVO_PAYLOAD, umbralPayload, UMBRAL_PAYLOAD_DEFECTO, HUERFANA_MIN } from '../supabase/functions/_shared/corridas.js';
 import { isoASerial } from '../supabase/functions/_shared/grid.js';
 import { CONFIG } from './config.mjs';
@@ -78,16 +78,26 @@ class Base {
   sig = 1000;
   // Si devuelve una promesa que no resuelve, esa consulta queda colgada (el worker "muere").
   gancho: ((q: Consulta) => Promise<never> | undefined) | null = null;
+  // Llamadas a fin_rechazos_escribir, en orden, y errores forzados por fuente.
+  rechazos: Fila[] = [];
+  falla: { sync?: Set<number>; rechazos?: Set<number> } = {};
   from(t: string) { return new Consulta(this, t); }
   rpc(nombre: string, a: Fila) {
+    if (nombre === 'fin_rechazos_escribir') {
+      this.rechazos.push(a);
+      if (this.falla.rechazos?.has(a.p_fuente_id)) return Promise.resolve({ data: null, error: { message: 'rechazos: boom' } });
+      return Promise.resolve({ data: [{ insertados: a.p_rechazos.length, actualizados: 0, borrados: 7 }], error: null });
+    }
     assertEquals(nombre, 'fin_sync_escribir');
     const c = this.corridas.find((x) => x.id === a.p_corrida);
     if (!c) return Promise.resolve({ data: null, error: { message: `no existe la corrida ${a.p_corrida}` } });
     if (c.estado !== 'en_curso') return Promise.resolve({ data: null, error: { message: `la corrida ${c.id} ya esta cerrada (${c.estado})` } });
+    if (this.falla.sync?.has(c.fuente_id)) return Promise.resolve({ data: null, error: { message: 'sync: boom' } });
     const n = (k: string) => (a.p_datos?.[k] ?? []).length;
-    Object.assign(c, { estado: a.p_estado, fin: new Date().toISOString(), mensaje: a.p_mensaje, controles: a.p_controles, filas_cargadas: n('pagos') + n('pnl') + n('cuotas') });
-    return Promise.resolve({ data: { pagos: n('pagos'), pnl: n('pnl'), cuotas: n('cuotas') }, error: null });
+    Object.assign(c, { estado: a.p_estado, fin: new Date().toISOString(), mensaje: a.p_mensaje, controles: a.p_controles, filas_cargadas: n('pagos') + n('pnl') + n('cuotas'), filas_rechazadas: n('rechazadas'), _datos: a.p_datos });
+    return Promise.resolve({ data: { pagos: n('pagos'), pnl: n('pnl'), cuotas: n('cuotas'), rechazadas: n('rechazadas') }, error: null });
   }
+  fuentesConRechazos() { return this.rechazos.map((r) => r.p_fuente_id); }
   estados() { return this.corridas.map((c) => c.estado); }
   cuenta(estado: string) { return this.corridas.filter((c) => c.estado === estado).length; }
 }
@@ -288,4 +298,152 @@ Deno.test('F. el barrido no toca corridas recientes ni cerradas', async () => {
   );
   assertEquals(await barrerHuerfanas(db as any), { cortadas: 0, omitidas: 0 });
   assertEquals(db.estados(), ['en_curso', 'pendiente', 'ok', 'error']);
+});
+
+// --- Rechazos por identidad (migracion 033): fin_rechazos_escribir ---
+//   G. Lectura buena: una llamada por fuente, TAMBIEN con 0 rechazos, solo las
+//      6 claves (sin huella), y fin_sync_escribir ya no recibe rechazos.
+//   H. REGLA 2: si la lectura de una fuente falla o se corta, NO se llama para esa fuente.
+//   I. Si fin_rechazos_escribir falla: la corrida no se cae, queda el aviso.
+const CLAVES = ['comprobante', 'contenido_crudo', 'fila_planilla', 'metodo_pago', 'motivo', 'valor_crudo'];
+
+Deno.test('G. lectura buena: una llamada por fuente, con las 6 claves, sin huella', async () => {
+  ABIERTAS.clear();
+  const db = new Base();
+  const res = await sincronizar(db as any, googleFalso(), OPC);
+  assertEquals(db.fuentesConRechazos(), FUENTES.map((f) => f.id), 'una llamada por fuente, en orden');
+  for (const llamada of db.rechazos) {
+    const c = db.corridas.find((x) => x.id === llamada.p_corrida_id)!;
+    assertEquals(c.fuente_id, llamada.p_fuente_id);
+    assert(Array.isArray(llamada.p_rechazos));
+    for (const x of llamada.p_rechazos) assertEquals(Object.keys(x).sort(), CLAVES);
+    assert(!JSON.stringify(llamada.p_rechazos).includes('"huella"'));
+    assertEquals(c._datos.rechazadas, undefined, 'fin_sync_escribir ya no recibe rechazos');
+    assertEquals(c.filas_rechazadas, llamada.p_rechazos.length, 'filas_rechazadas se corrige despues');
+    assert(c.mensaje.includes(`rechazos: ${llamada.p_rechazos.length} nuevos, 0 siguen, 7 borrados`), c.mensaje);
+  }
+  assert(db.rechazos.some((l) => l.p_rechazos.length === 0), 'hay fuentes con 0 rechazos y se llamo igual, con []');
+  assert(db.rechazos.some((l) => l.p_rechazos.length > 0));
+  assert(res.every((r) => (r.escrito as any)?.rechazadas?.borrados === 7));
+});
+
+async function llamadasCon(db: Base, g: Google, opc = OPC) {
+  ABIERTAS.clear();
+  await sincronizar(db as any, g, opc);
+  return new Set(db.fuentesConRechazos());
+}
+
+Deno.test('H. REGLA 2: lectura fallida o cortada -> no se llama para esa fuente', async () => {
+  // H1. Google no da los metadatos de una planilla (las 3 fuentes de liam: 4, 5, 6).
+  {
+    const g = googleFalso();
+    const meta = g.metadatos;
+    g.metadatos = (t, id) => id === 'SS_liam' ? Promise.reject(new Error('503')) : meta(t, id);
+    const llamadas = await llamadasCon(new Base(), g);
+    for (const id of [4, 5, 6]) assert(!llamadas.has(id), `H1: se llamo para la fuente ${id}`);
+    assert(llamadas.has(7), 'H1: las otras planillas siguen normal');
+  }
+  // H2. La descarga de la hoja se corta (tira) en la fuente 5.
+  {
+    const g = googleFalso();
+    const bajar = g.descargarHoja;
+    g.descargarHoja = (t, id, titulo) => id === 'SS_liam' && titulo === FUENTES[1].nombre_hoja_esperado
+      ? Promise.reject(new Error('conexion cortada')) : bajar(t, id, titulo);
+    const db = new Base();
+    const llamadas = await llamadasCon(db, g);
+    assert(!llamadas.has(5), 'H2: se llamo con la descarga cortada');
+    assertEquals(db.corridas.find((c) => c.fuente_id === 5)!.estado, 'error');
+    assert(llamadas.has(4) && llamadas.has(6));
+  }
+  // H3. La respuesta llego a medias (JSON truncado): el parseo tira.
+  {
+    const g = googleFalso();
+    const bajar = g.descargarHoja;
+    g.descargarHoja = async (t, id, titulo) => {
+      const d = await bajar(t, id, titulo);
+      return id === 'SS_agus' ? { ...d, texto: d.texto.slice(0, Math.floor(d.texto.length / 2)) } : d;
+    };
+    const llamadas = await llamadasCon(new Base(), g);
+    for (const id of [7, 8]) assert(!llamadas.has(id), `H3: se llamo con JSON truncado (fuente ${id})`);
+    assert(llamadas.has(9));
+  }
+  // H4. La hoja no esta en la planilla (gid inexistente).
+  {
+    const g = googleFalso();
+    const meta = g.metadatos;
+    g.metadatos = async (t, id) => { const m = await meta(t, id); return { ...m, hojas: m.hojas.filter((h) => h.gid !== 900) }; };
+    const llamadas = await llamadasCon(new Base(), g);
+    assert(!llamadas.has(9), 'H4: se llamo sin la hoja');
+  }
+  // H5. Cambio el encabezado respecto de la ultima corrida buena.
+  {
+    const db = new Base();
+    db.corridas.push({ id: 1, fuente_id: 10, estado: 'ok', inicio: antes(60), hash_encabezado: 'otro', filas_cargadas: 5 });
+    const llamadas = await llamadasCon(db, googleFalso());
+    assert(!llamadas.has(10), 'H5: se llamo con encabezado cambiado');
+    assert(llamadas.has(11));
+  }
+  // H6. Hoja sin filas validas cuando antes tenia datos (guarda de hoja vacia).
+  {
+    const g = googleFalso();
+    const bajar = g.descargarHoja;
+    const f = FUENTES.find((x) => x.id === 5)!;
+    g.descargarHoja = async (t, id, titulo) => {
+      const d = await bajar(t, id, titulo);
+      if (id !== f.spreadsheet_id || titulo !== f.nombre_hoja_esperado) return d;
+      const j = JSON.parse(d.texto);
+      j.sheets[0].data[0].rowData = j.sheets[0].data[0].rowData.slice(0, f.fila_encabezado);
+      return { ...d, texto: JSON.stringify(j) };
+    };
+    const db = new Base();
+    db.corridas.push({ id: 1, fuente_id: 5, estado: 'ok', inicio: antes(60), hash_encabezado: null, filas_cargadas: 50 });
+    const llamadas = await llamadasCon(db, g);
+    assert(!llamadas.has(5), 'H6: se llamo con la hoja vacia');
+    assertEquals(db.corridas.find((c) => c.fuente_id === 5 && c.id !== 1)!.estado, 'error');
+  }
+  // H7. fin_sync_escribir falla (transaccion revertida): tampoco se tocan los rechazos.
+  {
+    const db = new Base();
+    db.falla.sync = new Set([12]);
+    const llamadas = await llamadasCon(db, googleFalso());
+    assert(!llamadas.has(12), 'H7: se llamo con la escritura revertida');
+  }
+  // H8. El worker muere descargando la fuente 3: ni esa ni las que no se intentaron.
+  {
+    ABIERTAS.clear();
+    const db = new Base();
+    sincronizar(db as any, googleFalso(3), OPC); // colgada para siempre
+    await respirar();
+    assertEquals(db.fuentesConRechazos(), [4, 5]);
+    ABIERTAS.clear();
+  }
+  // H9. dry_run no escribe rechazos.
+  {
+    const llamadas = await llamadasCon(new Base(), googleFalso(), { ...OPC, dryRun: true });
+    assertEquals(llamadas.size, 0);
+  }
+});
+
+Deno.test('I. fin_rechazos_escribir falla: nunca queda en ok; revisar con control, no error', async () => {
+  ABIERTAS.clear();
+  const normal = new Base();
+  await sincronizar(normal as any, googleFalso(), OPC);
+  const antes = new Map(normal.corridas.map((c) => [c.fuente_id, c.estado]));
+  assert([...antes.values()].includes('ok'), 'hay fuentes que normalmente dan ok');
+
+  ABIERTAS.clear();
+  const db = new Base();
+  db.falla.rechazos = new Set(FUENTES.map((f) => f.id)); // fallan todas
+  const res = await sincronizar(db as any, googleFalso(), OPC);
+  for (const c of db.corridas) {
+    const era = antes.get(c.fuente_id)!;
+    assertEquals(c.estado, era === 'ok' ? 'revisar' : era, `fuente ${c.fuente_id}: era ${era}`);
+    assert(c.controles.some((x: any) => x.motivo === MOTIVO_RECHAZOS && x.error === 'rechazos: boom'), `fuente ${c.fuente_id} sin control`);
+    assert(/no se pudieron actualizar los rechazos/.test(c.mensaje), c.mensaje);
+    assertEquals(res.find((r) => r.fuente_id === c.fuente_id)!.estado, c.estado);
+  }
+  assertEquals(db.cuenta('ok'), 0);
+  assertEquals(db.cuenta('error'), 0);
+  assertEquals(db.fuentesConRechazos().length, 12, 'una falla no frena las demas fuentes');
+  assertEquals(ABIERTAS.size, 0);
 });

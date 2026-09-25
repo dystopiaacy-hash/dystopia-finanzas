@@ -119,6 +119,66 @@ async function cerrarConError(sb: SupabaseClient, corridaId: number, mensaje: st
   }
 }
 
+// Reemplaza los rechazos de UNA fuente (fin_rechazos_escribir, migracion 033):
+// upsert por (fuente_id, fila_planilla, motivo, huella) y borra los que no
+// vinieron. Solo se llama con la hoja leida entera, y SIEMPRE en ese caso,
+// aunque no haya rechazos: con [] se borran los que ya se arreglaron.
+// La huella la calcula Postgres: se mandan solo las 6 claves de la funcion.
+// Corre despues de fin_sync_escribir, que ya cerro la corrida: si falla no
+// tira (los datos ya estan escritos, 'error' no corresponde), pero la corrida
+// NO puede quedar en 'ok': los rechazos a la vista son los de la corrida
+// anterior (la funcion es una transaccion). Pasa a 'revisar' con un control
+// MOTIVO_RECHAZOS; si ya estaba peor (revisar/parcial) se conserva.
+export const MOTIVO_RECHAZOS = 'rechazos sin actualizar';
+
+async function escribirRechazos(
+  sb: SupabaseClient, fuenteId: number, corridaId: number, rechazadas: any[],
+  estado: string, controles: unknown[], mensaje: string,
+): Promise<{ estado: string; mensaje: string; escrito: unknown }> {
+  // Dos entradas con la misma identidad en un mismo upsert hacen fallar el
+  // ON CONFLICT ('cannot affect row a second time'): se deja la primera.
+  const vistos = new Set<string>();
+  const payload = [];
+  for (const x of rechazadas) {
+    const fila = {
+      fila_planilla: x.fila_planilla ?? null, motivo: x.motivo ?? null, valor_crudo: x.valor_crudo ?? null,
+      comprobante: x.comprobante ?? null, metodo_pago: x.metodo_pago ?? null,
+      contenido_crudo: x.contenido_crudo ?? [], // igual que el coalesce de fin_sync_escribir
+    };
+    const clave = JSON.stringify([fila.fila_planilla, fila.motivo, fila.contenido_crudo]);
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    payload.push(fila);
+  }
+
+  let campos: Record<string, unknown>;
+  let escrito: unknown;
+  const { data, error } = await sb.rpc('fin_rechazos_escribir', {
+    p_fuente_id: fuenteId, p_corrida_id: corridaId, p_rechazos: payload,
+  });
+  if (error) {
+    const aviso = `no se pudieron actualizar los rechazos (quedan los de la corrida anterior): ${error.message}`;
+    console.error(`[rechazos] fuente ${fuenteId} corrida ${corridaId}: ${aviso}`);
+    campos = {
+      estado: estado === 'ok' ? 'revisar' : estado,
+      controles: [...controles, { motivo: MOTIVO_RECHAZOS, error: error.message }],
+      filas_rechazadas: rechazadas.length,
+      mensaje: [mensaje, aviso].filter(Boolean).join(' · '),
+    };
+    escrito = { enviados: payload.length, error: error.message };
+  } else {
+    const n = (Array.isArray(data) ? data[0] : data) ?? {};
+    const insertados = n.insertados ?? 0, actualizados = n.actualizados ?? 0, borrados = n.borrados ?? 0;
+    const linea = `rechazos: ${insertados} nuevos, ${actualizados} siguen, ${borrados} borrados`;
+    console.log(`[rechazos] fuente ${fuenteId} corrida ${corridaId}: ${linea} (${payload.length} enviados)`);
+    campos = { filas_rechazadas: rechazadas.length, mensaje: [mensaje, linea].filter(Boolean).join(' · ') };
+    escrito = { enviados: payload.length, insertados, actualizados, borrados };
+  }
+  // fin_sync_escribir ya dejo filas_rechazadas en 0 (no recibio rechazos).
+  try { await actualizar(sb, corridaId, campos); } catch (e) { console.error((e as Error).message); }
+  return { estado: (campos.estado as string) ?? estado, mensaje: campos.mensaje as string, escrito };
+}
+
 type Planilla = { token?: string; meta?: Metadatos; error?: string };
 
 async function correrFuente(
@@ -170,13 +230,21 @@ async function correrFuente(
     if (dry) {
       return { ...base, estado, mensaje, payload_bytes: bytes, escrito: { ...r.stats, controles: controles.length } };
     }
+    // Los rechazos NO van en p_datos: fin_sync_escribir los insertaria por
+    // corrida_id y se duplican en cada pasada. Van aparte, por identidad (033).
+    const { rechazadas, ...datos } = r.datos;
     const { data, error } = await sb.rpc('fin_sync_escribir', {
       p_corrida: corridaId, p_estado: estado, p_mensaje: mensaje, p_hash: r.hash,
       p_controles: controles, p_leidas: r.stats.leidas ?? null, p_descartadas: r.stats.descartadas ?? null,
-      p_datos: r.datos,
+      p_datos: datos,
     });
     if (error) throw new Error(`escribiendo (transaccion revertida, se conservan los datos anteriores): ${error.message}`);
-    return { ...base, estado, mensaje, payload_bytes: bytes, escrito: data };
+    // Aca la hoja se leyo y se proceso ENTERA: recien ahora se pueden reemplazar
+    // sus rechazos. Cualquier salida anterior (error de Google, hoja que no
+    // esta, encabezado cambiado, hoja vacia, excepcion, dry_run) no llega aca,
+    // y los rechazos de la fuente quedan como estaban.
+    const rech = await escribirRechazos(sb, f.id, corridaId, rechazadas ?? [], estado, controles, mensaje);
+    return { ...base, estado: rech.estado, mensaje: rech.mensaje, payload_bytes: bytes, escrito: { ...data, rechazadas: rech.escrito } };
   } catch (e) {
     const msg = (e as Error).message;
     if (!dry) await cerrarConError(sb, corridaId, msg);
