@@ -432,3 +432,31 @@ having count(*) > 1;
     entrar en cuenta que teo, lucas y mauro cargan a fin de mes.
 14. **Julia Aguirre:** ¿existe la planilla de Finanzas 2025? ¿Qué se hace
     con los meses de neto negativo?
+
+---
+
+## 13. Resultados de las queries (corridas el 2026-10-02)
+
+- 10.1: agus 250, liam 171, lucas 205, mauro 777, teo 218.
+  - liam y lucas coinciden al centavo con el xlsx.
+  - Faltan 4 filas, todas rechazadas por el parser:
+    - agus 5 y 37: 2.652,47 USD, formato de fecha en el monto.
+    - teo 178: 1.254,11 USD, mismo motivo.
+    - mauro 661: 131 USD FEE del 21/06, sin nombre de alumno.
+- 10.2: confirmadas las 2 filas de prueba de liam en septiembre (182 y
+  190, 2.500 USD).
+- 10.3: confirmados los rótulos mal puestos. agus tiene revenue en los
+  meses 1, 2 y 7, y lucas en el mes 1. Las ventas de agus en Opps suman
+  244.037,90 USD contra 170.194,10 reales de julio y agosto.
+- 10.4: ninguna FK contra fin_pagos. Dependen 9 vistas: alias_sin_mapear,
+  cobertura_vendedores, conceptos_desconocidos, conciliacion,
+  conciliacion_cc, pago_vendedores, pagos_categoria, pnl_mensual y
+  ranking_closers. Agregar una columna no rompe ninguna.
+- 10.5: 0 choques de huella en la base.
+- 10.6 (nueva): la liquidación 5 (2026-06, cerrada) tiene 62 ítems y los
+  62 tienen un pago_id que ya no existe.
+  - fin_liquidacion_items.pago_id no tiene FK a propósito (012).
+  - Hoy no se puede volver de un ítem liquidado a su pago, ni saber si un
+    pago ya se liquidó.
+  - Arreglo: guardar la huella en los ítems y reconectar los 62 por
+    fecha + alumno + monto.
