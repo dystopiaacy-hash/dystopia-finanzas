@@ -10,6 +10,7 @@ const VISTAS = [
   ['conceptos', 'Cash por concepto', 'Torta por categoría', veFinanzas],
   ['cobranzas', 'Cobranzas', 'Cuotas pendientes', veCobranzas],
   ['mis-numeros', 'Mis números', 'Closers y setters', () => true],
+  ['pagos', 'Pagos', 'Grilla y catálogos', esFundador],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]
 ];
 

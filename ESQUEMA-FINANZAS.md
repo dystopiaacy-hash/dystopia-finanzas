@@ -30,7 +30,7 @@ si el mapeo está mal, se corrige el alias y no el dato.
 | `clave` | identidad estable (ya está) | 062 |
 | `origen` | `'sheet'` o `'app'`. La sync solo borra filas `'sheet'` | 065 |
 | `concepto` | texto crudo del Sheet (ya está) | |
-| `concepto_id` | concepto del catálogo `fin_conceptos`. En filas `'app'` es obligatorio | 064 |
+| `concepto_id` | concepto del catálogo (`fin_catalogos`, dimensión `concepto`). La categoría (venta nueva, cuota, producto) la sigue dando `fin_conceptos`. En filas `'app'` es obligatorio | 064 |
 | `metodo_pago` / `metodo_pago_id` | crudo / del catálogo (`fin_catalogos`, dimensión `metodo_pago`) | 064 |
 | `quien_recibe` / `quien_recibe_id` | crudo / del catálogo (dimensión `quien_recibe`) | 064 |
 | `programa` / `programa_id` | crudo / del catálogo (dimensión `programa`, ya existe para Ventas) | 064 |

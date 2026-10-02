@@ -13,6 +13,7 @@ import { vistaConciliacion } from './views/conciliacion.js';
 import { vistaConceptos } from './views/conceptos.js';
 import { vistaCobranzas } from './views/cobranzas.js';
 import { vistaMisNumeros } from './views/mis-numeros.js';
+import { vistaPagos } from './views/pagos.js';
 import { vistaSalud } from './views/salud.js';
 
 const app = document.getElementById('app');
@@ -123,6 +124,11 @@ function registrarRutas() {
     setHeader('Mis números', esFundador() ? 'Closers y setters' : yo.nombre);
     montar(vistaMisNumeros);
   });
+  ruta('pagos', guardia(esFundador, () => {
+    renderNav({ vista: 'pagos' });
+    setHeader('Pagos', 'Todos los pagos cargados, con su valor de catálogo');
+    montar(vistaPagos);
+  }));
   ruta('salud', guardia(esFundador, () => {
     renderNav({ vista: 'salud' });
     setHeader('Salud de sincronización', 'Última corrida de cada planilla');

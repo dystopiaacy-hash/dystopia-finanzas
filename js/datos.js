@@ -102,6 +102,54 @@ export const pagosVisibles = () =>
 export const rankingClosers = () =>
   todas(() => sb.from('fin_v_ranking_closers').select('*').order('anio').order('mes'));
 
+/* ---------- Grilla de Pagos (fase 5, solo lectura) ---------- */
+
+const COLS_PAGO_GRILLA = 'id,cliente_id,fuente_id,fila_planilla,clave,origen,fecha,alumno,monto_usd,closer,setter,comprobante,'
+  + 'programa,programa_id,concepto,concepto_id,metodo_pago,metodo_pago_id,quien_recibe,quien_recibe_id';
+
+/* Algún *_id sin resolver con texto crudo en la columna (lo mismo que cuenta fin_v_alias_pendientes). */
+const PENDIENTE_CATALOGO = ['programa', 'concepto', 'metodo_pago', 'quien_recibe']
+  .map(c => `and(${c}_id.is.null,${c}.not.is.null)`).join(',');
+
+/* Una página de pagos con el total exacto. Los filtros van en la query: hay
+   más de 1000 filas y PostgREST corta ahí. mes null = todo el año.
+   conceptoIds: ids de fin_catalogos (dimensión concepto), null = sin filtro. */
+export async function pagosGrilla({ clienteId = null, anio, mes = null, conceptoIds = null, soloPendientes = false, pagina = 0, porPagina = 50 }) {
+  const desde = `${anio}-${String(mes || 1).padStart(2, '0')}-01`;
+  const hasta = mes ? finDeMes(anio, mes) : `${anio}-12-31`;
+  let x = sb.from('fin_pagos').select(COLS_PAGO_GRILLA, { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta);
+  if (clienteId) x = x.eq('cliente_id', clienteId);
+  if (conceptoIds) x = x.in('concepto_id', conceptoIds);
+  /* mauro queda afuera de los catálogos (V3): nunca tiene *_id y no es un pendiente. */
+  if (soloPendientes) x = x.neq('cliente_id', 'mauro').or(PENDIENTE_CATALOGO);
+  const { data, error, count } = await x
+    .order('fecha', { ascending: false }).order('fila_planilla', { ascending: false }).order('id')
+    .range(pagina * porPagina, pagina * porPagina + porPagina - 1);
+  if (error) throw error;
+  return { filas: data || [], total: count ?? 0 };
+}
+
+/* Catálogos de Pagos (064) en un solo select; se resuelven en el cliente. */
+export const catalogos = () =>
+  todas(() => sb.from('fin_catalogos').select('id,cliente_id,dimension,valor')
+    .in('dimension', ['programa', 'concepto', 'metodo_pago', 'quien_recibe']).order('id'));
+
+/* Textos del Sheet sin valor de catálogo, por cliente y columna (064). */
+export const aliasPendientes = () =>
+  todas(() => sb.from('fin_v_alias_pendientes').select('cliente_id,columna,crudo,pagos,usd')
+    .order('usd', { ascending: false }).order('cliente_id').order('columna').order('crudo'));
+
+/* max(fecha) de fin_pagos por cliente: una fila por cliente, sin traer los pagos. */
+export async function ultimoPagoPorCliente(clienteIds) {
+  const pares = await Promise.all(clienteIds.map(async id => {
+    const { data, error } = await sb.from('fin_pagos').select('fecha')
+      .eq('cliente_id', id).order('fecha', { ascending: false }).limit(1);
+    if (error) throw error;
+    return [id, data && data[0] ? data[0].fecha : null];
+  }));
+  return new Map(pares);
+}
+
 /* Dispara la Edge Function (lee Google Sheets, escribe solo en Supabase). */
 export async function sincronizarAhora(cuerpo = {}) {
   const { data, error } = await sb.functions.invoke('sincronizar', { body: cuerpo });
