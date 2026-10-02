@@ -26,7 +26,7 @@ const TIPOS = new Set(['pagos', 'opps', 'cuotas', 'data']);
 export interface Fuente {
   id: number; cliente_id: string; spreadsheet_id: string; gid: number; nombre_hoja_esperado: string;
   tipo: string; forma: string | null; fila_encabezado: number; anio: number | null; tope_monto: number | null;
-  alias: { campo: string; alias: string; obligatorio: boolean; posicion?: number | null }[];
+  alias: { campo: string; alias: string; obligatorio: boolean; posicion?: number | null; clave?: string | null }[];
 }
 
 export interface Google {
@@ -51,7 +51,7 @@ export const ABIERTAS = new Map<number, 'pendiente' | 'en_curso'>();
 
 export async function cargarFuentes(sb: SupabaseClient, fuenteId: number | null): Promise<Fuente[]> {
   let q = sb.from('fin_fuentes')
-    .select('id,cliente_id,spreadsheet_id,gid,nombre_hoja_esperado,tipo,forma,fila_encabezado,anio,tope_monto,fin_alias_columnas(campo_canonico,alias,obligatorio,posicion)')
+    .select('id,cliente_id,spreadsheet_id,gid,nombre_hoja_esperado,tipo,forma,fila_encabezado,anio,tope_monto,fin_alias_columnas(campo_canonico,alias,obligatorio,posicion,clave)')
     .eq('activo', true).order('id');
   if (fuenteId !== null) q = q.eq('id', fuenteId);
   const { data, error } = await q;
@@ -61,6 +61,7 @@ export async function cargarFuentes(sb: SupabaseClient, fuenteId: number | null)
     tope_monto: f.tope_monto === null ? null : Number(f.tope_monto),
     alias: (f.fin_alias_columnas ?? []).map((a: any) => ({
       campo: a.campo_canonico, alias: a.alias, obligatorio: a.obligatorio, posicion: a.posicion ?? null,
+      clave: a.clave ?? null,
     })),
   }));
 }

@@ -256,6 +256,59 @@ const malo = ALIAS.liam.map((a) => (a.campo === 'fecha_llamada' ? { ...a, posici
 const pm = parseData(MATRIZ.liam, { alias: malo });
 check(pm.error && /posicion/.test(pm.error), 'liam: posicion que no coincide con el encabezado no dio error');
 
+// 9. formulario (059): alias con campo 'formulario' + clave -> formulario[clave].
+check(R.teo.datos.llamadas.every((l) => l.formulario && Object.keys(l.formulario).length === 0),
+  'teo: sin alias de formulario, formulario deberia ser {}');
+const aliasForm = [...ALIAS.teo,
+  { campo: 'formulario', clave: 'punto_ecommerce', alias: 'En qué punto estas en E-Commerce', obligatorio: false, posicion: null },
+  { campo: 'formulario', clave: 'bloqueo', alias: 'bloqueo principal', obligatorio: false, posicion: null }];
+const mForm = [ENC.teo,
+  fila('teo', { 1: 'Dos Claves', 2: '2026-06-03', 3: 'Franco Lagrega', 10: ' Recien arranco ', 13: 'Tiempo' }),
+  fila('teo', { 1: 'Una Vacia', 2: '2026-06-04', 3: 'Franco Lagrega', 10: 'Ya vendo', 13: '  ' }),
+  fila('teo', { 1: 'Con Error', 2: '2026-06-05', 3: 'Franco Lagrega', 10: '#ERROR!', 13: 'Plata' }),
+  fila('teo', { 10: 'solo formulario', 13: 'solo formulario' }),   // no cuenta para "vacia"
+  fila('teo', { 1: 'Ultima', 2: '2026-06-06', 3: 'Franco Lagrega' }),
+  fila('teo', { 1: 'Hashtag', 2: '2026-06-07', 3: 'Franco Lagrega', 10: '#emprendedor', 13: ' #n/a ' })];
+const rf = await procesarFuente({ ...fuente('teo'), alias: aliasForm }, mForm, null);
+const lf = (f) => rf.datos.llamadas.find((l) => l.fila_planilla === f);
+const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+check(igual(lf(2)?.formulario, { punto_ecommerce: 'Recien arranco', bloqueo: 'Tiempo' }), `formulario dos claves: ${JSON.stringify(lf(2)?.formulario)}`);
+check(igual(lf(3)?.formulario, { punto_ecommerce: 'Ya vendo' }), `formulario celda vacia: ${JSON.stringify(lf(3)?.formulario)}`);
+check(igual(lf(4)?.formulario, { bloqueo: 'Plata' }), `formulario #ERROR!: ${JSON.stringify(lf(4)?.formulario)}`);
+check(igual(lf(7)?.formulario, { punto_ecommerce: '#emprendedor' }), `formulario #emprendedor: ${JSON.stringify(lf(7)?.formulario)}`);
+check(rf.datos.rechazadas.some((x) => x.fila_planilla === 7 && x.motivo.startsWith('formulario.bloqueo: error de formula')),
+  'formulario: " #n/a " (con espacios y minusculas) no se rechazo como error de formula');
+check(rf.datos.rechazadas.length === 2 && rf.datos.rechazadas[0].fila_planilla === 4 && rf.datos.rechazadas[0].valor_crudo === '#ERROR!'
+  && rf.datos.rechazadas[0].motivo === `formulario.punto_ecommerce: error de formula (${MOTIVO_CELDA})`,
+  `formulario #ERROR!: no quedo como celda rechazada: ${JSON.stringify(rf.datos.rechazadas.map((x) => x.motivo))}`);
+check(!lf(5) && rf.stats.descartadas === 1, 'formulario: una fila con solo columnas de formulario no se descarto como vacia');
+check(igual(lf(6)?.formulario, {}), 'formulario: fila sin respuestas deberia dar {}');
+check(rf.estado === 'ok', `formulario: la corrida dio ${rf.estado}`);
+
+// 10. email (texto) y hora_llamada (misma celda que fecha_llamada).
+const aliasEmail = [...ALIAS.liam, { campo: 'email', alias: 'Email', obligatorio: false, posicion: null }];
+const HORAS = [
+  [46270.59375, '2026-09-05', '14:15'],                              // fecha real con hora (serial)
+  ['2026-09-05 14:15:00', '2026-09-05', '14:15'],                    // fecha real con hora (ISO)
+  [' Saturday, September 5, 2026 9:05 AM', '2026-09-05', '09:05'],   // texto AM
+  [' Saturday, September 5, 2026 2:15 PM', '2026-09-05', '14:15'],   // texto PM
+  ['Saturday, September 5, 2026 12:30 PM', '2026-09-05', '12:30'],   // 12:30 PM
+  [46270, '2026-09-05', null],                                       // fecha real a las 00:00
+  ['2026-09-05 00:00:00', '2026-09-05', null],
+  ['2026-09-05', '2026-09-05', null],                                // sin hora
+  ['Saturday, September 5, 2026 12:00 AM', '2026-09-05', null],
+  ['Saturday, September 5, 2026 12:30 AM', '2026-09-05', '00:30'],
+];
+const ph = parseData([ENC.liam, ...HORAS.map(([f], i) => fila('liam', { 1: 'Lucas Deza', 2: f, 3: `Lead ${i}`, 12: ' a@b.com ' }))], { alias: aliasEmail });
+check(ph.filas.length === HORAS.length, `horas: se cargaron ${ph.filas.length} de ${HORAS.length}`);
+HORAS.forEach(([f, fecha, hora], i) => {
+  const l = ph.filas[i];
+  check(l?.fecha_llamada === fecha && l?.hora_llamada === hora, `hora ${JSON.stringify(f)}: dio ${l?.fecha_llamada} ${l?.hora_llamada}, se esperaba ${fecha} ${hora}`);
+});
+check(ph.filas.every((l) => l.email === 'a@b.com'), 'email: no se cargo como texto');
+check(llam('liam', 2)?.email === null && llam('liam', 2)?.hora_llamada === null, 'liam f2: sin alias de email / sin hora deberian ser null');
+check(llam('liam', 3)?.hora_llamada === '19:00', `liam f3: hora del texto 7:00 PM dio ${llam('liam', 3)?.hora_llamada}`);
+
 for (const [cli, r] of Object.entries(R)) {
   console.log(`${cli.padEnd(6)} ${r.estado.padEnd(8)} cargadas ${r.stats.cargadas}  rechazadas(entradas) ${r.stats.rechazadas}  descartadas ${r.stats.descartadas}  ${r.mensaje ?? ''}`);
 }

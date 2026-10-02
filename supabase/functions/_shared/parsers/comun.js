@@ -67,6 +67,15 @@ export function parseMontoInicial(v) {
   return m ? parseMonto(m[0]) : null;
 }
 
+const RE_FECHA_ISO = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+// 'HH:MM' en 24 hs. Las 00:00 son "sin hora": una fecha sin hora y una a
+// medianoche no se distinguen en Sheets.
+function hhmm(h, min) {
+  if (h > 23 || min > 59 || (h === 0 && min === 0)) return null;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
 function isoValida(a, m, d) {
   const t = new Date(Date.UTC(a, m - 1, d));
   if (t.getUTCFullYear() !== a || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return null;
@@ -88,7 +97,7 @@ export function parseFecha(v) {
   }
   if (esVacio(v)) return null;
   const s = String(v).trim();
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/);
+  let m = s.match(RE_FECHA_ISO);
   if (m) return isoValida(+m[1], +m[2], +m[3]);
   m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})$/);
   if (m) {
@@ -112,7 +121,7 @@ const MESES_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july'
 const RE_FECHA_GHL = new RegExp(
   '^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), '
   + '(January|February|March|April|May|June|July|August|September|October|November|December) '
-  + '(\\d{1,2}), (\\d{4}) (?:1[0-2]|0?[1-9]):[0-5]\\d (?:AM|PM)$');
+  + '(\\d{1,2}), (\\d{4}) (1[0-2]|0?[1-9]):([0-5]\\d) (AM|PM)$');
 
 export function parseFechaTexto(v) {
   if (typeof v !== 'string') return null;
@@ -122,6 +131,26 @@ export function parseFechaTexto(v) {
   const dia = Number(m[2]);
   if (mes < 1 || dia < 1 || dia > 31) return null;
   return isoValida(Number(m[3]), mes, dia);
+}
+
+// Hora de la misma celda que parseFecha (serial de Sheets con fraccion o ISO
+// con hora) -> 'HH:MM' o null. Es la hora de pared de la planilla: no se
+// convierte de zona. Sin hora o 00:00 -> null.
+export function parseHora(v) {
+  if (parseFecha(v) === null) return null;
+  if (typeof v === 'number') {
+    const min = Math.min(1439, Math.round((v - Math.floor(v)) * 1440));
+    return hhmm(Math.floor(min / 60), min % 60);
+  }
+  const m = String(v).trim().match(RE_FECHA_ISO);
+  return m && m[4] !== undefined ? hhmm(+m[4], +m[5]) : null;
+}
+
+// Hora del texto de GHL (mismo patron que parseFechaTexto), pasada a 24 hs.
+export function parseHoraTexto(v) {
+  if (parseFechaTexto(v) === null) return null;
+  const m = v.trim().match(RE_FECHA_GHL);
+  return hhmm((Number(m[4]) % 12) + (m[6] === 'PM' ? 12 : 0), Number(m[5]));
 }
 
 export function fechaEnRango(iso, min = FECHA_MIN, max = FECHA_MAX) {

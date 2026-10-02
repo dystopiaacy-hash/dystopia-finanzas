@@ -13,7 +13,8 @@
 //     stats.celdas_rechazadas. El motivo empieza con MOTIVO_CELDA.
 //
 // config = {
-//   alias: [{ campo, alias, obligatorio, posicion }],   // fin_alias_columnas de la fuente
+//   alias: [{ campo, alias, obligatorio, posicion, clave }],   // fin_alias_columnas de la fuente
+//                                        // clave: solo campo 'formulario' (059)
 //   fila_encabezado: 1,                                  // 1-based
 //   fecha_min, fecha_max                                 // opcional, default 2024..2027
 // }
@@ -25,7 +26,8 @@
 // NULL + celda rechazada con el valor crudo.
 
 import {
-  FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseFecha, parseFechaTexto, fechaEnRango, filaCruda,
+  FECHA_MIN, FECHA_MAX, esVacio, normalizar, texto, parseMonto, parseFecha, parseFechaTexto, parseHora, parseHoraTexto,
+  fechaEnRango, filaCruda,
 } from './comun.js';
 
 export const MOTIVO_CELDA = 'celda rechazada, la fila se cargo sin este valor';
@@ -47,7 +49,7 @@ export const CALIFICACION = Object.freeze({
 });
 
 const NUMERICOS = ['cc_dia1', 'cc_cerrado', 'cc_seguimiento', 'monto_restante'];
-const TEXTOS = ['estado_llamada', 'programa', 'telefono', 'instagram', 'contexto_closer', 'contexto_setter'];
+const TEXTOS = ['estado_llamada', 'programa', 'telefono', 'instagram', 'email', 'contexto_closer', 'contexto_setter'];
 const ERROR_FORMULA = /^#(DIV\/0!|N\/A|REF!|VALUE!|NAME\?|NUM!|NULL!|ERROR!)$/i;
 
 // Campo -> lista de columnas (0-based). Solo 'nombre' puede tener mas de una
@@ -57,14 +59,20 @@ const ERROR_FORMULA = /^#(DIV\/0!|N\/A|REF!|VALUE!|NAME\?|NUM!|NULL!|ERROR!)$/i;
 // (liam: dos "Encargado de la llamada", la fecha es la segunda). Igual se
 // exige que el encabezado de esa columna coincida con el alias: si la agencia
 // mueve columnas, la corrida falla en vez de leer otra cosa.
+// Los alias de campo 'formulario' no van a `col`: cada clave es una columna
+// aparte y salen en `form` ([{ clave, k }]). Dos alias con la misma clave son
+// nombres alternativos de la misma pregunta: gana la primera columna.
 function mapearColumnas(encabezado, alias) {
   const norm = encabezado.map(normalizar);
   const col = {};
+  const form = [];
   const faltan = [];
   const errores = [];
-  const campos = [...new Set(alias.map((a) => a.campo))];
+  const esForm = (a) => a.campo === 'formulario';
+  const grupo = (a) => (esForm(a) ? `formulario.${a.clave}` : a.campo);
+  const campos = [...new Set(alias.filter((a) => !esForm(a) || a.clave).map(grupo))];
   for (const campo of campos) {
-    const del = alias.filter((a) => a.campo === campo);
+    const del = alias.filter((a) => grupo(a) === campo);
     const idx = [];
     for (const a of del) {
       if (a.posicion !== null && a.posicion !== undefined) {
@@ -78,10 +86,12 @@ function mapearColumnas(encabezado, alias) {
       }
     }
     const unicos = [...new Set(idx)].sort((x, y) => x - y);
-    if (unicos.length) col[campo] = campo === 'nombre' ? unicos : [unicos[0]];
-    else if (del.some((a) => a.obligatorio)) faltan.push(`${campo} (${del.map((a) => a.alias).join(' / ')})`);
+    if (!unicos.length) {
+      if (del.some((a) => a.obligatorio)) faltan.push(`${campo} (${del.map((a) => a.alias).join(' / ')})`);
+    } else if (esForm(del[0])) form.push({ clave: del[0].clave, k: unicos[0] });
+    else col[campo] = campo === 'nombre' ? unicos : [unicos[0]];
   }
-  return { col, faltan, errores };
+  return { col, form, faltan, errores };
 }
 
 // Encabezado repetido = la celda de fecha repite el encabezado de su columna.
@@ -108,7 +118,7 @@ export function parseData(matriz, config = {}) {
   }
   const encabezado = matriz[hdr].map((v) => (esVacio(v) ? '' : String(v).trim()));
   res.encabezado = encabezado;
-  const { col, faltan, errores } = mapearColumnas(encabezado, config.alias || []);
+  const { col, form, faltan, errores } = mapearColumnas(encabezado, config.alias || []);
   if (errores.length) { res.error = `columnas por posicion que no coinciden: ${errores.join('; ')}`; return res; }
   if (faltan.length) { res.error = `faltan columnas obligatorias: ${faltan.join(', ')}`; return res; }
 
@@ -144,6 +154,7 @@ export function parseData(matriz, config = {}) {
     const rechazarCelda = (campo, que, valor) => celdasRech.push(rechazo(`${campo}: ${que} (${MOTIVO_CELDA})`, valor));
 
     // Vacia = ninguna columna MAPEADA tiene datos (las ignoradas traen checkbox).
+    // Las de formulario no cuentan: `mapeadas` sale de `col`, no de `form`.
     if (mapeadas.every((k) => esVacio(fila[k]))) { descartar('vacia'); continue; }
     if (esEncabezadoRepetido(fila, encabezado, col)) { descartar('encabezado_repetido'); continue; }
 
@@ -177,6 +188,7 @@ export function parseData(matriz, config = {}) {
     const fila_out = {
       fila_planilla: nro,
       fecha_llamada: fecha,
+      hora_llamada: parseHora(fechaCruda) ?? parseHoraTexto(fechaCruda),
       closer,
       nombre,
       show_up: enumerado('show_up', SHOW_UP),
@@ -190,6 +202,16 @@ export function parseData(matriz, config = {}) {
       const n = parseMonto(v);
       if (n === null) rechazarCelda(campo, ERROR_FORMULA.test(String(v).trim()) ? 'error de formula' : 'monto no numerico', v);
       fila_out[campo] = n;
+    }
+    // Formulario: una clave por columna. Vacia no agrega la clave; un error
+    // de formula de Sheets (ERROR_FORMULA, celda completa) tampoco, y queda
+    // como celda rechazada. Otro texto con '#' ("#emprendedor") se guarda.
+    fila_out.formulario = {};
+    for (const { clave, k } of form) {
+      const v = texto(fila[k]);
+      if (v === null) continue;
+      if (ERROR_FORMULA.test(v)) { rechazarCelda(`formulario.${clave}`, 'error de formula', fila[k]); continue; }
+      fila_out.formulario[clave] = v;
     }
 
     res.filas.push(fila_out);
