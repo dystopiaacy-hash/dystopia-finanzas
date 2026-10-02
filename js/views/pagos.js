@@ -229,7 +229,7 @@ function modalDevolver(p, cat, alListo) {
 function tablaPagos({ filas, total }, { pagina, verCliente, cat, mapaFuentes }) {
   if (!total) return vacio('Sin pagos con estos filtros');
   const desde = pagina * POR_PAGINA;
-  const conAcciones = yo.carga.some(c => c.puede_anular);
+  const conAcciones = yo.carga.some(c => c.habilitada && c.puede_anular);
   return `
     <div class="card table-card">
       <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}</span></div>
