@@ -67,7 +67,9 @@ export async function vistaCliente(el, clienteId, vigente) {
           <tbody>
             ${FILAS_PNL.map(([k, label, estilo]) => `<tr class="pnl-${estilo || 'normal'}"><td>${label}</td>${meses.map(m => {
               const v = valor(m, k);
-              return `<td class="num${m === mes ? ' col-activa' : ''}">${v == null ? '—' : usd(v)}</td>`;
+              const marca = k === 'net_cash_flow' && valor(m, 'fuente_ingreso') === 'opps'
+                ? '<span class="marca-opps" title="Antes del primer pago cargado: el ingreso sale de Opps">(Opps)</span> ' : '';
+              return `<td class="num${m === mes ? ' col-activa' : ''}">${v == null ? '—' : marca + usd(v)}</td>`;
             }).join('')}</tr>`).join('')}
           </tbody>
         </table>

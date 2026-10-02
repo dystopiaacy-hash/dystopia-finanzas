@@ -54,7 +54,7 @@ export async function vistaResumen(el, vigente) {
         ${statCard(usd(tot('ingreso_real')), 'Ingreso real (Pagos)', { sub: `${tot('cantidad_pagos')} pagos` })}
         ${statCard(usd(tot('revenue_declarado')), 'Revenue declarado (Opps)')}
         ${statCard(usd(tot('gastos_total')), 'Gastos (Opps)')}
-        ${statCard(usd(tot('net_cash_flow')), 'Net cash flow', { sub: 'Revenue declarado − gastos' })}
+        ${statCard(usd(tot('net_cash_flow')), 'Net cash flow', { sub: 'Ingreso real − gastos' })}
         ${statCard(usd(difTotal), 'Diferencia Opps vs Pagos', { sub: 'Suma de |diferencia| por cliente', alerta: difTotal > 1 })}
         ${esFundador() ? statCard(`<a href="#/salud" class="stat-link">${problemas}</a>`, 'Fuentes que requieren acción', { html: true, alerta: problemas > 0 }) : ''}
       </div>

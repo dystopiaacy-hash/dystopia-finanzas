@@ -20,6 +20,7 @@
 .list-clean li{position:relative;padding:var(--sp-1) 0 var(--sp-1) var(--sp-4);font-size:var(--fs-body);color:var(--text);line-height:1.5;}
 .list-clean li::before{content:'';position:absolute;left:0;top:12px;width:6px;height:6px;border-radius:50%;background:var(--accent-line);}
 .muted-empty{color:var(--text-faint);font-size:var(--fs-meta);font-style:italic;}
+.marca-opps{color:var(--text-faint);font-size:var(--fs-micro);font-weight:400;cursor:help;}
 .field-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);margin-bottom:var(--sp-2);}
 .link-list{display:flex;flex-direction:column;gap:var(--sp-2);}
 .link-list a{font-size:var(--fs-body);font-weight:600;}
