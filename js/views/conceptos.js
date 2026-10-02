@@ -1,8 +1,8 @@
 /* Cash collected por concepto: torta de fin_v_cash_collected_concepto para un
    mes, un cliente o todos los visibles (la vista es security_invoker: respeta
-   la RLS de fin_pagos). Las 4 categorías se muestran siempre, aunque valgan 0;
+   la RLS de fin_pagos). Las 5 categorías se muestran siempre, aunque valgan 0;
    sin_clasificar va en gris para que se vea cuánto falta mapear en 031.
-   El total es la suma real de las 4, con signo (ver conceptos-calculo.js). */
+   El total es la suma real de las 5, con signo (ver conceptos-calculo.js). */
 import { esc, hoyAR, fmtPct, plural } from '../ui.js';
 import { cashPorConcepto, usd, MESES } from '../datos.js';
 import { calcularTorta } from '../conceptos-calculo.js';

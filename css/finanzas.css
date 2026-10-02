@@ -57,7 +57,7 @@
 /* Colores de categoría: alias de variables existentes. sin_clasificar siempre gris. */
 :root{
   --cat-venta-nueva:var(--accent); --cat-producto:var(--cyan);
-  --cat-cuota:var(--sem-amarillo); --cat-sin-clasificar:var(--text-faint);
+  --cat-cuota:var(--sem-amarillo); --cat-devolucion:var(--danger); --cat-sin-clasificar:var(--text-faint);
 }
 .concepto-card{max-width:760px;}
 .concepto-wrap{display:flex;align-items:center;gap:var(--sp-6);flex-wrap:wrap;}

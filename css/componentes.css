@@ -175,6 +175,7 @@
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{background:var(--surface);border-color:var(--accent-line);outline:none;}
 .form-row textarea{resize:vertical;min-height:64px;line-height:1.5;}
 .form-row .hint{font-size:var(--fs-micro);color:var(--text-faint);margin-top:var(--sp-1);}
+.form-error{color:var(--danger);font-size:var(--fs-meta);font-weight:600;min-height:16px;margin-bottom:var(--sp-3);overflow-wrap:anywhere;}
 .form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);}
 .form-grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-2);}
 @media(max-width:600px){.form-grid4{grid-template-columns:repeat(2,1fr);}}
@@ -202,6 +203,7 @@
 .empty-state{text-align:center;padding:var(--sp-10) var(--sp-5);color:var(--text-faint);}
 .empty-state .big{font-weight:700;font-size:var(--fs-card);color:var(--ink);margin-bottom:var(--sp-1);}
 .empty-state .small{font-size:var(--fs-meta);}
+.empty-state .btn{margin-top:var(--sp-4);}
 
 /* ===== MODAL ===== */
 .modal-overlay{position:fixed;inset:0;background:rgba(23,26,33,.45);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:100;padding:var(--sp-5);}

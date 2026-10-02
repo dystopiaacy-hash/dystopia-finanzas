@@ -129,6 +129,20 @@ export async function pagosGrilla({ clienteId = null, anio, mes = null, concepto
   return { filas: data || [], total: count ?? 0 };
 }
 
+/* ---------- Carga, anulación y devolución de pagos (fase 6, RPC de la 066) ---------- */
+/* Las RPC validan permisos y datos: el mensaje de error se muestra tal cual. */
+async function rpc(nombre, args) {
+  const { data, error } = await sb.rpc(nombre, args);
+  if (error) throw error;
+  return data;
+}
+
+export const cargaOpciones = clienteId => rpc('fin_carga_opciones', { p_cliente: clienteId });
+export const pagoCargar = p => rpc('fin_pago_cargar', { p });
+export const pagoAnular = (clave, motivo) => rpc('fin_pago_anular', { p_clave: clave, p_motivo: motivo });
+export const pagoDevolver = (clave, monto, fecha, motivo) =>
+  rpc('fin_pago_devolver', { p_clave: clave, p_monto: monto, p_fecha: fecha, p_motivo: motivo });
+
 /* Catálogos de Pagos (064) en un solo select; se resuelven en el cliente. */
 export const catalogos = () =>
   todas(() => sb.from('fin_catalogos').select('id,cliente_id,dimension,valor')

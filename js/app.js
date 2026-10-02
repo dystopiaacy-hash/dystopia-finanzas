@@ -5,7 +5,7 @@
 import { sb } from './supabase.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veCobranzas, esFundador } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veCobranzas, esFundador, puedeCargar, vePagos } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -14,6 +14,7 @@ import { vistaConceptos } from './views/conceptos.js';
 import { vistaCobranzas } from './views/cobranzas.js';
 import { vistaMisNumeros } from './views/mis-numeros.js';
 import { vistaPagos } from './views/pagos.js';
+import { vistaCargar } from './views/cargar.js';
 import { vistaSalud } from './views/salud.js';
 
 const app = document.getElementById('app');
@@ -124,7 +125,12 @@ function registrarRutas() {
     setHeader('Mis números', esFundador() ? 'Closers y setters' : yo.nombre);
     montar(vistaMisNumeros);
   });
-  ruta('pagos', guardia(esFundador, () => {
+  ruta('cargar', guardia(puedeCargar, () => {
+    renderNav({ vista: 'cargar' });
+    setHeader('Cargar pago', 'Alta de un pago desde la app');
+    montar(vistaCargar);
+  }));
+  ruta('pagos', guardia(vePagos, () => {
     renderNav({ vista: 'pagos' });
     setHeader('Pagos', 'Todos los pagos cargados, con su valor de catálogo');
     montar(vistaPagos);

@@ -1,13 +1,16 @@
-/* Pagos (fase 5): grilla de SOLO LECTURA sobre fin_pagos. Paginada del lado
-   del servidor, con los filtros en la query. Programa, concepto, método y
-   quién recibe muestran el valor del catálogo; si todavía no hay alias, el
-   texto crudo del Sheet en gris. */
-import { esc, fmtFecha, fmtNum, hoyAR, diasEntre, urlSegura, plural } from '../ui.js';
-import { yo } from '../sesion.js';
+/* Pagos: grilla sobre fin_pagos. Paginada del lado del servidor, con los
+   filtros en la query. Programa, concepto, método y quién recibe muestran el
+   valor del catálogo; si todavía no hay alias, el texto crudo del Sheet en gris.
+   Fase 6: donde fin_clientes_carga() da puede_anular, cada pago positivo se
+   puede devolver y los cargados en la app se pueden anular (RPC de la 066).
+   El rol cliente ve solo sus clientes de fin_clientes_carga(), sin pendientes. */
+import { esc, fmtFecha, fmtNum, hoyAR, diasEntre, urlSegura, plural, abrirModal, toast } from '../ui.js';
+import { yo, esFundador, puedeAnular } from '../sesion.js';
 import {
-  pagosGrilla, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd, numCelda
+  pagosGrilla, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd, numCelda,
+  pagoAnular, pagoDevolver
 } from '../datos.js';
-import { statCard, vacio, selectCliente, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
+import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
 
 const POR_PAGINA = 50;
 /* Mauro queda afuera de la reestructuración (V3): no tiene catálogos. */
@@ -15,9 +18,13 @@ const SIN_CATALOGO = 'mauro';
 const COLUMNAS = { programa: 'Programa', concepto: 'Concepto', metodo_pago: 'Método', quien_recibe: 'Quién recibe' };
 
 export async function vistaPagos(el, vigente) {
-  const conCatalogo = yo.clientes.filter(c => c.id !== SIN_CATALOGO);
+  const fundador = esFundador();
+  /* El fundador ve todo; el cliente, solo sus clientes de fin_clientes_carga(). */
+  const clientes = fundador ? yo.clientes : yo.clientes.filter(c => yo.carga.some(x => x.cliente_id === c.id));
+  const conCatalogo = clientes.filter(c => c.id !== SIN_CATALOGO);
   const [cats, mapaFuentes, ultimos, pendientes, pnl] = await Promise.all([
-    catalogos(), fuentes(), ultimoPagoPorCliente(conCatalogo.map(c => c.id)), aliasPendientes(), pnlMensual()
+    catalogos(), fuentes(), ultimoPagoPorCliente(conCatalogo.map(c => c.id)),
+    fundador ? aliasPendientes() : Promise.resolve([]), pnlMensual()
   ]);
   if (!vigente()) return;
   const cat = new Map(cats.map(c => [c.id, c.valor]));
@@ -25,7 +32,10 @@ export async function vistaPagos(el, vigente) {
   const hoy = hoyAR();
   const anioHoy = Number(hoy.slice(0, 4));
 
-  const f = { cliente: '', anio: anioHoy, mes: null, concepto: '', pendientes: false };
+  /* Sin "Todos" fuera del fundador: la grilla siempre queda en un cliente propio. */
+  const f = { cliente: fundador ? '' : (clientes[0] ? clientes[0].id : ''), anio: anioHoy, mes: null, concepto: '', pendientes: false };
+  const selCliente = `<select id="f-cliente">${fundador ? '<option value="">Todos los clientes</option>' : ''}${clientes.map(c =>
+    `<option value="${esc(c.id)}"${c.id === f.cliente ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select>`;
   let pagina = 0;
   let turno = 0;
 
@@ -43,11 +53,11 @@ export async function vistaPagos(el, vigente) {
     <div class="section-title">Último pago cargado<span class="line"></span></div>
     <div class="stat-row stat-row-6">${conCatalogo.map(c => tarjetaUltimo(c, ultimos.get(c.id), hoy)).join('')}</div>
     <div class="filter-row">
-      <span class="flabel">Cliente</span>${selectCliente('f-cliente', f.cliente)}
+      <span class="flabel">Cliente</span>${selCliente}
       <span class="flabel">Año</span>${selectAnio('f-anio', anios(pnl, anioHoy), f.anio)}
       <span class="flabel">Mes</span>${selectMes('f-mes', f.mes, { todos: true })}
       <span class="flabel">Concepto</span><select id="f-concepto">${opcionesConcepto()}</select>
-      <label class="flabel"><input type="checkbox" id="f-pend"> Solo pendientes de catálogo</label>
+      ${fundador ? '<label class="flabel"><input type="checkbox" id="f-pend"> Solo pendientes de catálogo</label>' : ''}
       <span class="grow"></span>${botonRecargar()}
     </div>
     <div id="grilla"></div>
@@ -70,15 +80,23 @@ export async function vistaPagos(el, vigente) {
       return;
     }
     if (!vigente() || mio !== turno) return;
+    /* Anular la última fila de la última página la deja vacía: se vuelve una atrás. */
+    if (!r.filas.length && r.total && pagina > 0) { pagina--; return cargar(); }
     grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !f.cliente, cat, mapaFuentes });
     const ir = d => () => { pagina += d; cargar(); };
     const ant = grilla.querySelector('#pg-ant'), sig = grilla.querySelector('#pg-sig');
     if (ant) ant.onclick = ir(-1);
     if (sig) sig.onclick = ir(1);
+    /* Después de anular o devolver se recarga la página actual. */
+    for (const b of grilla.querySelectorAll('[data-accion]')) {
+      const p = r.filas.find(x => String(x.id) === b.dataset.id);
+      b.onclick = () => (b.dataset.accion === 'anular' ? modalAnular : modalDevolver)(p, cat, cargar);
+    }
   };
 
   const pintarPendientes = () => {
-    el.querySelector('#pendientes').innerHTML = tablaPendientes(pendientes.filter(p => !f.cliente || p.cliente_id === f.cliente));
+    el.querySelector('#pendientes').innerHTML = fundador
+      ? tablaPendientes(pendientes.filter(p => !f.cliente || p.cliente_id === f.cliente)) : '';
   };
   const filtrar = () => { pagina = 0; cargar(); };
 
@@ -91,7 +109,8 @@ export async function vistaPagos(el, vigente) {
   el.querySelector('#f-anio').onchange = e => { f.anio = Number(e.target.value); filtrar(); };
   el.querySelector('#f-mes').onchange = e => { f.mes = Number(e.target.value) || null; filtrar(); };
   el.querySelector('#f-concepto').onchange = e => { f.concepto = e.target.value; filtrar(); };
-  el.querySelector('#f-pend').onchange = e => { f.pendientes = e.target.checked; filtrar(); };
+  const pend = el.querySelector('#f-pend');
+  if (pend) pend.onchange = e => { f.pendientes = e.target.checked; filtrar(); };
   el.querySelector('#btn-recargar').onclick = () => vistaPagos(el, vigente);
 
   pintarPendientes();
@@ -121,16 +140,103 @@ function celdaComprobante(c) {
   return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">abrir ↗</a>` : esc(c);
 }
 
+/* Devolver: cualquier pago positivo. Anular: solo lo cargado en la app. */
+function celdaAcciones(p) {
+  if (!puedeAnular(p.cliente_id) || !yo.carga.some(c => c.cliente_id === p.cliente_id && c.habilitada)) return '';
+  const boton = (accion, texto, clase = '') =>
+    `<button type="button" class="btn btn-sm${clase}" data-accion="${accion}" data-id="${esc(p.id)}">${texto}</button>`;
+  return (Number(p.monto_usd) > 0 ? boton('devolver', 'Devolver') : '')
+    + (p.origen === 'app' ? boton('anular', 'Anular', ' btn-danger') : '');
+}
+
+function resumenPago(p, cat) {
+  const concepto = (p.concepto_id != null && cat.get(p.concepto_id)) || p.concepto || '';
+  return `<p class="aviso-texto">${clienteChip(p.cliente_id)} · ${esc(p.alumno || 'Sin alumno')} · ${fmtFecha(p.fecha)}
+    · <strong>${usd(p.monto_usd, { centavos: true })}</strong>${concepto ? ` · ${esc(concepto)}` : ''}</p>`;
+}
+
+/* Modal con formulario: enviar() devuelve el texto del toast; si la RPC falla,
+   su mensaje queda en el modal tal cual. */
+function modalAccion({ titulo, cuerpo, ok, peligro, enviar, alListo }) {
+  const m = abrirModal({
+    titulo,
+    cuerpo: `<form id="form-accion" novalidate>${cuerpo}<div class="form-error" id="a-error" role="alert"></div></form>`,
+    pie: `<span></span><div class="right"><button type="button" class="btn" id="a-cancelar">Cancelar</button>
+          <button type="submit" form="form-accion" class="btn ${peligro ? 'btn-danger' : 'btn-accent'}" id="a-ok">${ok}</button></div>`
+  });
+  const form = m.el.querySelector('#form-accion'), err = m.el.querySelector('#a-error'), btn = m.el.querySelector('#a-ok');
+  m.el.querySelector('#a-cancelar').onclick = m.cerrar;
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    err.textContent = '';
+    btn.disabled = true;
+    try {
+      const aviso = await enviar(form);
+      if (!aviso) { btn.disabled = false; return; }
+      m.cerrar();
+      toast(aviso);
+      alListo();
+    } catch (e) {
+      err.textContent = e.message || String(e);
+      btn.disabled = false;
+    }
+  };
+  const primero = form.querySelector('input,textarea');
+  if (primero) primero.focus();
+  return { err };
+}
+
+function modalAnular(p, cat, alListo) {
+  const { err } = modalAccion({
+    titulo: 'Anular pago', ok: 'Anular pago', peligro: true, alListo,
+    cuerpo: `${resumenPago(p, cat)}
+      <div class="form-row"><label for="a-motivo">Motivo</label><textarea id="a-motivo" rows="2"></textarea>
+        <div class="hint">El pago se saca de la grilla y queda guardado con el motivo.</div></div>`,
+    enviar: async form => {
+      const motivo = form.querySelector('#a-motivo').value.trim();
+      if (!motivo) { err.textContent = 'Falta el motivo.'; return null; }
+      await pagoAnular(p.clave, motivo);
+      return 'Pago anulado';
+    }
+  });
+}
+
+function modalDevolver(p, cat, alListo) {
+  const hoy = hoyAR();
+  const { err } = modalAccion({
+    titulo: 'Devolver pago', ok: 'Cargar devolución', peligro: false, alListo,
+    cuerpo: `${resumenPago(p, cat)}
+      <div class="form-grid2">
+        <div class="form-row"><label for="a-monto">Monto a devolver (USD)</label>
+          <input type="number" id="a-monto" min="0.01" step="0.01" inputmode="decimal" value="${esc(p.monto_usd)}"></div>
+        <div class="form-row"><label for="a-fecha">Fecha</label>
+          <input type="date" id="a-fecha" value="${hoy}" min="${esc(p.fecha)}" max="${hoy}"></div>
+      </div>
+      <div class="form-row"><label for="a-motivo">Motivo</label><textarea id="a-motivo" rows="2"></textarea></div>`,
+    enviar: async form => {
+      const monto = Number(form.querySelector('#a-monto').value);
+      const fecha = form.querySelector('#a-fecha').value;
+      const motivo = form.querySelector('#a-motivo').value.trim();
+      if (!(monto > 0)) { err.textContent = 'El monto a devolver tiene que ser mayor a 0.'; return null; }
+      if (!fecha) { err.textContent = 'Falta la fecha.'; return null; }
+      if (!motivo) { err.textContent = 'Falta el motivo.'; return null; }
+      await pagoDevolver(p.clave, monto, fecha, motivo);
+      return 'Devolución cargada';
+    }
+  });
+}
+
 function tablaPagos({ filas, total }, { pagina, verCliente, cat, mapaFuentes }) {
   if (!total) return vacio('Sin pagos con estos filtros');
   const desde = pagina * POR_PAGINA;
+  const conAcciones = yo.carga.some(c => c.puede_anular);
   return `
     <div class="card table-card">
       <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}</span></div>
       <table class="data-table data-table-dense">
         <thead><tr><th>Fecha</th>${verCliente ? '<th>Cliente</th>' : ''}<th>Alumno</th><th>Programa</th><th>Concepto</th>
           <th class="num">Monto USD</th><th>Método</th><th>Quién recibe</th><th>Closer</th><th>Setter</th>
-          <th>Comprobante</th><th>Origen</th><th class="num">Fila</th></tr></thead>
+          <th>Comprobante</th><th>Origen</th><th class="num">Fila</th>${conAcciones ? '<th></th>' : ''}</tr></thead>
         <tbody>${filas.map(p => `<tr>
           <td>${fmtFecha(p.fecha)}</td>${verCliente ? `<td>${clienteChip(p.cliente_id)}</td>` : ''}
           <td>${esc(p.alumno || '—')}</td>
@@ -141,6 +247,7 @@ function tablaPagos({ filas, total }, { pagina, verCliente, cat, mapaFuentes }) 
           <td>${celdaComprobante(p.comprobante)}</td>
           <td>${p.origen === 'app' ? 'App' : 'Sheet'}</td>
           <td class="num">${p.fila_planilla == null ? '—' : numCelda(String(p.fila_planilla), mapaFuentes.get(p.fuente_id), p.fila_planilla)}</td>
+          ${conAcciones ? `<td>${celdaAcciones(p)}</td>` : ''}
         </tr>`).join('')}</tbody>
       </table>
     </div>

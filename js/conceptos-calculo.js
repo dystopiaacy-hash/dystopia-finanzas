@@ -1,6 +1,6 @@
 /* Cálculo de la torta de cash collected por concepto, sin DOM ni Supabase
    (lo usa js/views/conceptos.js y lo prueba pruebas/conceptos.mjs).
-   REGLA: el total es SIEMPRE la suma real de las 4 categorías, con signo.
+   REGLA: el total es SIEMPRE la suma real de las 5 categorías, con signo.
    Una categoría negativa (devoluciones) resta del total; en la torta ocupa
    su valor absoluto y se marca como devolución. */
 
@@ -9,6 +9,7 @@ export const CATEGORIAS_CONCEPTO = [
   { clave: 'venta_nueva', label: 'Ventas nuevas', color: 'var(--cat-venta-nueva)' },
   { clave: 'producto', label: 'Producto', color: 'var(--cat-producto)', ayuda: 'Resell, upsell, renovación, comunidad' },
   { clave: 'cuota', label: 'Cuotas', color: 'var(--cat-cuota)' },
+  { clave: 'devolucion', label: 'Devolución', color: 'var(--cat-devolucion)', ayuda: 'Concepto REFUND' },
   { clave: 'sin_clasificar', label: 'Sin clasificar', color: 'var(--cat-sin-clasificar)' }
 ];
 
@@ -17,12 +18,12 @@ const n = v => Number(v) || 0;
 const sumar = vals => Math.round(vals.reduce((s, v) => s + Math.round(n(v) * 100), 0)) / 100;
 
 /* filas: de fin_v_cash_collected_concepto, ya filtradas por mes y cliente.
-   Devuelve las 4 categorías (siempre las 4) y los totales.
+   Devuelve las 5 categorías (siempre las 5) y los totales.
    - monto: suma con signo.  devolucion: monto < 0.
    - peso: |monto|, lo que ocupa en la torta.
    - pct: participación en la torta (peso / suma de pesos), con el signo del
      monto; null si la torta está vacía.
-   Una categoría fuera de las 4 conocidas cuenta como sin_clasificar. */
+   Una categoría fuera de las 5 conocidas cuenta como sin_clasificar. */
 export function calcularTorta(filas) {
   const acc = new Map(CATEGORIAS_CONCEPTO.map(c => [c.clave, { ...c, montos: [], pagos: 0 }]));
   for (const f of filas) {

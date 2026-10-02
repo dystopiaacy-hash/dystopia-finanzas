@@ -14,7 +14,7 @@ const fila = (categoria, monto_usd, pagos = 1, cliente_id = 'liam') => ({ client
 function caso(nombre, filas, { total, pagos }) {
   const t = calcularTorta(filas);
   const suma4 = t.categorias.reduce((s, c) => s + Math.round(c.monto * 100), 0) / 100;
-  ok(t.categorias.length === 4, `${nombre}: tiene que haber 4 categorías, hay ${t.categorias.length}`);
+  ok(t.categorias.length === CATEGORIAS_CONCEPTO.length, `${nombre}: tiene que haber ${CATEGORIAS_CONCEPTO.length} categorías, hay ${t.categorias.length}`);
   ok(t.categorias.map(c => c.clave).join() === CATEGORIAS_CONCEPTO.map(c => c.clave).join(), `${nombre}: orden de categorías`);
   ok(cerca(t.total, suma4), `${nombre}: total ${t.total} != suma de las 4 categorías ${suma4}`);
   ok(cerca(t.total, total), `${nombre}: total ${t.total}, esperado ${total}`);
