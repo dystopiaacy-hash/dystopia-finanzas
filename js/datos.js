@@ -104,7 +104,7 @@ export const rankingClosers = () =>
 
 /* ---------- Grilla de Pagos (fase 5, solo lectura) ---------- */
 
-const COLS_PAGO_GRILLA = 'id,cliente_id,fuente_id,fila_planilla,clave,origen,fecha,alumno,monto_usd,closer,setter,comprobante,'
+const COLS_PAGO_GRILLA = 'id,cliente_id,fuente_id,fila_planilla,clave,origen,fecha,alumno,telefono,monto_usd,closer,setter,comprobante,nota,pago_original_clave,'
   + 'programa,programa_id,concepto,concepto_id,metodo_pago,metodo_pago_id,quien_recibe,quien_recibe_id';
 
 /* Algún *_id sin resolver con texto crudo en la columna (lo mismo que cuenta fin_v_alias_pendientes). */

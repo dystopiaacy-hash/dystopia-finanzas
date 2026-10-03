@@ -3,18 +3,22 @@
    valor del catálogo; si todavía no hay alias, el texto crudo del Sheet en gris.
    Fase 6: donde fin_clientes_carga() da puede_anular, cada pago positivo se
    puede devolver y los cargados en la app se pueden anular (RPC de la 066).
-   El rol cliente ve solo sus clientes de fin_clientes_carga(), sin pendientes. */
-import { esc, fmtFecha, fmtNum, hoyAR, diasEntre, urlSegura, plural, abrirModal, toast } from '../ui.js';
-import { yo, esFundador, puedeAnular } from '../sesion.js';
+   El rol cliente ve solo sus clientes de fin_clientes_carga(), sin pendientes.
+   072: con un cliente elegido, las columnas salen de fin_columnas_de(cliente,
+   'pagos') y se editan en la celda (pagos-celdas.js). Con "Todos los clientes",
+   las del sistema con su nombre por defecto, sin columnas nuevas ni edición. */
+import { esc, fmtFecha, fmtNum, hoyAR, diasEntre, plural, abrirModal, toast } from '../ui.js';
+import { yo, esFundador, puedeAnular, nombreCliente } from '../sesion.js';
 import {
-  pagosGrilla, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd, numCelda,
-  pagoAnular, pagoDevolver
+  pagosGrilla, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd,
+  pagoAnular, pagoDevolver, cargaOpciones
 } from '../datos.js';
+import { columnasDe, pagosExtra, extrasHuerfanos, armarColumnas } from '../columnas.js';
 import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
+import { BASE_PAGOS, SIN_CATALOGO, thPago, tdPago, manejarCambio, manejarTecla } from './pagos-celdas.js';
+import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 
 const POR_PAGINA = 50;
-/* Mauro queda afuera de la reestructuración (V3): no tiene catálogos. */
-const SIN_CATALOGO = 'mauro';
 const COLUMNAS = { programa: 'Programa', concepto: 'Concepto', metodo_pago: 'Método', quien_recibe: 'Quién recibe' };
 
 export async function vistaPagos(el, vigente) {
@@ -22,9 +26,10 @@ export async function vistaPagos(el, vigente) {
   /* El fundador ve todo; el cliente, solo sus clientes de fin_clientes_carga(). */
   const clientes = fundador ? yo.clientes : yo.clientes.filter(c => yo.carga.some(x => x.cliente_id === c.id));
   const conCatalogo = clientes.filter(c => c.id !== SIN_CATALOGO);
-  const [cats, mapaFuentes, ultimos, pendientes, pnl] = await Promise.all([
+  const [cats, mapaFuentes, ultimos, pendientes, pnl, huerfanos] = await Promise.all([
     catalogos(), fuentes(), ultimoPagoPorCliente(conCatalogo.map(c => c.id)),
-    fundador ? aliasPendientes() : Promise.resolve([]), pnlMensual()
+    fundador ? aliasPendientes() : Promise.resolve([]), pnlMensual(),
+    fundador ? extrasHuerfanos() : Promise.resolve([])
   ]);
   if (!vigente()) return;
   const cat = new Map(cats.map(c => [c.id, c.valor]));
@@ -38,6 +43,21 @@ export async function vistaPagos(el, vigente) {
     `<option value="${esc(c.id)}"${c.id === f.cliente ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select>`;
   let pagina = 0;
   let turno = 0;
+
+  /* Configuración de columnas y desplegables de las celdas, por cliente. */
+  const configs = new Map(), opcionesCarga = new Map();
+  let cols = armarColumnas(BASE_PAGOS, null);
+  let ctx = null;
+  const traerConfig = async (cliente, forzar = false) => {
+    if (forzar || !configs.has(cliente)) configs.set(cliente, await columnasDe(cliente, 'pagos'));
+    return configs.get(cliente);
+  };
+  /* Solo donde se pueden editar las columnas del sistema. */
+  const traerOpciones = async cliente => {
+    if (!puedeAnular(cliente)) return null;
+    if (!opcionesCarga.has(cliente)) opcionesCarga.set(cliente, await cargaOpciones(cliente));
+    return opcionesCarga.get(cliente);
+  };
 
   /* Los catálogos son por cliente: el filtro va por nombre del concepto y se
      traduce a los ids de los clientes elegidos. */
@@ -58,7 +78,7 @@ export async function vistaPagos(el, vigente) {
       <span class="flabel">Mes</span>${selectMes('f-mes', f.mes, { todos: true })}
       <span class="flabel">Concepto</span><select id="f-concepto">${opcionesConcepto()}</select>
       ${fundador ? '<label class="flabel"><input type="checkbox" id="f-pend"> Solo pendientes de catálogo</label>' : ''}
-      <span class="grow"></span>${botonRecargar()}
+      <span class="grow"></span>${fundador ? `<span id="huerfanos"></span>${botonColumnas('btn-columnas', !f.cliente)}` : ''}${botonRecargar()}
     </div>
     <div id="grilla"></div>
     <div id="pendientes"></div>`;
@@ -68,13 +88,21 @@ export async function vistaPagos(el, vigente) {
   const cargar = async () => {
     const mio = ++turno;
     grilla.innerHTML = '<div class="loading-inline">Cargando pagos…</div>';
-    let r;
+    const cliente = f.cliente;
+    let r, config, opciones, extras = new Map();
     try {
-      r = await pagosGrilla({
-        clienteId: f.cliente || null, anio: f.anio, mes: f.mes,
-        conceptoIds: f.concepto ? conceptosVisibles().filter(c => c.valor === f.concepto).map(c => c.id) : null,
-        soloPendientes: f.pendientes, pagina, porPagina: POR_PAGINA
-      });
+      [r, config, opciones] = await Promise.all([
+        pagosGrilla({
+          clienteId: cliente || null, anio: f.anio, mes: f.mes,
+          conceptoIds: f.concepto ? conceptosVisibles().filter(c => c.valor === f.concepto).map(c => c.id) : null,
+          soloPendientes: f.pendientes, pagina, porPagina: POR_PAGINA
+        }),
+        cliente ? traerConfig(cliente) : null, cliente ? traerOpciones(cliente) : null
+      ]);
+      /* Valores de las columnas nuevas: solo los de las claves de esta página. */
+      if (cliente && r.filas.length && config.some(c => !c.sistema && !c.archivada && c.visible !== false)) {
+        extras = await pagosExtra(cliente, r.filas.map(p => p.clave));
+      }
     } catch (e) {
       if (vigente() && mio === turno) grilla.innerHTML = `<div class="card"><p class="aviso-texto">${esc(e.message)}</p></div>`;
       return;
@@ -82,7 +110,12 @@ export async function vistaPagos(el, vigente) {
     if (!vigente() || mio !== turno) return;
     /* Anular la última fila de la última página la deja vacía: se vuelve una atrás. */
     if (!r.filas.length && r.total && pagina > 0) { pagina--; return cargar(); }
-    grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !f.cliente, cat, mapaFuentes });
+    cols = armarColumnas(BASE_PAGOS, config);
+    ctx = {
+      cat, mapaFuentes, opciones, extras, recargar: cargar,
+      porId: new Map(r.filas.map(p => [String(p.id), p])), cols: new Map(cols.visibles.map(c => [c.k, c]))
+    };
+    grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !cliente, cols: cols.visibles, ctx });
     const ir = d => () => { pagina += d; cargar(); };
     const ant = grilla.querySelector('#pg-ant'), sig = grilla.querySelector('#pg-sig');
     if (ant) ant.onclick = ir(-1);
@@ -100,9 +133,34 @@ export async function vistaPagos(el, vigente) {
   };
   const filtrar = () => { pagina = 0; cargar(); };
 
+  /* Edición en la celda: un solo listener para toda la grilla. */
+  grilla.addEventListener('change', ev => { if (ctx) manejarCambio(ev, ctx); });
+  grilla.addEventListener('keydown', manejarTecla);
+
+  /* Valores de columnas nuevas cuyo pago ya no existe: contador chico para el fundador. */
+  const pintarHuerfanos = () => {
+    const caja = el.querySelector('#huerfanos');
+    if (!caja) return;
+    const n = huerfanos.filter(h => !f.cliente || h.cliente_id === f.cliente).length;
+    caja.innerHTML = n ? `<span class="badge pc-huerfanos" title="Valores de columnas nuevas cuyo pago ya no existe: se corrigió en el Sheet o se anuló. Están en fin_v_pagos_extra_huerfanos.">${plural(n, 'valor huérfano', 'valores huérfanos')}</span>` : '';
+  };
+  const btnColumnas = el.querySelector('#btn-columnas');
+  if (btnColumnas) btnColumnas.onclick = () => {
+    const cliente = f.cliente;
+    if (!cliente) return;
+    abrirPanelColumnas({
+      clienteId: cliente, vista: 'pagos', titulo: `Columnas de Pagos · ${nombreCliente(cliente)}`, permiteNuevas: true,
+      nota: 'Usá las flechas para ordenar. Vale para todos los usuarios de este cliente, en Pagos y en Cargar pago.',
+      estado: () => cols,
+      recargar: async () => { await traerConfig(cliente, true); if (f.cliente === cliente) await cargar(); }
+    });
+  };
+
   el.querySelector('#f-cliente').onchange = e => {
     f.cliente = e.target.value;
     el.querySelector('#f-concepto').innerHTML = opcionesConcepto();
+    if (btnColumnas) btnColumnas.hidden = !f.cliente;
+    pintarHuerfanos();
     pintarPendientes();
     filtrar();
   };
@@ -113,6 +171,7 @@ export async function vistaPagos(el, vigente) {
   if (pend) pend.onchange = e => { f.pendientes = e.target.checked; filtrar(); };
   el.querySelector('#btn-recargar').onclick = () => vistaPagos(el, vigente);
 
+  pintarHuerfanos();
   pintarPendientes();
   await cargar();
 }
@@ -122,22 +181,6 @@ function tarjetaUltimo(c, fecha, hoy) {
   const dias = diasEntre(fecha, hoy);
   const hace = dias === 0 ? 'hoy' : dias > 0 ? `hace ${plural(dias, 'día')}` : 'fecha futura';
   return statCard(fmtFecha(fecha), c.nombre, { sub: hace });
-}
-
-/* Valor del catálogo; sin *_id y con texto en el Sheet, el crudo en gris. */
-function celdaCatalogo(p, columna, cat) {
-  const valor = p[`${columna}_id`] != null ? cat.get(p[`${columna}_id`]) : null;
-  if (valor) return esc(valor);
-  const crudo = (p[columna] || '').trim();
-  if (!crudo) return '—';
-  if (p.cliente_id === SIN_CATALOGO) return esc(crudo);
-  return `<span class="txt-gris" title="Sin valor de catálogo: pendiente">${esc(crudo)}</span>`;
-}
-
-function celdaComprobante(c) {
-  if (!c) return '—';
-  const url = urlSegura(c);
-  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">abrir ↗</a>` : esc(c);
 }
 
 /* Devolver: cualquier pago positivo. Anular: solo lo cargado en la app. */
@@ -226,27 +269,19 @@ function modalDevolver(p, cat, alListo) {
   });
 }
 
-function tablaPagos({ filas, total }, { pagina, verCliente, cat, mapaFuentes }) {
+function tablaPagos({ filas, total }, { pagina, verCliente, cols, ctx }) {
   if (!total) return vacio('Sin pagos con estos filtros');
   const desde = pagina * POR_PAGINA;
   const conAcciones = yo.carga.some(c => c.habilitada && c.puede_anular);
+  /* Con "Todos los clientes", la columna Cliente va después de la fecha, como siempre. */
+  const conCliente = (col, html, extra) => html + (verCliente && col.k === 'fecha' ? extra : '');
   return `
     <div class="card table-card">
       <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}</span></div>
-      <table class="data-table data-table-dense">
-        <thead><tr><th>Fecha</th>${verCliente ? '<th>Cliente</th>' : ''}<th>Alumno</th><th>Programa</th><th>Concepto</th>
-          <th class="num">Monto USD</th><th>Método</th><th>Quién recibe</th><th>Closer</th><th>Setter</th>
-          <th>Comprobante</th><th>Origen</th><th class="num">Fila</th>${conAcciones ? '<th></th>' : ''}</tr></thead>
+      <table class="data-table data-table-dense tabla-pagos">
+        <thead><tr>${cols.map(c => conCliente(c, thPago(c), '<th>Cliente</th>')).join('')}${conAcciones ? '<th></th>' : ''}</tr></thead>
         <tbody>${filas.map(p => `<tr>
-          <td>${fmtFecha(p.fecha)}</td>${verCliente ? `<td>${clienteChip(p.cliente_id)}</td>` : ''}
-          <td>${esc(p.alumno || '—')}</td>
-          <td>${celdaCatalogo(p, 'programa', cat)}</td><td>${celdaCatalogo(p, 'concepto', cat)}</td>
-          <td class="num">${usd(p.monto_usd, { centavos: true })}</td>
-          <td>${celdaCatalogo(p, 'metodo_pago', cat)}</td><td>${celdaCatalogo(p, 'quien_recibe', cat)}</td>
-          <td>${esc(p.closer || '—')}</td><td>${esc(p.setter || '—')}</td>
-          <td>${celdaComprobante(p.comprobante)}</td>
-          <td>${p.origen === 'app' ? 'App' : 'Sheet'}</td>
-          <td class="num">${p.fila_planilla == null ? '—' : numCelda(String(p.fila_planilla), mapaFuentes.get(p.fuente_id), p.fila_planilla)}</td>
+          ${cols.map(c => conCliente(c, tdPago(c, p, ctx), `<td>${clienteChip(p.cliente_id)}</td>`)).join('')}
           ${conAcciones ? `<td>${celdaAcciones(p)}</td>` : ''}
         </tr>`).join('')}</tbody>
       </table>

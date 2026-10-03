@@ -2,7 +2,9 @@
    elegido, el detalle: cada item de Opps y cada pago, con link a su celda. */
 import { esc, fmtFecha, hoyAR } from '../ui.js';
 import { queryActual } from '../router.js';
-import { cliente as datosCliente } from '../sesion.js';
+import { cliente as datosCliente, esFundador } from '../sesion.js';
+import { columnasReporte, armarColumnas } from '../columnas.js';
+import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 import { setHeader } from '../layout.js';
 import {
   pnlMensual, pnlItems, pagos, fuentes, usd, numCelda, MESES, MESES_CORTOS, CATEGORIAS, ultimoPeriodo
@@ -24,11 +26,14 @@ const FILAS_PNL = [
   ['opening_balance', 'Opening balance', ''],
   ['closing_balance', 'Closing balance', '']
 ];
+/* Las filas del P&L son las "columnas" de la vista 'pnl' (072), por cliente:
+   el fundador las renombra, mueve y oculta. */
+const BASE_PNL = FILAS_PNL.map(([k, lab, estilo]) => ({ k, lab, estilo }));
 
 export async function vistaCliente(el, clienteId, vigente) {
   const c = datosCliente(clienteId);
   setHeader(c.nombre, 'P&L mensual y detalle');
-  const [todas, mapaFuentes] = await Promise.all([pnlMensual(), fuentes()]);
+  let [todas, mapaFuentes, config] = await Promise.all([pnlMensual(), fuentes(), columnasReporte(clienteId, 'pnl')]);
   if (!vigente()) return;
   const filas = todas.filter(f => f.cliente_id === clienteId);
   if (!filas.length) { el.innerHTML = vacio('Sin datos para este cliente', 'No hay Opps ni Pagos sincronizados todavía.'); return; }
@@ -50,7 +55,7 @@ export async function vistaCliente(el, clienteId, vigente) {
     el.innerHTML = `
       <div class="filter-row">
         <span class="flabel">Año</span>${selectAnio('f-anio', anios(filas, anio), anio)}
-        <span class="grow"></span>${botonRecargar()}
+        <span class="grow"></span>${esFundador() ? botonColumnas() : ''}${botonRecargar()}
       </div>
       <div class="stat-row stat-row-6">
         ${statCard(usd(fm.ingreso_real), `Ingreso real · ${MESES[mes - 1]}`, { sub: `${n(fm.cantidad_pagos)} pagos` })}
@@ -65,7 +70,7 @@ export async function vistaCliente(el, clienteId, vigente) {
         <table class="data-table data-table-dense pnl-tabla">
           <thead><tr><th></th>${meses.map(m => `<th class="num"><button type="button" class="mes-btn${m === mes ? ' activo' : ''}" data-mes="${m}">${MESES_CORTOS[m - 1]}</button></th>`).join('')}</tr></thead>
           <tbody>
-            ${FILAS_PNL.map(([k, label, estilo]) => `<tr class="pnl-${estilo || 'normal'}"><td>${label}</td>${meses.map(m => {
+            ${armarColumnas(BASE_PNL, config).visibles.map(({ k, lab, estilo }) => `<tr class="pnl-${estilo || 'normal'}"><td>${esc(lab)}</td>${meses.map(m => {
               const v = valor(m, k);
               const marca = k === 'net_cash_flow' && valor(m, 'fuente_ingreso') === 'opps'
                 ? '<span class="marca-opps" title="Antes del primer pago cargado: el ingreso sale de Opps">(Opps)</span> ' : '';
@@ -81,6 +86,13 @@ export async function vistaCliente(el, clienteId, vigente) {
 
     el.querySelector('#f-anio').onchange = e => { anio = Number(e.target.value); pintar(); };
     el.querySelector('#btn-recargar').onclick = () => vistaCliente(el, clienteId, vigente);
+    const btnColumnas = el.querySelector('#btn-columnas');
+    if (btnColumnas) btnColumnas.onclick = () => abrirPanelColumnas({
+      clienteId, vista: 'pnl', titulo: `Filas del P&L · ${c.nombre}`,
+      nota: 'Usá las flechas para ordenar. Vale para todos los usuarios de este cliente.',
+      estado: () => armarColumnas(BASE_PNL, config),
+      recargar: async () => { config = await columnasReporte(clienteId, 'pnl'); if (vigente()) pintar(); }
+    });
     for (const b of el.querySelectorAll('.mes-btn')) b.onclick = () => { mes = Number(b.dataset.mes); pintar(); };
 
     const [items, pagosMes] = await Promise.all([pnlItems(clienteId, anio, mes), pagos({ clienteId, anio, mes })]);
