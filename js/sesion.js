@@ -50,6 +50,9 @@ export async function cargarSesion(user) {
 }
 
 export const esFundador = () => yo.rol === 'fundador';
+/* Cliente al que se limita un usuario que no es fundador y tiene uno solo; si no, null.
+   Solo para textos de interfaz: no cambia permisos ni datos. */
+export const clienteUnico = () => (!esFundador() && yo.clientes.length === 1 ? yo.clientes[0] : null);
 /* Cliente de un cliente por áreas que no carga pagos: ve solo el panel, solo lectura. */
 export const soloPanel = () => yo.rol === 'cliente' && yo.areas.length > 0 && yo.carga.length === 0
   && yo.clientes.length > 0 && yo.clientes.every(c => yo.areas.includes(c.id));

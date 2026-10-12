@@ -50,6 +50,25 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+00000000. (12/10) 088 (número asignado por el jefe), sin correr, sin commit:
+   - 088_liam_borrar_pagos_de_mas.sql: borra los 3 pagos de más de liam (ids 2505043, 2505056, 2505062, 3.500,00 USD),
+     un solo `do`, diagnóstico de solo lectura antes. Conjunto = misma lógica de la Q2 de la 076c (huella + ocurrencia
+     contra fin_import_liam_076), comparado como conjunto con los 3 ids. Aborta sin borrar si: conjunto distinto, suma
+     distinta de 3.500,00, algún pago con creado_por/editado_por, o con dependientes (fin_liquidacion_items por clave o
+     id, devoluciones por pago_original_clave, fin_pagos_extra), o fuente de pagos de liam activa / sin cortar.
+     Respaldo previo en tabla normal fin_respaldo_088_liam_pagos (RLS, solo postgres). Re-ejecutable.
+   - 088b_liam_borrar_pagos_control.sql: 6 controles sueltos (C1 a C6).
+   - 088c_liam_restaurar_pagos.sql: restaura los 3 desde el respaldo. No se corre salvo pedido de Joaquín.
+   - UI: para un usuario no fundador con un solo cliente (ej. cliente@liam.dystopia) Resumen se llama "Resumen" con
+     subtítulo = nombre del cliente, y la sección anual pierde ", todos los clientes". Nuevo clienteUnico() en
+     sesion.js; tocados layout.js (nav), app.js (header), resumen.js. Solo texto, sin cambios de permisos ni datos.
+0000000. (12/10) 076c CORREGIDA: Q1, Q2 y Q3 fallaban con 42703 porque la foto fin_import_liam_076 que quedó en producción
+   (de un intento viejo de la 076) no tiene la columna huella. Ahora la huella de la foto se calcula en la consulta con
+   public.fin_pago_huella('liam', fecha, alumno, monto, concepto) (062, la misma de la 076 y del trigger de fin_pagos).
+   Agregada Q0 (columnas reales de las dos tablas). Sin migración, sin número, sin correr.
+000000. (12/10) migraciones/076c-liam-pagos-control-consultas-sueltas.sql: 3 consultas sueltas de solo lectura (Q1 resumen
+   234 vs 231, Q2 C4 reescrito = los 3 pagos de más, Q3 inverso xlsx sin pago). Usan fin_import_liam_076 (tabla normal) y
+   el cruce huella+ocurrencia; sin temporales. No es migración, sin número, sin datos personales en el archivo. Sin correr.
 00000. (12/10) 076 REESCRITA tras fallar en producción con `42P01 relation "_liam_dif" does not exist`. Causa: el SQL Editor
    pasa por un pooler y no respeta begin/commit ni una sola conexión: la temporal `on commit drop` desapareció entre
    sentencias. Ahora el generador (pruebas/liam-generar-076.mjs) emite UNA sola sentencia `do $liam076$ ... $liam076$`
@@ -96,6 +115,14 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+00000000. Correr la 088: primero el DIAGNOSTICO (debe decir LISTA PARA CORRER), después el bloque do, y los controles
+    088b de a uno (C1 231 y 231.600,80; C2 0 filas; C3 3 filas y 3.500,00; C4 0 filas; C5 0; C6 pagos activo=false con
+    cortada_en). Si hace falta deshacer: 088c. Después de correrla, la 076c ya no devuelve sobrantes. No subir al repo
+    076, 076c, 078 ni scripts/salida/ (traen o generan datos personales); 088/088b/088c no traen datos personales.
+0000000. Correr de a una Q0, Q1, Q2 y Q3 (en ese orden) de migraciones/076c-liam-pagos-control-consultas-sueltas.sql y pasar el resultado.
+    Si Q0 muestra que a la foto le faltan fecha/alumno/concepto/monto/fila, frenar y avisar.
+    Sobran 3 pagos (3.500 USD) en liam: decidir si se borran (L1 de la 076, o migración nueva con número del jefe).
+    No pegar el resultado fuera del equipo (trae alumnos). 076c tampoco se sube al repo si se decide no subir la 076.
 000. nav-areas.js: copiar el mismo archivo a Marketing, Ventas y Producto (cada repo lo hace su chat) y commitear
     junto con el resto de cambios de Finanzas cuando Joaquín pruebe.
 0000. 076: correr primero el bloque DIAGNOSTICO (solo ese) del archivo regenerado; si dice NADA APLICADO o A MEDIAS,

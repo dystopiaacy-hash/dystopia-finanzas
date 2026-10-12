@@ -5,7 +5,7 @@
 import { sb } from './supabase.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, puedeCargar, vePagos } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, clienteUnico, puedeCargar, vePagos } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -98,7 +98,8 @@ function registrarRutas() {
   ruta('', () => reemplazar(rutaInicio()));
   ruta('resumen', guardia(veFinanzas, () => {
     renderNav({ vista: 'resumen' });
-    setHeader('Resumen agencia', 'Ingresos, gastos y conciliación por cliente');
+    const unico = clienteUnico();
+    setHeader(unico ? 'Resumen' : 'Resumen agencia', unico ? unico.nombre : 'Ingresos, gastos y conciliación por cliente');
     montar(vistaResumen);
   }));
   ruta('cliente/:id', guardia(veFinanzas, ({ id }) => {

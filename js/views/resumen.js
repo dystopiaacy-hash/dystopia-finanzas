@@ -3,7 +3,7 @@
    declarado = items de REVENUE en Opps. Sin reparto ni comisiones. */
 import { esc, hoyAR } from '../ui.js';
 import { navegar } from '../router.js';
-import { yo, esFundador } from '../sesion.js';
+import { yo, esFundador, clienteUnico } from '../sesion.js';
 import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo } from '../datos.js';
 import {
   statCard, vacio, selectAnio, selectMes, anios, clienteChip, estadoFuente, peorEstado,
@@ -98,7 +98,7 @@ export async function vistaResumen(el, vigente) {
       </div>
       <div class="table-foot">Clic en un cliente para ver su P&amp;L y el detalle con link a cada celda.</div>
 
-      <div class="section-title">${anio} mes a mes, todos los clientes<span class="line"></span></div>
+      <div class="section-title">${anio} mes a mes${clienteUnico() ? '' : ', todos los clientes'}<span class="line"></span></div>
       <div class="card table-card">
         <table class="data-table data-table-dense">
           <thead><tr><th></th>${meses.map(m => `<th class="num">${MESES_CORTOS[m - 1]}</th>`).join('')}</tr></thead>

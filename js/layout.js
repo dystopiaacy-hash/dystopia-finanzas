@@ -1,7 +1,7 @@
 /* Layout (replica Seguimiento): sidebar con marca (y nav-areas),
    navegación y pie (email + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
-import { yo, esFundador, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, etiquetaRol } from './sesion.js';
+import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, etiquetaRol } from './sesion.js';
 
 /* [ruta, etiqueta, subtítulo, visible()] */
 const VISTAS = [
@@ -57,8 +57,10 @@ export function renderNav(activo = {}) {
   const nav = document.getElementById('nav');
   if (!nav) return;
   let html = '';
-  for (const [ruta, label, sub, visible] of VISTAS) {
+  const unico = clienteUnico();
+  for (let [ruta, label, sub, visible] of VISTAS) {
     if (!visible()) continue;
+    if (ruta === 'resumen' && unico) { label = 'Resumen'; sub = unico.nombre; }
     html += `
       <a class="nav-item${activo.vista === ruta ? ' active' : ''}" href="#/${ruta}">
         <span class="nav-icon">◆</span>
