@@ -262,10 +262,10 @@ begin
 
   -- Los padres de las tablas que se filtran por relacion tienen que estar.
   if 'fin_liquidacion_items' = any (v_base) and to_regclass('public.fin_liquidaciones') is not null then
-    v_base := v_base || 'fin_liquidaciones';
+    v_base := array_append(v_base, 'fin_liquidaciones'::text);
   end if;
   if 'fin_vendedores' = any (v_base) and to_regclass('public.fin_vendedor_asignaciones') is not null then
-    v_base := v_base || 'fin_vendedor_asignaciones';
+    v_base := array_append(v_base, 'fin_vendedor_asignaciones'::text);
   end if;
   raise notice '084 diag: tablas base de Dashboard/Comisiones: %', v_base;
 
@@ -288,14 +288,14 @@ begin
              || case when v_nulable then 'cliente_id is null or ' else '' end
              || 'public.fin_asignado(cliente_id))';
     else
-      v_sin_cond := v_sin_cond || v_t;
+      v_sin_cond := array_append(v_sin_cond, v_t);
       continue;
     end if;
 
     execute format('drop policy if exists %I on public.%I', v_t || '_lectura_ventas_dash', v_t);
     execute format('create policy %I on public.%I for select to authenticated using (%s)',
                    v_t || '_lectura_ventas_dash', v_t, v_cond);
-    v_creadas := v_creadas || v_t;
+    v_creadas := array_append(v_creadas, v_t);
   end loop;
   raise notice '084: politicas de lectura para ventas en: %', v_creadas;
   if array_length(v_sin_cond, 1) is not null then
