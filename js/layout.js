@@ -1,15 +1,15 @@
 /* Layout (replica Seguimiento): sidebar con marca (y nav-areas),
    navegación y pie (email + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
-import { yo, esFundador, veFinanzas, veCobranzas, puedeCargar, vePagos, etiquetaRol } from './sesion.js';
+import { yo, esFundador, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, etiquetaRol } from './sesion.js';
 
 /* [ruta, etiqueta, subtítulo, visible()] */
 const VISTAS = [
   ['resumen', 'Resumen agencia', 'Todos los clientes', veFinanzas],
-  ['conciliacion', 'Conciliación', 'Opps contra Pagos', veFinanzas],
-  ['conceptos', 'Cash por concepto', 'Torta por categoría', veFinanzas],
+  ['conciliacion', 'Conciliación', 'Opps contra Pagos', veAnalisis],
+  ['conceptos', 'Cash por concepto', 'Torta por categoría', veAnalisis],
   ['cobranzas', 'Cobranzas', 'Cuotas pendientes', veCobranzas],
-  ['mis-numeros', 'Mis números', 'Closers y setters', () => true],
+  ['mis-numeros', 'Mis números', 'Closers y setters', veMisNumeros],
   ['cargar', 'Cargar pago', 'Alta de un pago', puedeCargar],
   ['pagos', 'Pagos', 'Grilla y catálogos', vePagos],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]

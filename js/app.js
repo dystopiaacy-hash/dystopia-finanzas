@@ -5,7 +5,7 @@
 import { sb } from './supabase.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veCobranzas, esFundador, puedeCargar, vePagos } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, puedeCargar, vePagos } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -105,12 +105,12 @@ function registrarRutas() {
     renderNav({ cliente: id });
     montar((el, vigente) => vistaCliente(el, id, vigente));
   }));
-  ruta('conciliacion', guardia(veFinanzas, () => {
+  ruta('conciliacion', guardia(veAnalisis, () => {
     renderNav({ vista: 'conciliacion' });
     setHeader('Conciliación', 'Total Revenue de Opps contra la suma de Pagos del mismo mes');
     montar(vistaConciliacion);
   }));
-  ruta('conceptos', guardia(veFinanzas, () => {
+  ruta('conceptos', guardia(veAnalisis, () => {
     renderNav({ vista: 'conceptos' });
     setHeader('Cash por concepto', 'Cash collected del mes por categoría de concepto');
     montar(vistaConceptos);
@@ -120,11 +120,11 @@ function registrarRutas() {
     setHeader('Cobranzas', 'Cuotas pendientes y vencidas');
     montar(vistaCobranzas);
   }));
-  ruta('mis-numeros', () => {
+  ruta('mis-numeros', guardia(veMisNumeros, () => {
     renderNav({ vista: 'mis-numeros' });
     setHeader('Mis números', esFundador() ? 'Closers y setters' : yo.nombre);
     montar(vistaMisNumeros);
-  });
+  }));
   ruta('cargar', guardia(puedeCargar, () => {
     renderNav({ vista: 'cargar' });
     setHeader('Cargar pago', 'Alta de un pago desde la app');

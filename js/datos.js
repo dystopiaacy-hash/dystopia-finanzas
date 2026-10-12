@@ -139,6 +139,9 @@ async function rpc(nombre, args) {
 
 export const cargaOpciones = clienteId => rpc('fin_carga_opciones', { p_cliente: clienteId });
 export const pagoCargar = p => rpc('fin_pago_cargar', { p });
+/* 075: alta de una opción de concepto, método de pago o quién recibe (devuelve {id, valor, nuevo}). */
+export const catalogoAgregar = (clienteId, dimension, valor) =>
+  rpc('fin_catalogo_agregar', { p_cliente: clienteId, p_dimension: dimension, p_valor: valor });
 export const pagoAnular = (clave, motivo) => rpc('fin_pago_anular', { p_clave: clave, p_motivo: motivo });
 export const pagoDevolver = (clave, monto, fecha, motivo) =>
   rpc('fin_pago_devolver', { p_clave: clave, p_monto: monto, p_fecha: fecha, p_motivo: motivo });

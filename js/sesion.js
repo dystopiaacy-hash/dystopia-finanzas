@@ -1,12 +1,16 @@
 /* Usuario actual: rol (de crm_members, igual que Dystopia y Seguimiento) y
    clientes visibles. La RLS recorta todo lo demás: esta app nunca decide
-   permisos, solo qué pantallas ofrecer. */
+   permisos, solo qué pantallas ofrecer.
+   075: el rol también es el ÁREA (finanzas, ventas, producto, contenido) en los
+   clientes que están en fin_clientes_areas (hoy liam). producto y contenido no
+   entran a Finanzas. */
 import { sb } from './supabase.js';
 
-/* carga: filas de fin_clientes_carga() {cliente_id, habilitada, puede_anular}. */
-export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [] };
+/* carga: filas de fin_clientes_carga() {cliente_id, habilitada, puede_anular, puede_extras}.
+   areas: clientes con permisos por área (fin_clientes_por_areas, 075). */
+export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [] };
 
-const ROLES = ['fundador', 'cliente', 'closer', 'setter'];
+const ROLES = ['fundador', 'cliente', 'closer', 'setter', 'finanzas', 'ventas'];
 /* Mismo orden que las cuentas en Dystopia. */
 const ORDEN = ['liam', 'agus', 'teo', 'mauro', 'lucas'];
 
@@ -24,6 +28,13 @@ async function cargarCarga() {
   return data || [];
 }
 
+/* Clientes con permisos por área (075). Si la 075 no está corrida, ninguno. */
+async function cargarAreas() {
+  const { data, error } = await sb.rpc('fin_clientes_por_areas');
+  if (error) { console.warn('fin_clientes_por_areas', error.message); return []; }
+  return (data || []).map(x => (typeof x === 'string' ? x : Object.values(x)[0]));
+}
+
 /* Devuelve true si el usuario puede usar la app. */
 export async function cargarSesion(user) {
   yo.userId = user.id;
@@ -34,20 +45,28 @@ export async function cargarSesion(user) {
   yo.rol = mem ? mem.rol : null;
   yo.nombre = (mem && mem.nombre) || yo.email;
   if (!ROLES.includes(yo.rol)) return false;
-  [yo.clientes, yo.carga] = await Promise.all([cargarClientes(), cargarCarga()]);
+  [yo.clientes, yo.carga, yo.areas] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas()]);
   return true;
 }
 
 export const esFundador = () => yo.rol === 'fundador';
-/* P&L (y con él el bloque Staff = sueldos): solo fundador y cliente. */
-export const veFinanzas = () => yo.rol === 'fundador' || yo.rol === 'cliente';
-export const veCobranzas = () => yo.rol !== 'setter';
+/* Cliente de un cliente por áreas que no carga pagos: ve solo el panel, solo lectura. */
+export const soloPanel = () => yo.rol === 'cliente' && yo.areas.length > 0 && yo.carga.length === 0
+  && yo.clientes.length > 0 && yo.clientes.every(c => yo.areas.includes(c.id));
+/* P&L (y con él el bloque Staff = sueldos): fundador, cliente y finanzas. */
+export const veFinanzas = () => ['fundador', 'cliente', 'finanzas'].includes(yo.rol);
+/* Conciliación y Cash por concepto: lo ve quien ve Finanzas, menos el cliente de solo panel. */
+export const veAnalisis = () => veFinanzas() && !soloPanel();
+export const veCobranzas = () => !['setter', 'ventas'].includes(yo.rol) && !soloPanel();
+export const veMisNumeros = () => yo.rol !== 'ventas' && !soloPanel();
 export const esEquipo = () => yo.rol === 'closer' || yo.rol === 'setter';
 /* Carga de pagos: cualquiera con al menos un cliente en fin_clientes_carga(). */
 export const puedeCargar = () => yo.carga.length > 0;
-/* Grilla de Pagos: fundador, o cliente con sus clientes de fin_clientes_carga(). */
-export const vePagos = () => esFundador() || (yo.rol === 'cliente' && puedeCargar());
+/* Grilla de Pagos: fundador, o cliente/finanzas con sus clientes de fin_clientes_carga(). */
+export const vePagos = () => esFundador() || ((yo.rol === 'cliente' || yo.rol === 'finanzas') && puedeCargar());
 export const puedeAnular = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_anular);
+/* Valores de las columnas nuevas: en un cliente por áreas solo fundador (075). */
+export const puedeExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_extras !== false);
 
 export function cliente(id) {
   return yo.clientes.find(c => c.id === id) || { id, nombre: id, color: null };
@@ -58,9 +77,13 @@ export function nombreCliente(id) {
 }
 
 export function rutaInicio() {
+  if (yo.rol === 'ventas') return 'cargar';
   return esEquipo() ? 'mis-numeros' : 'resumen';
 }
 
 export function etiquetaRol() {
-  return { fundador: 'Fundador', cliente: 'Cliente', closer: 'Closer', setter: 'Setter' }[yo.rol] || '';
+  return {
+    fundador: 'Fundador', cliente: soloPanel() ? 'Cliente · solo lectura' : 'Cliente', closer: 'Closer', setter: 'Setter',
+    finanzas: 'Finanzas', ventas: 'Ventas'
+  }[yo.rol] || '';
 }

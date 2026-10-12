@@ -94,3 +94,8 @@ select.m-edit{cursor:pointer;padding-right:2px;}
 .mc-arch-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-meta);}
 .mc-nueva{margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--border-soft);}
 .mc-acciones{display:flex;justify-content:flex-end;gap:var(--sp-2);}
+/* Cargar pago: alta de una opción de catálogo (075) */
+.opcion-nueva{margin-top:var(--sp-1);font-size:var(--fs-meta);}
+.opcion-nueva .btn-link{background:none;border:0;padding:0;color:var(--text-dim);cursor:pointer;text-decoration:underline;font:inherit;}
+.opcion-nueva [id$="-nuevo"]{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);margin-top:var(--sp-1);}
+.opcion-nueva [id$="-nuevo"][hidden]{display:none;}

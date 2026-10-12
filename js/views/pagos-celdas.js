@@ -6,7 +6,7 @@
    - Columnas del sistema: solo filas 'app' con puede_anular, por fin_pago_editar.
      Nunca monto, cliente, origen ni fila. */
 import { esc, fmtFecha, fmtNum, hoyAR, urlSegura } from '../ui.js';
-import { yo, puedeAnular } from '../sesion.js';
+import { puedeAnular, puedeExtras } from '../sesion.js';
 import { usd, numCelda } from '../datos.js';
 import { pagoEditar, pagoExtraGuardar, errorColumnas } from '../columnas.js';
 
@@ -37,7 +37,8 @@ const NUMERICAS = ['monto_usd', 'fila_planilla'];
 const EN_DEVOLUCION = ['nota', 'comprobante'];
 const FUERA = '__actual';
 
-export const editaExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId);
+/* 075: en un cliente por áreas (liam) las columnas nuevas las edita solo el fundador. */
+export const editaExtras = clienteId => puedeExtras(clienteId);
 
 function editaSistema(col, p, ctx) {
   return !!ctx.opciones && !!EDITOR[col.k] && p.origen === 'app' && puedeAnular(p.cliente_id)

@@ -7,7 +7,7 @@
    pago con fin_pago_extra_guardar y la clave que devuelve fin_pago_cargar. */
 import { esc, hoyAR } from '../ui.js';
 import { yo, nombreCliente } from '../sesion.js';
-import { cargaOpciones, pagoCargar, usd } from '../datos.js';
+import { cargaOpciones, pagoCargar, catalogoAgregar, usd } from '../datos.js';
 import { columnasDe, armarColumnas, pagoExtraGuardar, errorColumnas } from '../columnas.js';
 import { vacio } from './comunes.js';
 import { BASE_PAGOS } from './pagos-celdas.js';
@@ -21,9 +21,9 @@ const CAMPOS = {
   telefono: { id: 'c-telefono', tipo: 'tel' },
   monto_usd: { id: 'c-monto', obligatorio: true, tipo: 'number' },
   programa: { id: 'c-programa', obligatorio: true, sel: ['programas', 'valor'] },
-  concepto: { id: 'c-concepto', obligatorio: true, sel: ['conceptos', 'valor'] },
-  metodo_pago: { id: 'c-metodo', obligatorio: true, lab: 'Método de pago', sel: ['metodos', 'valor'] },
-  quien_recibe: { id: 'c-recibe', sel: ['quien_recibe', 'valor'] },
+  concepto: { id: 'c-concepto', obligatorio: true, sel: ['conceptos', 'valor'], dim: 'concepto' },
+  metodo_pago: { id: 'c-metodo', obligatorio: true, lab: 'Método de pago', sel: ['metodos', 'valor'], dim: 'metodo_pago' },
+  quien_recibe: { id: 'c-recibe', sel: ['quien_recibe', 'valor'], dim: 'quien_recibe' },
   closer: { id: 'c-closer', sel: ['closers', 'nombre'] },
   setter: { id: 'c-setter', sel: ['setters', 'nombre'] },
   comprobante: { id: 'c-comprobante', lab: 'Comprobante (link)', tipo: 'url' },
@@ -36,6 +36,17 @@ const fila = (id, label, control, { hint = '', ancho = false } = {}) =>
 function campoSistema(c, hoy) {
   const d = CAMPOS[c.k], label = c.lab === c.original && d.lab ? d.lab : c.lab;
   const hint = d.obligatorio ? '' : 'Opcional';
+  if (d.sel && d.dim) {
+    /* Concepto, método y quién recibe: lista del catálogo + alta de una opción nueva (075). */
+    const nuevo = `<div class="opcion-nueva"><button type="button" class="btn-link" data-nuevo="${c.k}">+ Agregar opción</button>
+      <span id="${d.id}-nuevo" hidden>
+        <input type="text" id="${d.id}-nuevo-txt" maxlength="60" autocomplete="off" placeholder="Nueva opción">
+        <button type="button" class="btn" data-nuevo-ok="${c.k}">Agregar</button>
+        <button type="button" class="btn" data-nuevo-no="${c.k}">Cancelar</button>
+        <span class="form-error" id="${d.id}-nuevo-msg" role="alert"></span>
+      </span></div>`;
+    return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>${nuevo}`, { hint });
+  }
   if (d.sel) return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>`, { hint });
   if (d.tipo === 'textarea') return fila(d.id, label, `<textarea id="${d.id}" rows="2"></textarea>`, { hint, ancho: true });
   const extra = d.tipo === 'date' ? ` value="${hoy}" max="${hoy}"`
@@ -137,10 +148,34 @@ export async function vistaCargar(el, vigente) {
 
   selCliente.onchange = cargarOpciones;
 
-  /* Un campo oculto (opcional) no está en el formulario: vale null. */
-  const ctl = k => (sistema.some(c => c.k === k) ? $(CAMPOS[k].id) : null);
-  const num = k => (ctl(k) && ctl(k).value ? Number(ctl(k).value) : null);
-  const txt = k => (ctl(k) ? ctl(k).value.trim() : '');
+  /* Alta de una opción nueva del catálogo (concepto, método, quién recibe). */
+  campos.onclick = async ev => {
+    const b = ev.target.closest('[data-nuevo],[data-nuevo-ok],[data-nuevo-no]');
+    if (!b) return;
+    const d = CAMPOS[b.dataset.nuevo || b.dataset.nuevoOk || b.dataset.nuevoNo];
+    const caja = $(`${d.id}-nuevo`), txtNuevo = $(`${d.id}-nuevo-txt`), msg = $(`${d.id}-nuevo-msg`);
+    if (b.dataset.nuevo) { caja.hidden = false; txtNuevo.value = ''; msg.textContent = ''; txtNuevo.focus(); return; }
+    if (b.dataset.nuevoNo) { caja.hidden = true; return; }
+    const valor = txtNuevo.value.trim();
+    if (valor.length < 2) { msg.textContent = 'Escribí al menos 2 letras.'; return; }
+    b.disabled = true;
+    try {
+      const r = await catalogoAgregar(selCliente.value, d.dim, valor);
+      const s = $(d.id);
+      if (![...s.options].some(o => o.value === String(r.id))) {
+        s.insertAdjacentHTML('beforeend', `<option value="${esc(r.id)}">${esc(r.valor)}</option>`);
+      }
+      s.value = String(r.id);
+      caja.hidden = true;
+    } catch (e) {
+      msg.textContent = e.message || String(e);
+    }
+    b.disabled = false;
+  };
+
+  const ctl = k => $(CAMPOS[k].id);
+  const num = k => (ctl(k).value ? Number(ctl(k).value) : null);
+  const txt = k => ctl(k).value.trim();
   const valorExtra = c => {
     const x = $(idExtra(c));
     if (c.tipo === 'casilla') return x.checked || null;
