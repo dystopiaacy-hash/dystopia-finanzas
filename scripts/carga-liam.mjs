@@ -122,7 +122,8 @@ const ESTADOS = new Set(['NO CIERRE', 'EN SEGUIMIENTO', 'NO SHOW', 'NO CALIFICAD
   'ADENTRO EN SEGUIMIENTO', 'FEE', 'GHOSTEADO']);
 const ESTADO_MAPA = {
   'ADENTRO EN CHAT': 'ADENTRO EN SEGUIMIENTO',
-  'SEGUIMIENTO CUOTAS': 'ADENTRO EN SEGUIMIENTO',
+  // 084: "Seguimiento cuotas" es seguimiento (abierto), NO venta cerrada.
+  'SEGUIMIENTO CUOTAS': 'EN SEGUIMIENTO',
   'ADENTRO LLAMADA': 'ADENTRO EN LLAMADA',
   'NO CALIFICA': 'NO CALIFICADO',
   'CONTEXTO': null,
@@ -396,7 +397,7 @@ ${DIAGNOSTICO.split('\n').map((l) => '-- ' + l).join('\n')}
 -- select origen, count(*), count(*) filter (where fila_planilla is not null) as de_la_foto
 --   from public.fin_llamadas where cliente_id = 'liam' group by 1;
 
--- C2. Estados (solo los 8 del catalogo; cero de SEGUIMIENTO CUOTAS / CHAT).
+-- C2. Estados (solo los 8 del catalogo; cero de SEGUIMIENTO CUOTAS / CHAT; las cuotas quedan en EN SEGUIMIENTO).
 -- select estado_llamada, count(*) from public.fin_llamadas
 --  where cliente_id = 'liam' group by 1 order by 2 desc;
 
