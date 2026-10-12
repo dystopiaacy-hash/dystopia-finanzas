@@ -50,6 +50,11 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000. (12/10) Rol cliente con un solo cliente (clienteUnico()): Resumen sin lenguaje de agencia. Solo js/views/resumen.js:
+   sección mensual "Octubre 2026" (sin "por cliente"), sin columna Cliente (la fila sigue siendo clicable), leyenda "Clic en la
+   fila para ver tu P&L...", subtítulo de la tarjeta de diferencia en singular. Fundador y multi-cliente no cambian. Sin
+   migración, sin commit. `npm test` pasa; no se probó en navegador con cliente@liam (solo texto/plantilla).
+   Además se hizo el relevamiento de la próxima tanda (sección "Relevamiento próxima tanda" al final), sin tocar código.
 00000000. (12/10) 088 (número asignado por el jefe), sin correr, sin commit:
    - 088_liam_borrar_pagos_de_mas.sql: borra los 3 pagos de más de liam (ids 2505043, 2505056, 2505062, 3.500,00 USD),
      un solo `do`, diagnóstico de solo lectura antes. Conjunto = misma lógica de la Q2 de la 076c (huella + ocurrencia
@@ -115,6 +120,8 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000. Commitear y pushear js/views/resumen.js (texto para rol cliente) y ESTADO-APP.md; verificar en producción con
+    cliente@liam.dystopia. Decidir con Joaquín el orden de la sección "Relevamiento próxima tanda".
 00000000. Correr la 088: primero el DIAGNOSTICO (debe decir LISTA PARA CORRER), después el bloque do, y los controles
     088b de a uno (C1 231 y 231.600,80; C2 0 filas; C3 3 filas y 3.500,00; C4 0 filas; C5 0; C6 pagos activo=false con
     cortada_en). Si hace falta deshacer: 088c. Después de correrla, la 076c ya no devuelve sobrantes. No subir al repo
@@ -179,3 +186,55 @@
   cortada. En clientes por áreas (fin_clientes_areas) editar/anular/devolver es solo fundador, y las columnas
   nuevas también (salvo quien cargó el pago, 15 min). fin_pago_editar y fin_pago_anular no cambiaron: obedecen
   a fin_puede_anular. No regenerar la 076 después de corrida (tiene guarda de "ya importado").
+
+## Relevamiento próxima tanda (12/10, reuniones 07/10 y 08/10 con Nacho; solo lectura de código y migraciones)
+Hechos de base: Cuotas y Opps viven en tablas SIN origen (fin_cuotas, fin_pnl): solo las llena la sync, que borra y reescribe
+todo por fuente (005/060). Cortar una fuente = activo=false + cortada_en (065): la sync no la lee y lo cargado queda congelado.
+Hoy no hay en la app ningún lugar donde escribir cuotas ni gastos. Cambió: FASE0 V4 y PLAN-FINANZAS-2 decían "cuotas a
+Producto/Seguimiento"; Nacho las pide en Finanzas (confirmar con Joaquín que V4 queda sin efecto).
+1. Cuotas (imputación, calendario, pendientes editables). Existe: fin_cuotas (001, ancho: hasta 3 cuotas por alumno en liam, 1
+   en mauro), fin_v_cobranzas (003, pendiente = estado vacío o no pagado/churn/pausado/cancelado, "supuesto a validar"),
+   pantalla Cobranzas (js/views/cobranzas.js, solo lectura). No hay vínculo cuota-pago (FASE0 §6). Falta: tabla de cuotas con
+   origen 'app' (una fila por cuota: alumno, programa, n°, monto, vence, estado), imputar pago a cuota (clave del pago en la
+   cuota o tabla puente), calendario (vista por mes de vencimientos), edición en celda (reusar pagos-celdas.js y fin_columnas).
+   Migración: estructura + permisos + datos (pasar las 22 cuotas de liam/mauro). Tamaño: grande.
+   Pregunta: ¿la cuota se imputa a mano al cargar el pago o por match alumno+monto? ¿Teo y Agus tienen cuotas fuera de las hojas?
+   Riesgo: Producto/Seguimiento maneja renovaciones y días restantes: definir de quién es la tabla o se duplica.
+2. Resell / Upsell diferenciados. Existe: conceptos RESELL, UPSELL y ~14 variantes con categoría 'producto' (031), catálogo por
+   cliente con alias (064), tarjeta "Producto" en conceptos-calculo.js. Todo cae en una categoría y no hay campo propio.
+   Falta: decidir si es categoría nueva en fin_conceptos (su check admite 4 valores) o un atributo "tipo de venta" del pago
+   (columna extra con fin_columnas, sin migración de estructura). Migración: chica de datos, o ninguna si va por columna
+   extra. Tamaño: chico. Pregunta: ¿es categoría del concepto o marca aparte del pago? ¿"RESELL / UPSELL" (29 pagos) a cuál va?
+   Riesgo: fin_v_pagos_categoria y el cash collected de Ventas (016/017) leen categoria; una quinta rompe sumas de otros chats.
+3. Conciliación pagos vs CRM. Existe: Conciliación Opps vs Pagos (003 fin_v_conciliacion, conciliacion.js), fin_llamadas (Data =
+   CRM de ventas, 013/073, con cc_cerrado/cc_dia1/cc_seguimiento) y fin_v_pagos_doble_carga (065). No hay cruce pago-llamada.
+   Falta: vista que una por alumno/teléfono y mes los cc_* de Data contra fin_pagos, con tolerancia, y su pantalla.
+   Migración: solo vistas. Tamaño: mediano. Pregunta: ¿quién es la verdad cuando no cierran, CRM o pago? ¿Cruce por teléfono,
+   nombre o ambos? Riesgo: Data es de Ventas (084/089); el match por nombre ya dio problemas (033); exige Data cargada.
+4. Gastos por cliente. Existe: fin_pnl con staff/softwares/others/sin_categoria desde Opps (parsers/opps.js), gastos_total en
+   fin_v_pnl_mensual, pantalla cliente.js. Solo lectura de planilla; fase 8 de PLAN-FINANZAS-2 sigue pendiente. Falta: tabla
+   fin_gastos (origen 'app', catálogo de categoría/proveedor, cliente, fecha, monto, moneda) + formulario + grilla + P&L que
+   lea de ahí; resolver comisiones de vendedores cargadas como gasto en Opps (doble conteo con fin_v_comisiones).
+   Migración: estructura + permisos + catálogos + vista. Tamaño: grande. Pregunta: ¿catálogo de categorías (los 12 bloques
+   de Opps) y quién carga? ¿Comisiones de vendedores salen de Opps? (FASE0 punto 9, sin respuesta).
+   Riesgo: cambia fin_v_pnl_mensual, que usan Resumen, Cliente y Conciliación.
+5. Panel Dystopia (Agus 25 %, Liam 30 %, Teo 40 %). Existe: fin_comision_agencia (porcentaje por cliente y período, 001, solo
+   fundador, sin datos sembrados y sin lectura en la app) y fin_reparto (beneficiario y monto del mes tomado de Opps, tampoco
+   expuesto). Falta: sembrar los porcentajes, vista solo fundador (% x base) y pantalla nueva. Migración: datos + vista +
+   permisos. Tamaño: mediano. Pregunta: ¿el % es sobre cash collected o sobre neto (Julia pidió neto, base_calculo)? ¿Y Lucas
+   y Mauro? ¿Se restan refunds? Riesgo: dato sensible, nunca visible con rol cliente; depende de 4 si la base es neto.
+6. "Resumen descuadrado". Existe: resumen.js sobre fin_v_pnl_mensual (063). Causas posibles vistas en el código, sin datos
+   para confirmar: (a) net_cash_flow usa Opps como ingreso en meses anteriores al primer pago, pero la tarjeta dice "Ingreso
+   real − gastos"; (b) las tarjetas suman todas las filas del mes y la tabla solo yo.clientes: un cliente con filas fuera de
+   esa lista (mauro desvinculado) descuadra; (c) pagos en pesos de teo (marzo 463.290) con fin_tipo_cambio vacía; (d) rótulos
+   de meses de Opps de agus y lucas; (e) liam cambió con 076/088. Falta: un caso concreto. Migración: probablemente ninguna
+   (UI) o 063 corregida. Tamaño: chico. Pregunta: ¿qué número y mes ve Nacho que no cierra, contra qué otro?
+   Riesgo: corregir (a) cambia el net histórico.
+7. Cortar Opps y Cuotas de Liam. Existe: el mecanismo (cortada_en + activo, 065/067/076; Pagos y Data de liam ya cortados).
+   Falta: no se puede cortar sin pérdida: cortar Opps congela los gastos de liam y cortar Cuotas congela Cobranzas, y la app no
+   tiene dónde escribir gastos (4) ni cuotas (1). Después: migración de datos que pase fin_pnl/fin_cuotas de liam a las tablas
+   nuevas y el corte (update en fin_fuentes). Tamaño: chico pero depende de 1 y 4. Pregunta: ¿se corta la hoja entera o solo
+   gastos? ¿Quién avisa al equipo de Liam? Riesgo: Opps también trae saldos (fin_pnl_saldos) y fin_reparto: decidir si se
+   pierden.
+Orden propuesto: 6 (diagnóstico) y 2 en paralelo; luego 5; 1 y 4 en paralelo (tablas distintas, un número de migración
+cada una); 3 después; 7 al final, depende de 1 y 4.

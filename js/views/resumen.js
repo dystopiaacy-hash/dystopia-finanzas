@@ -63,6 +63,7 @@ export async function vistaResumen(el, vigente) {
     const tot = k => delMes.reduce((s, f) => s + n(f[k]), 0);
     const difTotal = delMes.reduce((s, f) => s + Math.abs(n(f.revenue_declarado) - n(f.ingreso_real)), 0);
 
+    const unico = clienteUnico();   // un solo cliente asignado, no fundador: sin lenguaje de agencia
     const delAnio = filas.filter(f => f.anio === anio);
     const meses = [...new Set(delAnio.map(f => f.mes))].sort((a, b) => a - b);
     /* Sincronización es solo del fundador. */
@@ -79,26 +80,26 @@ export async function vistaResumen(el, vigente) {
         ${statCard(usd(tot('revenue_declarado')), 'Revenue declarado (Opps)')}
         ${statCard(usd(tot('gastos_total')), 'Gastos (Opps)')}
         ${statCard(usd(tot('net_cash_flow')), 'Net cash flow', { sub: 'Ingreso real − gastos' })}
-        ${statCard(usd(difTotal), 'Diferencia Opps vs Pagos', { sub: 'Suma de |diferencia| por cliente', alerta: difTotal > 1 })}
+        ${statCard(usd(difTotal), 'Diferencia Opps vs Pagos', { sub: unico ? 'Diferencia absoluta del mes' : 'Suma de |diferencia| por cliente', alerta: difTotal > 1 })}
         ${esFundador() ? statCard(`<a href="#/salud" class="stat-link">${problemas}</a>`, 'Fuentes que requieren acción', { html: true, alerta: problemas > 0 }) : ''}
       </div>
 
-      <div class="section-title">${esc(MESES[mes - 1])} ${anio} por cliente<span class="line"></span></div>
+      <div class="section-title">${esc(MESES[mes - 1])} ${anio}${unico ? '' : ' por cliente'}<span class="line"></span></div>
       <div class="card table-card">
         <table class="data-table">
           <thead><tr>
-            <th>Cliente</th>${cols.map(c => `<th${c.k === 'sincronizacion' ? '' : ' class="num"'}>${esc(c.lab)}</th>`).join('')}
+            ${unico ? '' : '<th>Cliente</th>'}${cols.map(c => `<th${c.k === 'sincronizacion' ? '' : ' class="num"'}>${esc(c.lab)}</th>`).join('')}
           </tr></thead>
           <tbody>
             ${porCliente.map(f => `<tr data-action="cliente" data-id="${esc(f.cliente_id)}">
-                <td>${clienteChip(f.cliente_id)}</td>${cols.map(c => celdaResumen(c, f, estadoPorCliente)).join('')}
+                ${unico ? '' : `<td>${clienteChip(f.cliente_id)}</td>`}${cols.map(c => celdaResumen(c, f, estadoPorCliente)).join('')}
               </tr>`).join('')}
           </tbody>
         </table>
       </div>
-      <div class="table-foot">Clic en un cliente para ver su P&amp;L y el detalle con link a cada celda.</div>
+      <div class="table-foot">${unico ? 'Clic en la fila para ver tu P&amp;L y el detalle con link a cada celda.' : 'Clic en un cliente para ver su P&amp;L y el detalle con link a cada celda.'}</div>
 
-      <div class="section-title">${anio} mes a mes${clienteUnico() ? '' : ', todos los clientes'}<span class="line"></span></div>
+      <div class="section-title">${anio} mes a mes${unico ? '' :', todos los clientes'}<span class="line"></span></div>
       <div class="card table-card">
         <table class="data-table data-table-dense">
           <thead><tr><th></th>${meses.map(m => `<th class="num">${MESES_CORTOS[m - 1]}</th>`).join('')}</tr></thead>
