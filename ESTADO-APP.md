@@ -6,7 +6,7 @@
 
 ## Identidad
 - Dystopia Finanzas: P&L, pagos, conciliación y comisiones de los clientes de Dystopia Agency
-  (Liam, Agus, Teo, Lucas, Mauro). Reemplaza de a poco los Google Sheets por carga en la app.
+  (Liam, Agus, Teo; Mauro y Lucas dados de baja con la 107, sin correr al 13/10). Reemplaza de a poco los Google Sheets por carga en la app.
 - Ruta: C:\Users\Admin\Downloads\dystopia-finanzas (en el shell remoto: $HOME/mnt/dystopia-finanzas).
 - Stack: HTML + JS vanilla (módulos ES, sin build), Supabase (Postgres + Edge Functions Deno + pg_cron).
 - Deploy: Vercel, dystopia-finanzas.vercel.app, se publica solo con push a master (verificar).
@@ -50,6 +50,20 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+00000000000000. (13/10) BAJA DE MAURO Y LUCAS (número 107 asignado por el jefe), migración SIN correr, sin commit:
+   - Front: sacadas las referencias fijas. css/base.css (--c-mauro, --c-lucas), js/sesion.js (ORDEN), js/datos.js (pagosGrilla ya no
+     excluye 'mauro'), js/views/pagos-celdas.js y pagos.js (se fue SIN_CATALOGO y el filtro conCatalogo). Liam, Agus y Teo sin cambios.
+     Quedan en el repo (no son front servido): supabase/functions/ventas-agenda/index.ts (CLIENTES con 'lucas', archivo de Ventas),
+     pruebas/ (config, fixtures, tests), docs .md. Falsos positivos: "Lucas Deza" (closer de liam), "Lucas Financiera" (quién recibe).
+   - migraciones/107_baja_mauro_lucas.sql: un solo `do` atómico. Recorre TODAS las tablas de public con cliente_id (más FK a crm_clients
+     con otro nombre de columna, hijas de fin_fuentes/fin_liquidaciones por join, y cs_maestro_columnas por programa_id), respalda cada
+     una en <tabla>_bak_baja_107 (RLS sin policies, revoke), borra por grupos con reintento por FK, crm_clients al final, y verifica
+     que liam/agus/teo quedan con el mismo total. Aborta si hay triggers de DELETE, cascadas hacia tablas fuera de lista o filas de
+     otras cs_* de esos programas. B3: reemplaza (sobre la definición vigente, con guarda) fin_pagos_resolver, fin_clientes_carga,
+     fin_data_admite_nuevas, fin_v_alias_pendientes y fin_v_pago_vendedores; no toca crm_dashboard ni fin_data_closers_de.
+   - 107_baja_mauro_lucas_REVERTIR.sql: restaura filas y definiciones desde los respaldos (no se corre).
+   - Triggers en el repo: solo before/after insert/update (fin_pagos_clave_trg, fin_pagos_resolver_trg, fin_llamadas_*), ninguno de
+     DELETE. La sync solo LEE fin_fuentes: no crea fuentes ni clientes (los insert a fin_fuentes están en pruebas de humo).
 0000000000000. (13/10) ALERTA DIARIA DE COBROS A DISCORD (número 103 asignado por el jefe), sin correr:
    - migraciones/103_alertas_cobros_discord.sql: tablas fin_alertas_cobros_config (por cliente: activo=false por defecto, hora_envio 9,
      dias_atraso_alto 14, mostrar_montos false, ultimo_envio) y fin_alertas_cobros_log; funciones fin_alertas_cobros_armar (texto, no
@@ -158,6 +172,12 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+00000000000000. Correr la 107 (no a :00/:15/:30/:45 ni a las 9:00) después del banco de pruebas: antes C0.cs (cs_maestro_columnas,
+    A CONFIRMAR: filtra por programa_id), C1, C2 y C3; el bloque `do`; después C4 a C8. Decidir: (a) si se borran también las filas
+    'mauro' y 'lucas' de cs_programas (Producto; bloque opcional comentado al final); (b) si se saca 'lucas' de CLIENTES en
+    supabase/functions/ventas-agenda/index.ts (Ventas) y del resto de pruebas/ y docs; (c) crm_dashboard (Marketing) tiene
+    `cliente_id <> 'mauro'` en el agregado "todos": inofensivo, lo ajusta ese repo. Correr `node --check js/datos.js js/sesion.js
+    js/views/pagos.js js/views/pagos-celdas.js` y `npm test`. Si hay que deshacer: 107_..._REVERTIR.sql.
 0000000000000. Correr la 103 (no a :00/:15/:30/:45 ni a las 9:00); la prueba de humo interna no envía nada. Después: C1 a C7 de a uno;
     crear el webhook de Discord y cargarlo en Vault (fin_discord_webhook_cobros_liam o el general); prender la alerta en #/alertas
     (o UPDATE); mirar Vista previa. Correr `node --check js/datos.js js/app.js js/layout.js js/views/alertas.js` y `npm test`.

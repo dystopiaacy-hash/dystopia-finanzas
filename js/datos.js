@@ -141,8 +141,7 @@ export async function pagosGrilla({ clienteId = null, anio, mes = null, concepto
   let x = sb.from('fin_pagos').select(COLS_PAGO_GRILLA, { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta);
   if (clienteId) x = x.eq('cliente_id', clienteId);
   if (conceptoIds) x = x.in('concepto_id', conceptoIds);
-  /* mauro queda afuera de los catálogos (V3): nunca tiene *_id y no es un pendiente. */
-  if (soloPendientes) x = x.neq('cliente_id', 'mauro').or(PENDIENTE_CATALOGO);
+  if (soloPendientes) x = x.or(PENDIENTE_CATALOGO);
   const { data, error, count } = await x
     .order('fecha', { ascending: false }).order('fila_planilla', { ascending: false }).order('id')
     .range(pagina * porPagina, pagina * porPagina + porPagina - 1);

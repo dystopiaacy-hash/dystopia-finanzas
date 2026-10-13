@@ -12,7 +12,7 @@ export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: []
 
 const ROLES = ['fundador', 'cliente', 'closer', 'setter', 'finanzas', 'ventas'];
 /* Mismo orden que las cuentas en Dystopia. */
-const ORDEN = ['liam', 'agus', 'teo', 'mauro', 'lucas'];
+const ORDEN = ['liam', 'agus', 'teo'];
 
 async function cargarClientes() {
   const { data, error } = await sb.from('crm_clients').select('id,nombre,color,orden');

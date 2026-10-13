@@ -15,7 +15,7 @@ import {
 } from '../datos.js';
 import { columnasDe, pagosExtra, extrasHuerfanos, armarColumnas } from '../columnas.js';
 import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
-import { BASE_PAGOS, SIN_CATALOGO, thPago, tdPago, manejarCambio, manejarTecla } from './pagos-celdas.js';
+import { BASE_PAGOS, thPago, tdPago, manejarCambio, manejarTecla } from './pagos-celdas.js';
 import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 
 const POR_PAGINA = 50;
@@ -25,9 +25,8 @@ export async function vistaPagos(el, vigente) {
   const fundador = esFundador();
   /* El fundador ve todo; el cliente, solo sus clientes de fin_clientes_carga(). */
   const clientes = fundador ? yo.clientes : yo.clientes.filter(c => yo.carga.some(x => x.cliente_id === c.id));
-  const conCatalogo = clientes.filter(c => c.id !== SIN_CATALOGO);
   const [cats, mapaFuentes, ultimos, pendientes, pnl, huerfanos] = await Promise.all([
-    catalogos(), fuentes(), ultimoPagoPorCliente(conCatalogo.map(c => c.id)),
+    catalogos(), fuentes(), ultimoPagoPorCliente(clientes.map(c => c.id)),
     fundador ? aliasPendientes() : Promise.resolve([]), pnlMensual(),
     fundador ? extrasHuerfanos() : Promise.resolve([])
   ]);
@@ -71,7 +70,7 @@ export async function vistaPagos(el, vigente) {
 
   el.innerHTML = `
     <div class="section-title">Último pago cargado<span class="line"></span></div>
-    <div class="stat-row stat-row-6">${conCatalogo.map(c => tarjetaUltimo(c, ultimos.get(c.id), hoy)).join('')}</div>
+    <div class="stat-row stat-row-6">${clientes.map(c => tarjetaUltimo(c, ultimos.get(c.id), hoy)).join('')}</div>
     <div class="filter-row">
       <span class="flabel">Cliente</span>${selCliente}
       <span class="flabel">Año</span>${selectAnio('f-anio', anios(pnl, anioHoy), f.anio)}

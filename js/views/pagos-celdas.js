@@ -10,8 +10,6 @@ import { puedeAnular, puedeExtras } from '../sesion.js';
 import { usd, numCelda } from '../datos.js';
 import { pagoEditar, pagoExtraGuardar, errorColumnas } from '../columnas.js';
 
-/* Mauro queda afuera de la reestructuración (V3): no tiene catálogos. */
-export const SIN_CATALOGO = 'mauro';
 
 /* Las columnas del sistema, en el orden de siempre (fin_columnas_sistema('pagos')). */
 export const BASE_PAGOS = [
@@ -105,7 +103,6 @@ function celdaCatalogo(p, columna, cat) {
   if (valor) return esc(valor);
   const crudo = (p[columna] || '').trim();
   if (!crudo) return '—';
-  if (p.cliente_id === SIN_CATALOGO) return esc(crudo);
   return `<span class="txt-gris" title="Sin valor de catálogo: pendiente">${esc(crudo)}</span>`;
 }
 
