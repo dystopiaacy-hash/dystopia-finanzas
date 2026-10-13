@@ -168,6 +168,13 @@ export const pagoAnular = (clave, motivo) => rpc('fin_pago_anular', { p_clave: c
 export const pagoDevolver = (clave, monto, fecha, motivo) =>
   rpc('fin_pago_devolver', { p_clave: clave, p_monto: monto, p_fecha: fecha, p_motivo: motivo });
 
+/* Alertas de cobros a Discord (103, solo fundador: las RPC lo verifican). La vista previa NO envía. */
+export const alertasCobrosEstado = () => rpc('fin_alertas_cobros_estado', {}, false);
+export const alertasCobrosGuardar = (cliente, activo, hora, montos) =>
+  rpc('fin_alertas_cobros_config_guardar', { p_cliente: cliente, p_activo: activo, p_hora: hora, p_montos: montos });
+export const alertasCobrosVistaPrevia = (cliente, semana = null) =>
+  rpc('fin_alertas_cobros_vista_previa', { p_cliente: cliente, p_semana: semana }, false);
+
 /* Catálogos de Pagos (064) en un solo select; se resuelven en el cliente. */
 export const catalogos = () =>
   todas(() => sb.from('fin_catalogos').select('id,cliente_id,dimension,valor')

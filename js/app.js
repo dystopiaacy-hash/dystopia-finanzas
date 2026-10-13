@@ -16,6 +16,7 @@ import { vistaMisNumeros } from './views/mis-numeros.js';
 import { vistaPagos } from './views/pagos.js';
 import { vistaCargar } from './views/cargar.js';
 import { vistaSalud } from './views/salud.js';
+import { vistaAlertas } from './views/alertas.js';
 
 const app = document.getElementById('app');
 let appIniciada = false;
@@ -140,6 +141,12 @@ function registrarRutas() {
     renderNav({ vista: 'salud' });
     setHeader('Salud de sincronización', 'Última corrida de cada planilla');
     montar(vistaSalud);
+  }));
+
+  ruta('alertas', guardia(esFundador, () => {
+    renderNav({ vista: 'alertas' });
+    setHeader('Alertas de cobros', 'Aviso diario a Discord de cuotas por vencer y atrasadas');
+    montar(vistaAlertas);
   }));
 
   rutaNoEncontrada(path => {

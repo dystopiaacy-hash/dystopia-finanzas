@@ -50,6 +50,16 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000. (13/10) ALERTA DIARIA DE COBROS A DISCORD (número 103 asignado por el jefe), sin correr:
+   - migraciones/103_alertas_cobros_discord.sql: tablas fin_alertas_cobros_config (por cliente: activo=false por defecto, hora_envio 9,
+     dias_atraso_alto 14, mostrar_montos false, ultimo_envio) y fin_alertas_cobros_log; funciones fin_alertas_cobros_armar (texto, no
+     envía), _enviar (cron), _confirmar, _estado/_config_guardar/_vista_previa (app, verifican es_fundador); cron fin_alertas_cobros a
+     :05 de cada hora, manda cuando ya pasó hora_envio (9:05 AR) y no hay envío entregado hoy (reintenta hasta 3 veces por día).
+   - Bloques salen de fin_v_cobranzas + fin_cuotas + fin_fuentes activas (fecha_pago = vencimiento, programa = producto). Orden:
+     próximos 7 días (solo lunes), atrasadas (más de 14 aparte), hoy. Sin montos ni teléfonos; se parte a ~1850 caracteres.
+   - Webhook en Vault: fin_discord_webhook_cobros_<cliente> (o fin_discord_webhook_cobros general). No está en tablas ni en el front.
+   - Front (solo fundador): js/views/alertas.js (#/alertas: activa, hora, montos, webhook cargado, último envío, Vista previa),
+     ruta en app.js, ítem en layout.js, RPC en datos.js. node --check y npm test NO se pudieron correr (sin permiso).
 000000000000. (13/10) 098/098b CORREGIDAS tras el banco de pruebas (mismo número, mismos archivos, sin correr, sin commit):
    - 098: Dx2 ya no referencia la tabla de respaldo de forma estática (query_to_xml desde pg_class); etiqueta del bloque `$098$` ->
      `$m098$` (no puede empezar con dígito); c_A ahora termina en `::text[]` (la política queda `= any((select
@@ -148,6 +158,11 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000. Correr la 103 (no a :00/:15/:30/:45 ni a las 9:00); la prueba de humo interna no envía nada. Después: C1 a C7 de a uno;
+    crear el webhook de Discord y cargarlo en Vault (fin_discord_webhook_cobros_liam o el general); prender la alerta en #/alertas
+    (o UPDATE); mirar Vista previa. Correr `node --check js/datos.js js/app.js js/layout.js js/views/alertas.js` y `npm test`.
+    Decidir: "pendiente" sigue el supuesto de fin_v_cobranzas (estado vacío o distinto de pagado/churn/...), una cuota con
+    monto_cobrado >= monto y estado vacío se avisaría igual. Fuentes de cuotas cortadas no avisan (cuotas congeladas).
 000000000000. 098/098b corregidas (ver arriba): repetir la prueba en el banco con los archivos tal cual antes de correr en producción.
 00000000000. Correr la 098: (1) 098b C0 y C1 (ANTES) y C4 (tiempos antes); (2) Dx1/Dx2 del archivo 098; (3) el bloque do, no a las
     :00/:15/:30/:45 ni a las 9:00; (4) 098b C3 (IDENTICO), C4, C5 (lista para segunda tanda), C7 limpieza. Correr `node --check

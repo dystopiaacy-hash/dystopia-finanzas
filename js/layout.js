@@ -12,6 +12,7 @@ const VISTAS = [
   ['mis-numeros', 'Mis números', 'Closers y setters', veMisNumeros],
   ['cargar', 'Cargar pago', 'Alta de un pago', puedeCargar],
   ['pagos', 'Pagos', 'Grilla y catálogos', vePagos],
+  ['alertas', 'Alertas de cobros', 'Aviso diario a Discord', esFundador],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]
 ];
 
