@@ -50,6 +50,34 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000. (13/10) 098/098b CORREGIDAS tras el banco de pruebas (mismo número, mismos archivos, sin correr, sin commit):
+   - 098: Dx2 ya no referencia la tabla de respaldo de forma estática (query_to_xml desde pg_class); etiqueta del bloque `$098$` ->
+     `$m098$` (no puede empezar con dígito); c_A ahora termina en `::text[]` (la política queda `= any((select
+     public.fin_clientes_asignados())::text[])`); G2 evalúa con `execute ... using` las MISMAS plantillas (c_e_tiene/c_e_asig/c_e_plata)
+     que usa la reescritura; ya NO se hace revoke a PUBLIC de fin_clientes_asignados() (grant execute a public explícito).
+   - 098b: etiqueta `sin_rol:` con coalesce(email, id) para que C3 no dé DIFIERE falso. Si ya se había corrido C1 con la versión
+     vieja, volver a correr C0 y C1 (la etiqueta del usuario sin rol cambia).
+   - No se pudo ejecutar nada; revisión de sintaxis a mano (dollar-quotes distintos: $m098$, $f$, $b$, $c$, $t$, $rb$).
+00000000000. (13/10) RENDIMIENTO RLS (número 098 asignado por el jefe), sin correr, sin commit:
+   - 098-rendimiento-rls-finanzas.sql: un bloque `do` (atómico) que reescribe, leyéndolas de pg_policies, las políticas de 17 tablas
+     fin_* (pagos, pnl, pnl_saldos, cuotas, llamadas, personas, vendedores, vendedor_asignaciones, liquidaciones, liquidacion_items,
+     fuentes_mapa, catalogos, formulario_preguntas, pagos_anulados, columnas, pagos_extra, data_columnas) para evaluar el permiso
+     una vez por consulta: es_fundador()/rol_actual()/auth.uid() en `(select ...)` y tiene_acceso/fin_asignado/fin_ve_plata(cliente_id)
+     como pertenencia a `(select fin_clientes_asignados())` (función NUEVA, text[]). No cambia ninguna función existente ni las vistas.
+     Guardas dentro del bloque: equivalencia de las expresiones por usuario x cliente, y filas+md5 de lo que ve cada usuario
+     (miembros, sin rol, anon) antes/después; si algo difiere aborta y no queda nada. Respaldo en fin_respaldo_098_policies,
+     índices con create index if not exists, vuelta atrás comentada al final. Máximo 45 políticas por tanda.
+   - 098b-rendimiento-rls-controles.sql: funciones de control fin_ctl_098_visibilidad / fin_ctl_098_explain (revocadas a
+     anon/authenticated), ANTES (C1) y DESPUÉS (C3, debe decir IDENTICO), tiempos (C4), lista de políticas que siguen por fila (C5).
+   - Front: datos.js cache de 30 s para pnlMensual (Resumen, Cliente y Pagos lo piden), se limpia con RPC de escritura y con
+     "Recargar"; columnas.js limpia el cache en sus escrituras. No se pudo correr `node --check` ni `npm test` (sin permiso).
+0000000000. (13/10) Relevamiento de permisos por usuario de Liam (solo lectura de js/sesion.js, layout.js, app.js, views y migraciones
+   001/003/013/024/031/059/075/077/084; sin cambios de código, sin migración, sin commit). Hallazgos para decidir: (1) cliente@liam
+   (solo panel) ve en la vista Cliente los items de Opps (incl. Staff = sueldos por item) y los pagos con alumno y closer: la base
+   le deja leer pagos, cuotas, llamadas y comisiones de liam por API (SOLO FRONT); (2) ventas@liam: la 084 le abre lectura de
+   pagos/liquidaciones/vendedores de liam por API aunque la 075 diga "ve_plata f" (diseño de Dashboard/Comisiones de Ventas);
+   (3) fin_pagos_extra y fin_columnas se leen con tiene_acceso(cliente) sin mirar rol (producto/contenido podrían leerlas por API,
+   NO VERIFICADO: tiene_acceso vive en otro repo); (4) producto/contenido: la app los saca con "Sin acceso" (solo front).
 000000000. (12/10) Rol cliente con un solo cliente (clienteUnico()): Resumen sin lenguaje de agencia. Solo js/views/resumen.js:
    sección mensual "Octubre 2026" (sin "por cliente"), sin columna Cliente (la fila sigue siendo clicable), leyenda "Clic en la
    fila para ver tu P&L...", subtítulo de la tarjeta de diferencia en singular. Fundador y multi-cliente no cambian. Sin
@@ -120,6 +148,15 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000000. 098/098b corregidas (ver arriba): repetir la prueba en el banco con los archivos tal cual antes de correr en producción.
+00000000000. Correr la 098: (1) 098b C0 y C1 (ANTES) y C4 (tiempos antes); (2) Dx1/Dx2 del archivo 098; (3) el bloque do, no a las
+    :00/:15/:30/:45 ni a las 9:00; (4) 098b C3 (IDENTICO), C4, C5 (lista para segunda tanda), C7 limpieza. Correr `node --check
+    js/datos.js js/columnas.js` y `npm test` antes de commitear. Si el bloque da timeout en el editor, achicar c_tablas y correr
+    por tandas. Segunda tanda: lo que liste C5 (otras tablas, vistas con funciones por fila como fin_setter_de_llamada).
+0000000000. Decidir con Joaquín el resultado del relevamiento de permisos de Liam (ver "Qué hicimos" 13/10): si cliente@liam debe
+    ver alumnos y sueldos (Staff) en la vista Cliente; si ventas@liam debe poder leer pagos por API (084); confirmar tiene_acceso()
+    en el repo de Dystopia y probar en producción con los 5 usuarios (nadie lo probó en navegador). Cualquier cambio necesita
+    número de migración del jefe.
 000000000. Commitear y pushear js/views/resumen.js (texto para rol cliente) y ESTADO-APP.md; verificar en producción con
     cliente@liam.dystopia. Decidir con Joaquín el orden de la sección "Relevamiento próxima tanda".
 00000000. Correr la 088: primero el DIAGNOSTICO (debe decir LISTA PARA CORRER), después el bloque do, y los controles

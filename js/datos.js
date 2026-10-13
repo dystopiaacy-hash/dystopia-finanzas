@@ -30,8 +30,29 @@ export async function fuentes() {
   return fuentesCache;
 }
 
+/* Cache corto de la vista más pesada (fin_v_pnl_mensual la piden Resumen, Cliente y
+   Pagos): al cambiar de pantalla se reusa la misma respuesta unos segundos.
+   Se limpia al escribir (RPC de esta app y de columnas.js) y al tocar "Recargar". */
+const TTL_CACHE = 30000;
+const cacheCorto = new Map();
+export function limpiarCache() { cacheCorto.clear(); }
+function conCache(clave, pedir) {
+  const hit = cacheCorto.get(clave);
+  if (hit && Date.now() - hit.t < TTL_CACHE) return hit.p.then(filas => [...filas]);
+  const p = pedir();
+  const ent = { t: Date.now(), p };
+  cacheCorto.set(clave, ent);
+  p.catch(() => { if (cacheCorto.get(clave) === ent) cacheCorto.delete(clave); });
+  return p.then(filas => [...filas]);
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', e => {
+    if (e.target && e.target.closest && e.target.closest('#btn-recargar')) limpiarCache();
+  }, true);
+}
+
 export const pnlMensual = () =>
-  todas(() => sb.from('fin_v_pnl_mensual').select('*').order('anio').order('mes'));
+  conCache('pnl_mensual', () => todas(() => sb.from('fin_v_pnl_mensual').select('*').order('anio').order('mes')));
 
 export const conciliacion = () =>
   todas(() => sb.from('fin_v_conciliacion').select('*').order('anio').order('mes'));
@@ -131,13 +152,14 @@ export async function pagosGrilla({ clienteId = null, anio, mes = null, concepto
 
 /* ---------- Carga, anulación y devolución de pagos (fase 6, RPC de la 066) ---------- */
 /* Las RPC validan permisos y datos: el mensaje de error se muestra tal cual. */
-async function rpc(nombre, args) {
+async function rpc(nombre, args, escribe = true) {
+  if (escribe) limpiarCache();
   const { data, error } = await sb.rpc(nombre, args);
   if (error) throw error;
   return data;
 }
 
-export const cargaOpciones = clienteId => rpc('fin_carga_opciones', { p_cliente: clienteId });
+export const cargaOpciones = clienteId => rpc('fin_carga_opciones', { p_cliente: clienteId }, false);
 export const pagoCargar = p => rpc('fin_pago_cargar', { p });
 /* 075: alta de una opción de concepto, método de pago o quién recibe (devuelve {id, valor, nuevo}). */
 export const catalogoAgregar = (clienteId, dimension, valor) =>

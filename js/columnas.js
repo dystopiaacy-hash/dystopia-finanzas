@@ -2,19 +2,23 @@
    (solo fundador) y de valores, y el cruce con las columnas que conoce la app.
    El orden lo resuelve fin_columnas_de: acá no se recalcula. */
 import { sb } from './supabase.js';
+import { limpiarCache } from './datos.js';
 
 export const TIPO_COLUMNA_LABEL = {
   texto: 'Texto', numero: 'Número', fecha: 'Fecha', casilla: 'Casilla', opcion: 'Opción', link: 'Link'
 };
 
-async function rpc(fn, args) {
+/* escribe = false en las lecturas: no limpian el cache corto de datos.js. */
+async function rpc(fn, args, escribe = true) {
+  if (escribe) limpiarCache();
   const { data, error } = await sb.rpc(fn, args);
   if (error) throw error;
   return data;
 }
 
 /* Vistas: 'pagos' y 'pnl' por cliente; 'resumen' y 'conciliacion' globales (cliente null). */
-export const columnasDe = async (clienteId, vista) => (await rpc('fin_columnas_de', { p_cliente: clienteId, p_vista: vista })) || [];
+export const columnasDe = async (clienteId, vista) =>
+  (await rpc('fin_columnas_de', { p_cliente: clienteId, p_vista: vista }, false)) || [];
 
 /* Reportes: si la configuración no se puede leer, el reporte sale igual con las columnas por defecto. */
 export const columnasReporte = (clienteId, vista) =>
