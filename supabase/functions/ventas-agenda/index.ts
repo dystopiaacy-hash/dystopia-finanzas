@@ -11,7 +11,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const CLIENTES = new Set(['liam', 'teo']);
+const CLIENTES = new Set(['liam', 'agus', 'teo']);
 const MAX_BYTES = 256 * 1024;
 
 const TOKEN = Deno.env.get('VENTAS_AGENDA_TOKEN') ?? '';
