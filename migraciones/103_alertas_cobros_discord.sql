@@ -486,8 +486,9 @@ declare
   v_m    text;
 begin
   begin
-    insert into public.fin_fuentes (cliente_id, spreadsheet_id, gid, nombre_hoja_esperado, tipo, tope_monto)
-    values ('liam', 'SMOKE_103', 1, 'Smoke', 'cuotas', 10000) returning id into v_f;
+    insert into public.fin_fuentes (cliente_id, spreadsheet_id, gid, nombre_hoja_esperado, tipo, forma, tope_monto)
+    values ('liam', 'SMOKE_103', 1, 'Smoke', 'cuotas', 'cuotas_plano', 10000) returning id into v_f;
+    update public.fin_alertas_cobros_config set mostrar_montos = false, dias_atraso_alto = 14 where cliente_id = 'liam';  -- dentro del bloque: se revierte
 
     insert into public.fin_cuotas (cliente_id, fuente_id, alumno, telefono, programa, numero_cuota, monto, monto_cobrado, fecha_pago, estado, fila_planilla) values
       ('liam', v_f, 'Zz Hoy',        '+54 9 11 5555-5555', 'Prog Z', 2, 500,  0, date '2026-10-13', 'Pendiente', 1),
