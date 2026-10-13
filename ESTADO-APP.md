@@ -50,6 +50,11 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000000. (13/10) VENTAS-AGENDA SIN 'lucas': supabase/functions/ventas-agenda/index.ts, CLIENTES pasa de liam/lucas/teo a liam/teo
+   (agus NO estaba y no se agregó: decidir). Un pedido con cliente=lucas o mauro responde 400 {ok:false,error:'cliente invalido'} antes de
+   leer el body ni tocar la base. Redeploy pendiente (jefe): ventas-agenda con --no-verify-jwt, sin imports de _shared. Resto de
+   supabase/functions: solo comentarios históricos (mauro/lucas como planillas) en _shared y sincronizar/google.ts, sin lógica. pruebas/
+   (config.mjs, correr.mjs, data.mjs, formato.mjs, corte.test.ts, liam-generar-076.mjs) siguen usando mauro/lucas como fixtures de parsers: sin tocar.
 00000000000000. (13/10) BAJA DE MAURO Y LUCAS (número 107 asignado por el jefe), migración SIN correr, sin commit:
    - Front: sacadas las referencias fijas. css/base.css (--c-mauro, --c-lucas), js/sesion.js (ORDEN), js/datos.js (pagosGrilla ya no
      excluye 'mauro'), js/views/pagos-celdas.js y pagos.js (se fue SIN_CATALOGO y el filtro conCatalogo). Liam, Agus y Teo sin cambios.
