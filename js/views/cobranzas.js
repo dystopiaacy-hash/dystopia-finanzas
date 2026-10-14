@@ -1,7 +1,8 @@
 /* Cobranzas: cuotas pendientes (fin_v_cobranzas). Fundador y cliente ven las
    de sus clientes; un closer solo las suyas (RLS); un setter no entra. */
 import { esc, fmtFecha, semaforo } from '../ui.js';
-import { cobranzas, fuentePorCuota, fuentes, usd, numCelda } from '../datos.js';
+import { cobranzas, fuentePorCuota, fuentes, pagosParaCuotas, usd, numCelda } from '../datos.js';
+import { indexarPagos, derivarCuota } from '../cuotas-derivar.js';
 import { statCard, vacio, selectCliente, clienteChip, botonRecargar } from './comunes.js';
 
 const n = v => Number(v) || 0;
@@ -14,9 +15,22 @@ function nivel(c) {
   return ['verde', `En ${c.dias_al_vencimiento} d`];
 }
 
+/* Dato de la planilla: normal. Derivado de Pagos: gris, cursiva y tooltip. */
+function celdaDerivable(valor, derivado) {
+  const t = esc(valor || '');
+  if (!valor) return '<td>—</td>';
+  return derivado
+    ? `<td class="dato-derivado" title="${t} (tomado de Pagos)"><em>${t}</em></td>`
+    : `<td title="${t}">${t}</td>`;
+}
+
 export async function vistaCobranzas(el, vigente) {
-  const [filas, cuotaFuente, mapaFuentes] = await Promise.all([cobranzas(), fuentePorCuota(), fuentes()]);
+  /* Los pagos son solo para completar Programa y Closer: si no se pueden leer, la pantalla sigue con lo de la planilla. */
+  const [filas0, cuotaFuente, mapaFuentes, pagosAl] = await Promise.all([
+    cobranzas(), fuentePorCuota(), fuentes(), pagosParaCuotas().catch(() => [])]);
   if (!vigente()) return;
+  const indice = indexarPagos(pagosAl);
+  const filas = filas0.map(c => ({ ...c, ...derivarCuota(c, indice), programaPlanilla: c.programa, closerPlanilla: c.closer }));
   if (!filas.length) {
     el.innerHTML = vacio('No hay cuotas pendientes', 'O todavía no se sincronizó ninguna hoja de cuotas.');
     return;
@@ -62,11 +76,11 @@ export async function vistaCobranzas(el, vigente) {
               return `<tr>
                 <td>${clienteChip(c.cliente_id)}</td>
                 <td title="${esc(c.alumno)}">${esc(c.alumno)}</td>
-                <td title="${esc(c.programa || '')}">${esc(c.programa || '—')}</td>
+                ${celdaDerivable(c.programa, c.programaDerivado)}
                 <td>${esc(c.tipo_cuota || (c.numero_cuota ? `Cuota ${c.numero_cuota}` : '—'))}</td>
                 <td>${fmtFecha(c.fecha_pago)} ${semaforo(niv, txt)}</td>
                 <td title="${esc(c.contexto || '')}">${esc(c.estado || '—')}</td>
-                <td>${esc(c.closer || '—')}</td>
+                ${celdaDerivable(c.closer, c.closerDerivado)}
                 <td class="num">${c.monto == null ? '—' : numCelda(usd(c.monto), f, c.fila_planilla)}</td>
                 <td class="num">${c.monto_cobrado == null ? '—' : usd(c.monto_cobrado)}</td>
               </tr>`;
@@ -74,7 +88,8 @@ export async function vistaCobranzas(el, vigente) {
           </tbody>
         </table>
       </div>
-      <div class="table-foot">Pendiente = cuota sin estado o con estado distinto de pagado, churn, pausado o cancelado.</div>`;
+      <div class="table-foot">Pendiente = cuota sin estado o con estado distinto de pagado, churn, pausado o cancelado.
+        Programa o Closer en gris y cursiva: la planilla de cuotas no lo trae y se tomó de los Pagos del mismo alumno.</div>`;
 
     el.querySelector('#f-cliente').onchange = e => { filtro.cliente = e.target.value; pintar(); };
     el.querySelector('#f-ver').onchange = e => { filtro.ver = e.target.value; pintar(); };

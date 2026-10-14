@@ -70,6 +70,10 @@ export const cashPorConcepto = () =>
 export const cobranzas = () =>
   todas(() => sb.from('fin_v_cobranzas').select('*').order('fecha_pago', { ascending: true, nullsFirst: false }));
 
+/* Pagos con alumno, programa y closer: base para completar Programa y Closer de las cuotas (116). */
+export const pagosParaCuotas = () =>
+  todas(() => sb.from('fin_pagos').select('cliente_id,fecha,alumno,programa,closer').order('fecha', { ascending: false }));
+
 /* fin_v_cobranzas no trae fuente_id: se completa desde fin_cuotas (misma RLS). */
 export async function fuentePorCuota() {
   const filas = await todas(() => sb.from('fin_cuotas').select('id,fuente_id'));
@@ -168,6 +172,9 @@ export const pagoCargar = p => rpc('fin_pago_cargar', { p });
 /* 075: alta de una opción de concepto, método de pago o quién recibe (devuelve {id, valor, nuevo}). */
 export const catalogoAgregar = (clienteId, dimension, valor) =>
   rpc('fin_catalogo_agregar', { p_cliente: clienteId, p_dimension: dimension, p_valor: valor });
+/* 116: alta de un closer nuevo (o asignación de uno existente) al cliente. Devuelve {id, nombre, nuevo, ya_asignado}. */
+export const closerAgregar = (clienteId, nombre, esPersona = true) =>
+  rpc('fin_closer_agregar', { p_cliente: clienteId, p_nombre: nombre, p_es_persona: esPersona });
 export const pagoAnular = (clave, motivo) => rpc('fin_pago_anular', { p_clave: clave, p_motivo: motivo });
 export const pagoDevolver = (clave, monto, fecha, motivo) =>
   rpc('fin_pago_devolver', { p_clave: clave, p_monto: monto, p_fecha: fecha, p_motivo: motivo });

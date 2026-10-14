@@ -161,3 +161,4 @@
   .tabla-clientes .col-nombre{max-width:170px;}
   .tabla-clientes .col-prog{min-width:104px;}
 }
+.dato-derivado{color:var(--text-dim);}

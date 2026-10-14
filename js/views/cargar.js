@@ -6,8 +6,8 @@
    Las columnas nuevas visibles van al final, opcionales, y se guardan después del
    pago con fin_pago_extra_guardar y la clave que devuelve fin_pago_cargar. */
 import { esc, hoyAR } from '../ui.js';
-import { yo, nombreCliente } from '../sesion.js';
-import { cargaOpciones, pagoCargar, catalogoAgregar, usd } from '../datos.js';
+import { yo, nombreCliente, esFundador } from '../sesion.js';
+import { cargaOpciones, pagoCargar, catalogoAgregar, closerAgregar, usd } from '../datos.js';
 import { columnasDe, armarColumnas, pagoExtraGuardar, errorColumnas } from '../columnas.js';
 import { vacio } from './comunes.js';
 import { BASE_PAGOS } from './pagos-celdas.js';
@@ -43,6 +43,18 @@ function campoSistema(c, hoy) {
         <input type="text" id="${d.id}-nuevo-txt" maxlength="60" autocomplete="off" placeholder="Nueva opción">
         <button type="button" class="btn" data-nuevo-ok="${c.k}">Agregar</button>
         <button type="button" class="btn" data-nuevo-no="${c.k}">Cancelar</button>
+        <span class="form-error" id="${d.id}-nuevo-msg" role="alert"></span>
+      </span></div>`;
+    return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>${nuevo}`, { hint });
+  }
+  if (c.k === 'closer' && (esFundador() || yo.rol === 'finanzas')) {
+    /* 116: alta de un closer nuevo (fundador y finanzas; la RPC lo vuelve a verificar). */
+    const nuevo = `<div class="opcion-nueva"><button type="button" class="btn-link" data-closer-nuevo>+ Agregar closer</button>
+      <span id="${d.id}-nuevo" hidden>
+        <input type="text" id="${d.id}-nuevo-txt" maxlength="60" autocomplete="off" placeholder="Nombre del closer">
+        <label><input type="checkbox" id="${d.id}-nuevo-persona" checked> Es una persona</label>
+        <button type="button" class="btn" data-closer-ok>Agregar</button>
+        <button type="button" class="btn" data-closer-no>Cancelar</button>
         <span class="form-error" id="${d.id}-nuevo-msg" role="alert"></span>
       </span></div>`;
     return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>${nuevo}`, { hint });
@@ -148,8 +160,33 @@ export async function vistaCargar(el, vigente) {
 
   selCliente.onchange = cargarOpciones;
 
+  /* Closer nuevo (116): lo crea, lo asigna al cliente y lo deja elegido. Si ya existía, solo lo asigna. */
+  const closerNuevo = async b => {
+    const id = CAMPOS.closer.id;
+    const caja = $(`${id}-nuevo`), txtNuevo = $(`${id}-nuevo-txt`), msg = $(`${id}-nuevo-msg`);
+    if (b.hasAttribute('data-closer-nuevo')) { caja.hidden = false; txtNuevo.value = ''; msg.textContent = ''; txtNuevo.focus(); return; }
+    if (b.hasAttribute('data-closer-no')) { caja.hidden = true; return; }
+    const nombre = txtNuevo.value.trim();
+    if (nombre.length < 2) { msg.textContent = 'Escribí al menos 2 letras.'; return; }
+    b.disabled = true;
+    try {
+      const r = await closerAgregar(selCliente.value, nombre, $(`${id}-nuevo-persona`).checked);
+      const s = $(id);
+      if (![...s.options].some(o => o.value === String(r.id))) {
+        s.insertAdjacentHTML('beforeend', `<option value="${esc(r.id)}">${esc(r.nombre)}</option>`);
+      }
+      s.value = String(r.id);
+      caja.hidden = true;
+    } catch (e) {
+      msg.textContent = e.message || String(e);
+    }
+    b.disabled = false;
+  };
+
   /* Alta de una opción nueva del catálogo (concepto, método, quién recibe). */
   campos.onclick = async ev => {
+    const bc = ev.target.closest('[data-closer-nuevo],[data-closer-ok],[data-closer-no]');
+    if (bc) return closerNuevo(bc);
     const b = ev.target.closest('[data-nuevo],[data-nuevo-ok],[data-nuevo-no]');
     if (!b) return;
     const d = CAMPOS[b.dataset.nuevo || b.dataset.nuevoOk || b.dataset.nuevoNo];

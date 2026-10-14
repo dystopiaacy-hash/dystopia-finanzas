@@ -50,6 +50,18 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000000000. (14/10) CLOSERS NUEVOS DESDE LA APP Y PROGRAMA/CLOSER DE CUOTAS (número 116 asignado por el jefe), SIN correr, sin commit:
+   - migraciones/116_finanzas_closer_agregar.sql: RPC fin_closer_agregar(p_cliente, p_nombre, p_es_persona). Permiso: fundador o rol
+     finanzas asignado al cliente. Busca por nombre_norm (sin duplicar), crea fin_vendedores si falta, asigna es_closer en
+     fin_vendedor_asignaciones y crea el alias en fin_personas (lo exige fin_pago_cargar). Inactivo: solo lo reactiva un fundador.
+     No toca closers ni programas existentes. Controles C1 a C4 y vuelta atrás comentados al final.
+   - Front: "+ Agregar closer" en Cargar pago (js/views/cargar.js, solo fundador y finanzas; datos.js closerAgregar). No se agregó en la grilla
+     de Pagos (edición en celda): ahí solo se elige entre los existentes.
+   - Cuotas: js/cuotas-derivar.js (nuevo) completa Programa y Closer desde fin_pagos del mismo cliente y alumno normalizado (closer del
+     pago más reciente del mismo programa; si no, el más reciente). Cobranzas los muestra en gris cursiva con tooltip "tomado de Pagos"
+     y leyenda al pie. Manda la planilla. datos.js pagosParaCuotas; css/vistas.css .dato-derivado.
+   - Sync de Cuotas: sin cambios. El parser (cuotas_ancho y cuotas_plano) YA lee las columnas "Programa" y "Closer" si existen en la hoja;
+     fin_cuotas ya tiene programa y closer. Sin redeploy.
 00000000000000000. (14/10) REVISIÓN VISUAL: net cash flow y prolijidad (informe jefe/insumos/revision-2026-10-14), sin commit, `node --check` y `npm test` sin correr:
    - Net cash flow = Ingreso real (Pagos) − Gastos en TODOS los meses, calculado en el front (datos.js netCashFlow; la vista 063 no cambia y
      sigue usando Opps antes del primer pago). Mes con fuente_ingreso 'opps' y revenue en Opps: marca "(sin pagos)" y aviso "<mes> sin pagos
@@ -202,6 +214,10 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000000000000. Correr la 116 (no a :00/:15/:30/:45 ni a las 9:00) ANTES de publicar el front; después C1 a C4 de a uno. Probar como
+    fundador y como finanzas@liam: Cargar pago > "+ Agregar closer" con un nombre nuevo y con uno existente (no debe duplicar).
+    Correr `node --check js/datos.js js/views/cargar.js js/views/cobranzas.js js/cuotas-derivar.js` y `npm test`. Decidir: si "Agregar
+    closer" también va en la edición en celda de la grilla de Pagos; que el equipo agregue columnas Programa y Closer en la hoja Cuotas.
 00000000000000000. (14/10) Correr de a uno C1 a C11 de la 114 y pasar resultados; correr `node --check js/datos.js js/app.js js/views/cliente.js
     js/views/resumen.js js/views/cobranzas.js js/views/mis-numeros.js` y `npm test`. Decidir: (a) si "Net cash flow" de enero debe seguir
     mostrando Opps o el aviso "sin pagos" alcanza; (b) cuál programa queda entre los repetidos de liam (ver C9/C10; "BPF 1 A 1" y "BPF 1 AÑO"
