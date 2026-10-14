@@ -24,7 +24,10 @@
 -- config_guardar con p_hora_2). Con el front viejo y esta migracion, guardar desde Alertas deja el segundo
 -- horario en null (apagado). No correr a las :00/:15/:30/:45 ni a las 9:00 (sync) ni a las :05 (cron).
 --
--- Requiere 103. Idempotente (el respaldo se toma una sola vez, de lo que dejo la 103).
+-- Requiere 103. Idempotente (el respaldo se toma una sola vez, de lo que dejo la 103; el "9 y 21" se carga una
+-- sola vez, cuando se crea la columna hora_envio_2).
+-- OJO con la hora: si se corre un dia despues de las 21:00, en el :05 siguiente sale el turno 2 de ESE dia para
+-- los clientes activos (el log viejo es todo turno 1). Para que no salga nada esa noche: correr entre 23:06 y 23:59.
 
 begin;
 
@@ -66,10 +69,26 @@ on conflict (objeto) do nothing;
 -- ---------------------------------------------------------------------------
 -- 2. Columnas
 -- ---------------------------------------------------------------------------
-alter table public.fin_alertas_cobros_config
-  add column if not exists hora_envio_2       smallint,
-  add column if not exists ultimo_envio_2     timestamptz,
-  add column if not exists ultimo_resultado_2 text;
+-- CORRECCION (revision del 13/10): el "9 y 21" de liam, agus y teo se carga SOLO la vez que se crea la columna
+-- hora_envio_2. Antes era un UPDATE suelto (hora_envio_2 is null and hora_envio = 9) que en una re-corrida
+-- posterior volvia a prender el segundo aviso de un cliente al que el fundador se lo habia apagado desde la app.
+do $$
+declare
+  v_nueva boolean := not exists (select 1 from pg_attribute
+                                 where attrelid = 'public.fin_alertas_cobros_config'::regclass
+                                   and attname = 'hora_envio_2' and not attisdropped);
+begin
+  alter table public.fin_alertas_cobros_config
+    add column if not exists hora_envio_2       smallint,
+    add column if not exists ultimo_envio_2     timestamptz,
+    add column if not exists ultimo_resultado_2 text;
+  if v_nueva then
+    -- Los tres clientes con alerta: 9 y 21. No cambia activo ni mostrar_montos.
+    update public.fin_alertas_cobros_config
+    set hora_envio_2 = 21, actualizado = now()
+    where cliente_id in ('liam', 'agus', 'teo') and hora_envio_2 is null and hora_envio = 9;
+  end if;
+end $$;
 
 do $$
 begin
@@ -96,11 +115,6 @@ comment on column public.fin_alertas_cobros_log.turno is
   '109: 1 = hora_envio, 2 = hora_envio_2. Las filas anteriores a la 109 son turno 1.';
 create index if not exists fin_alertas_cobros_log_cliente_fecha_turno_idx
   on public.fin_alertas_cobros_log (cliente_id, fecha, turno);
-
--- Los tres clientes con alerta: 9 y 21. No se pisa un segundo horario que ya tenga valor.
-update public.fin_alertas_cobros_config
-set hora_envio_2 = 21, actualizado = now()
-where cliente_id in ('liam', 'agus', 'teo') and hora_envio_2 is null and hora_envio = 9;
 
 -- ---------------------------------------------------------------------------
 -- 3. Que turno toca en una hora dada (la regla "uno solo")
@@ -485,4 +499,10 @@ commit;
 --   -- 2. restaurar cada funcion: select definicion from public.fin_funciones_bak_109 where objeto like '%enviar%';
 --   --    y correr ese texto (idem confirmar, estado, vista_previa, config_guardar de 4 argumentos).
 --   --    Antes: drop function public.fin_alertas_cobros_config_guardar(text, boolean, int, boolean, int);
+--   -- 3. CORRECCION (revision del 13/10): la config_guardar de 4 argumentos restaurada nace con los permisos por
+--   --    defecto (public y anon con EXECUTE). Dejarla como en la 103:
+--   --    revoke all on function public.fin_alertas_cobros_config_guardar(text, boolean, int, boolean) from public, anon;
+--   --    grant execute on function public.fin_alertas_cobros_config_guardar(text, boolean, int, boolean) to authenticated, service_role;
 --   -- Las columnas nuevas (hora_envio_2, ultimo_*_2, turno) pueden quedar: la 103 las ignora.
+--   -- Si despues de una vuelta atras se vuelve a aplicar la 109, el "9 y 21" NO se recarga solo (la columna ya
+--   -- existe): update public.fin_alertas_cobros_config set hora_envio_2 = 21 where cliente_id in ('liam','agus','teo') and hora_envio = 9;
