@@ -15,7 +15,7 @@ import {
 } from '../datos.js';
 import { columnasDe, pagosExtra, extrasHuerfanos, armarColumnas } from '../columnas.js';
 import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
-import { BASE_PAGOS, thPago, tdPago, manejarCambio, manejarTecla } from './pagos-celdas.js';
+import { BASE_PAGOS, thPago, tdPago, manejarCambio, manejarClick, manejarTecla } from './pagos-celdas.js';
 import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 
 const POR_PAGINA = 50;
@@ -134,6 +134,7 @@ export async function vistaPagos(el, vigente) {
 
   /* Edición en la celda: un solo listener para toda la grilla. */
   grilla.addEventListener('change', ev => { if (ctx) manejarCambio(ev, ctx); });
+  grilla.addEventListener('click', ev => { if (ctx) manejarClick(ev, ctx); });
   grilla.addEventListener('keydown', manejarTecla);
 
   /* Valores de columnas nuevas cuyo pago ya no existe: contador chico para el fundador. */

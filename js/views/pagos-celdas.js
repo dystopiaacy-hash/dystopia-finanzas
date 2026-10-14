@@ -9,6 +9,7 @@ import { esc, fmtFecha, fmtNum, hoyAR, urlSegura } from '../ui.js';
 import { puedeAnular, puedeExtras } from '../sesion.js';
 import { usd, numCelda } from '../datos.js';
 import { pagoEditar, pagoExtraGuardar, errorColumnas } from '../columnas.js';
+import { puedeAgregarCloser, CLOSER_NUEVO, cajaCloser, abrirCajaCloser, closerNuevoClick } from './closer-nuevo.js';
 
 
 /* Las columnas del sistema, en el orden de siempre (fin_columnas_sistema('pagos')). */
@@ -92,7 +93,11 @@ function selectVendedor(col, p, ctx) {
   let actual = hallado ? hallado[0] : '';
   if (nombre && !hallado) { actual = FUERA; lista.push([FUERA, nombre + ' (fuera de lista)']); }
   lista.unshift(['', 'Sin asignar']);
-  return `<select class="m-edit" ${attrs(col, p, 'vendedor', actual)}>${opciones(lista, actual)}</select>`;
+  const nuevo = col.k === 'closer' && puedeAgregarCloser();
+  if (nuevo) lista.push([CLOSER_NUEVO, '+ Agregar closer']);
+  const sel = `<select class="m-edit" ${attrs(col, p, 'vendedor', actual)}>${opciones(lista, actual)}</select>`;
+  /* 116: la caja de alta cuelga del id del select (closer-nuevo.js). */
+  return nuevo ? `${sel}<div class="opcion-nueva">${cajaCloser(`pc-${col.k}-${p.id}`)}</div>` : sel;
 }
 
 /* ---------- Solo lectura ---------- */
@@ -253,7 +258,22 @@ export async function manejarCambio(ev, ctx) {
   const p = ctx.porId.get(ctl.dataset.id), col = ctx.cols.get(ctl.dataset.campo);
   if (!p || !col) return;
   if (ctl.dataset.extra) await guardarExtra(ctl, p, col, ctx);
-  else await guardarSistema(ctl, p, col, ctx);
+  else if (ctl.value === CLOSER_NUEVO) {
+    /* "+ Agregar closer": la celda no cambia hasta que el alta termine. */
+    ctl.value = ctl.dataset.prev;
+    abrirCajaCloser(ctl.closest('td'), ctl.id);
+  } else await guardarSistema(ctl, p, col, ctx);
+}
+
+/* Click en Agregar / Cancelar de la caja de alta de closer: lo crea y lo deja guardado en la celda. */
+export async function manejarClick(ev, ctx) {
+  const b = ev.target.closest('[data-closer-ok],[data-closer-no]');
+  if (!b) return;
+  const td = b.closest('td'), ctl = td && td.querySelector('select[data-campo="closer"]');
+  const p = ctl && ctx.porId.get(ctl.dataset.id), col = ctl && ctx.cols.get('closer');
+  if (!p || !col) return;
+  const r = await closerNuevoClick(b, td, ctl.id, p.cliente_id);
+  if (r) await guardarSistema(ctl, p, col, ctx);
 }
 
 /* Enter guarda (sale del campo, dispara change); Escape descarta lo escrito. */
