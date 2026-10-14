@@ -3,8 +3,8 @@
    declarado = items de REVENUE en Opps. Sin reparto ni comisiones. */
 import { esc, hoyAR } from '../ui.js';
 import { navegar } from '../router.js';
-import { yo, esFundador, clienteUnico } from '../sesion.js';
-import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo } from '../datos.js';
+import { yo, esFundador, clienteUnico, nombreCliente } from '../sesion.js';
+import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo, netCashFlow, sinPagosCargados } from '../datos.js';
 import {
   statCard, vacio, selectAnio, selectMes, anios, clienteChip, estadoFuente, peorEstado,
   requiereAccion, badgeEstado, botonRecargar
@@ -21,7 +21,7 @@ const claseDif = d => (Math.abs(d) > 1 ? ' txt-rojo' : '');
    las renombra, mueve y oculta. Cliente va siempre primero. */
 const BASE_RESUMEN = [
   { k: 'ingreso_real', lab: 'Ingreso real' }, { k: 'revenue_declarado', lab: 'Revenue Opps' },
-  { k: 'diferencia', lab: 'Diferencia' }, { k: 'gastos_total', lab: 'Gastos' }, { k: 'net_cash_flow', lab: 'Net cash flow' },
+  { k: 'diferencia', lab: 'Diferencia' }, { k: 'gastos_total', lab: 'Gastos' }, { k: 'net_cash_flow', lab: 'Net cash flow (Pagos − Gastos)' },
   { k: 'cantidad_pagos', lab: 'Pagos' }, { k: 'sincronizacion', lab: 'Sincronización' }
 ];
 const CELDA_RESUMEN = {
@@ -29,6 +29,7 @@ const CELDA_RESUMEN = {
     const dif = n(f.revenue_declarado) - n(f.ingreso_real);
     return `<td class="num${claseDif(dif)}">${f.vacio ? '—' : usd(dif)}</td>`;
   },
+  net_cash_flow: f => `<td class="num">${f.vacio ? '—' : `${sinPagosCargados(f) ? '<span class="marca-opps" title="Mes sin pagos cargados">(sin pagos)</span> ' : ''}${usd(netCashFlow(f))}`}</td>`,
   cantidad_pagos: f => `<td class="num">${f.vacio ? '—' : n(f.cantidad_pagos)}</td>`,
   sincronizacion: (f, estados) => `<td>${badgeEstado(estados.get(f.cliente_id) || 'sin_corridas')}</td>`
 };
@@ -60,12 +61,14 @@ export async function vistaResumen(el, vigente) {
     const { anio, mes } = periodo;
     const delMes = filas.filter(f => f.anio === anio && f.mes === mes);
     const porCliente = yo.clientes.map(c => delMes.find(f => f.cliente_id === c.id) || { cliente_id: c.id, vacio: true });
-    const tot = k => delMes.reduce((s, f) => s + n(f[k]), 0);
+    const val = (f, k) => (k === 'net_cash_flow' ? netCashFlow(f) : n(f[k]));
+    const tot = k => delMes.reduce((s, f) => s + val(f, k), 0);
     const difTotal = delMes.reduce((s, f) => s + Math.abs(n(f.revenue_declarado) - n(f.ingreso_real)), 0);
 
     const unico = clienteUnico();   // un solo cliente asignado, no fundador: sin lenguaje de agencia
     const delAnio = filas.filter(f => f.anio === anio);
     const meses = [...new Set(delAnio.map(f => f.mes))].sort((a, b) => a - b);
+    const sinPagos = meses.map(m => [m, delAnio.filter(f => f.mes === m && sinPagosCargados(f)).map(f => f.cliente_id)]).filter(([, ids]) => ids.length);
     /* Sincronización es solo del fundador. */
     const columnas = armarColumnas(BASE_RESUMEN.filter(c => esFundador() || c.k !== 'sincronizacion'), config);
     const cols = columnas.visibles;
@@ -79,7 +82,7 @@ export async function vistaResumen(el, vigente) {
         ${statCard(usd(tot('ingreso_real')), 'Ingreso real (Pagos)', { sub: `${tot('cantidad_pagos')} pagos` })}
         ${statCard(usd(tot('revenue_declarado')), 'Revenue declarado (Opps)')}
         ${statCard(usd(tot('gastos_total')), 'Gastos (Opps)')}
-        ${statCard(usd(tot('net_cash_flow')), 'Net cash flow', { sub: 'Ingreso real − gastos' })}
+        ${statCard(usd(tot('net_cash_flow')), 'Net cash flow', { sub: 'Ingreso real (Pagos) − Gastos' })}
         ${statCard(usd(difTotal), 'Diferencia Opps vs Pagos', { sub: unico ? 'Diferencia absoluta del mes' : 'Suma de |diferencia| por cliente', alerta: difTotal > 1 })}
         ${esFundador() ? statCard(`<a href="#/salud" class="stat-link">${problemas}</a>`, 'Fuentes que requieren acción', { html: true, alerta: problemas > 0 }) : ''}
       </div>
@@ -104,14 +107,16 @@ export async function vistaResumen(el, vigente) {
         <table class="data-table data-table-dense">
           <thead><tr><th></th>${meses.map(m => `<th class="num">${MESES_CORTOS[m - 1]}</th>`).join('')}</tr></thead>
           <tbody>
-            ${[['ingreso_real', 'Ingreso real'], ['revenue_declarado', 'Revenue Opps'], ['gastos_total', 'Gastos'], ['net_cash_flow', 'Net cash flow']]
+            ${[['ingreso_real', 'Ingreso real (Pagos)'], ['revenue_declarado', 'Revenue Opps'], ['gastos_total', 'Gastos'], ['net_cash_flow', 'Net cash flow (Pagos − Gastos)']]
               .map(([k, label]) => `<tr><td>${label}</td>${meses.map(m => {
-                const v = delAnio.filter(f => f.mes === m).reduce((s, f) => s + n(f[k]), 0);
+                const v = delAnio.filter(f => f.mes === m).reduce((s, f) => s + val(f, k), 0);
                 return `<td class="num">${usd(v)}</td>`;
               }).join('')}</tr>`).join('')}
           </tbody>
         </table>
-      </div>`;
+      </div>
+      ${sinPagos.length ? `<div class="card nota">Sin pagos cargados (Opps declara revenue y Pagos está en 0): ${sinPagos.map(([m, ids]) => `${esc(MESES[m - 1])} (${ids.map(i => esc(nombreCliente(i))).join(', ')})`).join('; ')}.
+        El Net cash flow de esos meses sale solo de Pagos, no de Opps.</div>` : ''}`;
 
     el.querySelector('#f-mes').onchange = e => { periodo = { ...periodo, mes: Number(e.target.value) }; pintar(); };
     el.querySelector('#f-anio').onchange = e => { periodo = { ...periodo, anio: Number(e.target.value) }; pintar(); };

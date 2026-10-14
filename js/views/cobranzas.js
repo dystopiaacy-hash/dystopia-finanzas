@@ -74,7 +74,7 @@ export async function vistaCobranzas(el, vigente) {
           </tbody>
         </table>
       </div>
-      <div class="table-foot">Pendiente = estado vacío o distinto de pagado, churn, pausado o cancelado (supuesto a validar con la agencia).</div>`;
+      <div class="table-foot">Pendiente = cuota sin estado o con estado distinto de pagado, churn, pausado o cancelado.</div>`;
 
     el.querySelector('#f-cliente').onchange = e => { filtro.cliente = e.target.value; pintar(); };
     el.querySelector('#f-ver').onchange = e => { filtro.ver = e.target.value; pintar(); };

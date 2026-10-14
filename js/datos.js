@@ -54,8 +54,13 @@ if (typeof document !== 'undefined') {
 export const pnlMensual = () =>
   conCache('pnl_mensual', () => todas(() => sb.from('fin_v_pnl_mensual').select('*').order('anio').order('mes')));
 
+/* Con el mismo cache corto de pnlMensual: volver a Conciliación (o entrar y recargar) no repite la consulta. */
 export const conciliacion = () =>
-  todas(() => sb.from('fin_v_conciliacion').select('*').order('anio').order('mes'));
+  conCache('conciliacion', () => todas(() => sb.from('fin_v_conciliacion').select('*').order('anio').order('mes')));
+
+/* Precarga en segundo plano (sin esperar ni propagar errores): la sesión ya pidió el P&L en Resumen,
+   así que cuando el usuario entra a Conciliación la respuesta ya está en el cache. */
+export function precargarConciliacion() { conciliacion().catch(() => {}); }
 
 /* Cash collected por cliente / mes / categoría de concepto (032). */
 export const cashPorConcepto = () =>
@@ -227,8 +232,14 @@ export function finDeMes(anio, mes) {
 }
 
 export const CATEGORIAS = {
-  revenue: 'Revenue', staff: 'Staff', softwares: 'Softwares', others: 'Others', sin_categoria: 'Sin categoría'
+  revenue: 'Revenue', staff: 'Personal', softwares: 'Software', others: 'Otros', sin_categoria: 'Sin categoría'
 };
+
+/* Net cash flow = Ingreso real (Pagos) - Gastos en TODOS los meses. La vista usa Opps
+   como ingreso antes del primer pago de cada cliente (063); acá no se mezclan fuentes:
+   el mes sin pagos se avisa con sinPagosCargados(). */
+export const netCashFlow = f => (Number(f.ingreso_real) || 0) - (Number(f.gastos_total) || 0);
+export const sinPagosCargados = f => f.fuente_ingreso === 'opps' && !(Number(f.ingreso_real) || 0) && (Number(f.revenue_declarado) || 0) !== 0;
 
 /* ---------- Link a la celda de la planilla ---------- */
 

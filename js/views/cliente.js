@@ -7,7 +7,8 @@ import { columnasReporte, armarColumnas } from '../columnas.js';
 import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 import { setHeader } from '../layout.js';
 import {
-  pnlMensual, pnlItems, pagos, fuentes, usd, numCelda, MESES, MESES_CORTOS, CATEGORIAS, ultimoPeriodo
+  pnlMensual, pnlItems, pagos, fuentes, usd, numCelda, MESES, MESES_CORTOS, CATEGORIAS, ultimoPeriodo,
+  netCashFlow, sinPagosCargados
 } from '../datos.js';
 import { statCard, vacio, selectAnio, anios, botonRecargar } from './comunes.js';
 
@@ -16,15 +17,15 @@ const n = v => Number(v) || 0;
 const FILAS_PNL = [
   ['revenue_declarado', 'Revenue declarado (Opps)', 'fuerte'],
   ['ingreso_real', 'Ingreso real (Pagos)', ''],
-  ['staff', 'Staff', 'sub'],
-  ['softwares', 'Softwares', 'sub'],
-  ['others', 'Others', 'sub'],
+  ['staff', 'Personal', 'sub'],
+  ['softwares', 'Software', 'sub'],
+  ['others', 'Otros', 'sub'],
   ['sin_categoria', 'Sin categoría', 'sub'],
   ['gastos_total', 'Gastos totales', 'fuerte'],
-  ['net_cash_flow', 'Net cash flow', 'fuerte'],
-  ['dividends_released', 'Dividends released', ''],
-  ['opening_balance', 'Opening balance', ''],
-  ['closing_balance', 'Closing balance', '']
+  ['net_cash_flow', 'Net cash flow (Pagos − Gastos)', 'fuerte'],
+  ['dividends_released', 'Dividendos distribuidos', ''],
+  ['opening_balance', 'Saldo inicial', ''],
+  ['closing_balance', 'Saldo final', '']
 ];
 /* Las filas del P&L son las "columnas" de la vista 'pnl' (072), por cliente:
    el fundador las renombra, mueve y oculta. */
@@ -50,7 +51,17 @@ export async function vistaCliente(el, clienteId, vigente) {
     const meses = [...new Set(delAnio.map(f => f.mes))].sort((a, b) => a - b);
     if (!meses.includes(mes) && meses.length) mes = meses[meses.length - 1];
     const fm = delAnio.find(f => f.mes === mes) || {};
-    const valor = (m, k) => { const f = delAnio.find(x => x.mes === m); return f ? f[k] : null; };
+    const valor = (m, k) => {
+      const f = delAnio.find(x => x.mes === m);
+      if (!f) return null;
+      return k === 'net_cash_flow' ? netCashFlow(f) : f[k];
+    };
+    /* Filas sin ningún valor distinto de cero en el año: se ocultan (y se nombran al pie, no se pierde nada). */
+    const vacia = k => !meses.some(m => n(valor(m, k)) !== 0);
+    const todasFilas = armarColumnas(BASE_PNL, config).visibles;
+    const filasPnl = todasFilas.filter(r => !vacia(r.k));
+    const ocultas = todasFilas.filter(r => vacia(r.k)).map(r => r.lab);
+    const mesesSinPagos = meses.filter(m => { const f = delAnio.find(x => x.mes === m); return f && sinPagosCargados(f); });
 
     el.innerHTML = `
       <div class="filter-row">
@@ -62,7 +73,7 @@ export async function vistaCliente(el, clienteId, vigente) {
         ${statCard(usd(fm.revenue_declarado), 'Revenue declarado (Opps)')}
         ${statCard(usd(n(fm.revenue_declarado) - n(fm.ingreso_real)), 'Diferencia Opps − Pagos', { alerta: Math.abs(n(fm.revenue_declarado) - n(fm.ingreso_real)) > 1 })}
         ${statCard(usd(fm.gastos_total), 'Gastos')}
-        ${statCard(usd(fm.net_cash_flow), 'Net cash flow')}
+        ${statCard(usd(netCashFlow(fm)), 'Net cash flow', { sub: 'Ingreso real (Pagos) − Gastos' })}
       </div>
 
       <div class="section-title">P&amp;L ${anio}<span class="line"></span></div>
@@ -70,16 +81,17 @@ export async function vistaCliente(el, clienteId, vigente) {
         <table class="data-table data-table-dense pnl-tabla">
           <thead><tr><th></th>${meses.map(m => `<th class="num"><button type="button" class="mes-btn${m === mes ? ' activo' : ''}" data-mes="${m}">${MESES_CORTOS[m - 1]}</button></th>`).join('')}</tr></thead>
           <tbody>
-            ${armarColumnas(BASE_PNL, config).visibles.map(({ k, lab, estilo }) => `<tr class="pnl-${estilo || 'normal'}"><td>${esc(lab)}</td>${meses.map(m => {
+            ${filasPnl.map(({ k, lab, estilo }) => `<tr class="pnl-${estilo || 'normal'}"><td>${esc(lab)}</td>${meses.map(m => {
               const v = valor(m, k);
-              const marca = k === 'net_cash_flow' && valor(m, 'fuente_ingreso') === 'opps'
-                ? '<span class="marca-opps" title="Antes del primer pago cargado: el ingreso sale de Opps">(Opps)</span> ' : '';
+              const marca = k === 'net_cash_flow' && mesesSinPagos.includes(m)
+                ? '<span class="marca-opps" title="Mes sin pagos cargados: el ingreso real es 0 (Opps declara revenue)">(sin pagos)</span> ' : '';
               return `<td class="num${m === mes ? ' col-activa' : ''}">${v == null ? '—' : marca + usd(v)}</td>`;
             }).join('')}</tr>`).join('')}
           </tbody>
         </table>
       </div>
-      <div class="table-foot">Los números son siempre la suma de los items, nunca el total de la planilla. Clic en un mes para ver el detalle.</div>
+      ${mesesSinPagos.length ? `<div class="card nota">${mesesSinPagos.map(m => MESES[m - 1]).join(', ')} sin pagos cargados: el ingreso real de ${mesesSinPagos.length > 1 ? 'esos meses' : 'ese mes'} es 0 aunque Opps declara revenue, y el Net cash flow sale negativo por los gastos.</div>` : ''}
+      <div class="table-foot">Los números son siempre la suma de los items, nunca el total de la planilla. Clic en un mes para ver el detalle.${ocultas.length ? ` Filas sin datos en ${anio}: ${esc(ocultas.join(', '))}.` : ''}</div>
 
       <div class="section-title">Detalle de ${esc(MESES[mes - 1])} ${anio}<span class="line"></span></div>
       <div id="detalle"><div class="loading-inline">Cargando detalle…</div></div>`;

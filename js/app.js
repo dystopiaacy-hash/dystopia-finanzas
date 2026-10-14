@@ -3,9 +3,10 @@
    mensaje de error, logout = signOut + reload. Sin realtime: los datos cambian
    cada 15 min con el cron; cada vista tiene su botón para recargar. */
 import { sb } from './supabase.js';
+import { precargarConciliacion } from './datos.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, clienteUnico, puedeCargar, vePagos } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -102,6 +103,7 @@ function registrarRutas() {
     const unico = clienteUnico();
     setHeader(unico ? 'Resumen' : 'Resumen agencia', unico ? unico.nombre : 'Ingresos, gastos y conciliación por cliente');
     montar(vistaResumen);
+    if (veAnalisis()) precargarConciliacion();   // la primera carga de Conciliación tardaba ~8 s
   }));
   ruta('cliente/:id', guardia(veFinanzas, ({ id }) => {
     renderNav({ cliente: id });
@@ -124,7 +126,9 @@ function registrarRutas() {
   }));
   ruta('mis-numeros', guardia(veMisNumeros, () => {
     renderNav({ vista: 'mis-numeros' });
-    setHeader('Mis números', esFundador() ? 'Closers y setters' : yo.nombre);
+    /* Closer/setter: su nombre. Los demás: el cliente si tienen uno solo (yo.nombre puede ser un programa, ej. "Finanzas BPF"). */
+    const unico = clienteUnico();
+    setHeader('Mis números', esEquipo() ? yo.nombre : (unico ? unico.nombre : 'Closers y setters'));
     montar(vistaMisNumeros);
   }));
   ruta('cargar', guardia(puedeCargar, () => {

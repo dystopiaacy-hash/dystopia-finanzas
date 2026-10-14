@@ -117,7 +117,7 @@ async function vistaRanking(el, vigente) {
           <div id="setters"><div class="loading-inline">Cargando…</div></div>
         </div>
       </div>
-      <div class="table-foot">Cierre = alumno distinto con un pago cuyo concepto contiene FEE o PIF (supuesto a validar con la agencia).
+      <div class="table-foot">Cierre = alumno distinto con un pago cuyo concepto contiene FEE o PIF.
         El detalle con link a cada fila está en la vista de cada cliente.</div>`;
 
     el.querySelector('#f-cliente').onchange = e => { filtro.cliente = e.target.value; pintar(); };

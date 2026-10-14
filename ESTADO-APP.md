@@ -50,6 +50,22 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+00000000000000000. (14/10) REVISIÓN VISUAL: net cash flow y prolijidad (informe jefe/insumos/revision-2026-10-14), sin commit, `node --check` y `npm test` sin correr:
+   - Net cash flow = Ingreso real (Pagos) − Gastos en TODOS los meses, calculado en el front (datos.js netCashFlow; la vista 063 no cambia y
+     sigue usando Opps antes del primer pago). Mes con fuente_ingreso 'opps' y revenue en Opps: marca "(sin pagos)" y aviso "<mes> sin pagos
+     cargados" en Resumen y Cliente. Rótulo único: "Net cash flow (Pagos − Gastos)" / sub "Ingreso real (Pagos) − Gastos". Cambia el net
+     histórico de los meses anteriores al primer pago (liam enero): ahora sale negativo por los gastos.
+   - P&L (cliente.js): filas y CATEGORIAS en español (Personal, Software, Otros, Dividendos distribuidos, Saldo inicial/final); filas en 0 todo
+     el año se ocultan y se nombran al pie. Si el fundador renombró filas en fin_columnas, esos nombres mandan.
+   - Sacado "(supuesto a validar con la agencia)" de Cobranzas y Mis números. Subtítulo de Mis números: nombre del cliente (el "Finanzas BPF"
+     era yo.nombre de crm_members del usuario, no un texto del front).
+   - Conciliación: cache corto (como pnlMensual) y precarga desde Resumen (datos.js conciliacion, precargarConciliacion; app.js).
+   - Agus y Teo: el front ya los lista (sesion.js ORDEN, clientes de crm_clients por RLS). La revisión se hizo con un usuario de un solo cliente.
+   - migraciones/114_finanzas_diagnostico_agus_teo.sql: SOLO controles de lectura C1 a C11 (clientes, fuentes, asignaciones, nulos de cuotas y
+     pagos, programas repetidos, origen de la lista de closers). No cambia datos.
+   - Hallazgos (sin tocar datos): Cobranzas de liam no tiene columnas Programa ni Closer en la hoja Cuotas (no se cargan, no es bug de
+     lectura); en el xlsx de la 076 Fuente viene en 11 de 231 pagos, programa vacío en 11 y concepto vacío en 1. Closers del formulario =
+     fin_vendedores + fin_vendedor_asignaciones.es_closer (066 no filtra es_persona: "BPF" es es_persona=false de la 010).
 0000000000000000. (13/10) ALERTA DE COBROS DOS VECES POR DÍA (número 109 asignado por el jefe), migración SIN correr, sin commit:
    - migraciones/109_alertas_cobros_dos_horarios.sql: config suma hora_envio_2 (null = sin 2.º aviso, 6 a 22, distinta de hora_envio),
      ultimo_envio_2 y ultimo_resultado_2; el log suma turno (1/2; filas viejas = 1). fin_alertas_cobros_turno() elige el turno: el
@@ -186,6 +202,12 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+00000000000000000. (14/10) Correr de a uno C1 a C11 de la 114 y pasar resultados; correr `node --check js/datos.js js/app.js js/views/cliente.js
+    js/views/resumen.js js/views/cobranzas.js js/views/mis-numeros.js` y `npm test`. Decidir: (a) si "Net cash flow" de enero debe seguir
+    mostrando Opps o el aviso "sin pagos" alcanza; (b) cuál programa queda entre los repetidos de liam (ver C9/C10; "BPF 1 A 1" y "BPF 1 AÑO"
+    ya figuraban como duda abierta) y si el RPC de closers filtra es_persona (necesita número de migración); (c) completar Programa y Closer en
+    la hoja Cuotas de liam o derivarlos de Pagos por alumno (necesita decisión y migración); (d) Teo: su hoja CUOTAS está inactiva y vacía;
+    Agus: faltan usuario/rol y el corte 067 para que "Cargar pago" quede habilitado.
 0000000000000000. Correr la 109 (no a :00/:15/:30/:45, ni a las 9:00, ni a las :05): después C1 a C7 de a uno (C3/C4 con fecha de
     mañana). Si se corre pasadas las 21:05 de un día, el 2.º aviso de ese día sale en la hora siguiente. Después publicar el front
     y correr `node --check js/datos.js js/views/alertas.js` y `npm test`. Ojo: los dos mensajes del día tienen el mismo encabezado
