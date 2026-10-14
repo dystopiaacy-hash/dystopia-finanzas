@@ -52,6 +52,45 @@ for (const [nombre, rot] of [['castellano', ES], ['abreviado', AB], ['abreviado 
 const sin = base.map((f) => (Array.isArray(f) ? f.map((v) => (EN.includes(v) ? 'X' : v)) : f));
 ok(parseOpps(sin, { anio: 2026 }).error, 'sin meses debe dar error');
 
+// Meses repetidos (agus, fuente 7): dos bloques, el primero en castellano (C..W)
+// y una copia vieja en ingles (AA..AU). Vale el primero; el resto se ignora,
+// no es error, deja aviso y el estado queda en revisar.
+{
+  const ANCHO = 50;
+  const fila = () => Array(ANCHO).fill('');
+  const m = [fila(), fila(), fila(), fila(), fila(), fila(), fila()];
+  const ESP = ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const ING = ['JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  const bloque = (col, rotulo, monto) => {
+    m[1][col] = rotulo;
+    m[2][col] = 'Revenue';
+    m[3][col] = 'Alumno A'; m[3][col + 2] = monto;
+    m[4][col] = 'Total Revenue'; m[4][col + 2] = monto;
+    m[5][col] = 'Expenses';
+    m[6][col] = 'Total Expenses'; m[6][col + 2] = 0;
+  };
+  ESP.forEach((r, i) => bloque(2 + i * 4, r, 1000 * (i + 1)));       // C, G, K, O, S, W
+  ING.forEach((r, i) => bloque(26 + i * 4, r, i === 0 ? 777 : 0));   // AA, AE, ..., AU
+
+  const r = parseOpps(m, { anio: 2026 });
+  ok(!r.error, `meses repetidos: no debe dar error (${r.error})`);
+  ok(r.estado === 'revisar', `meses repetidos: estado ${r.estado}, esperaba revisar`);
+  ok(r.filas.length === 6, `meses repetidos: ${r.filas.length} filas, esperaba 6 (solo el primer bloque)`);
+  ok(r.filas.every((f) => f.columna_planilla < 26), 'meses repetidos: hay filas tomadas del bloque ignorado');
+  const montos = r.filas.map((f) => `${f.mes}:${f.monto_usd}`).join(',');
+  ok(montos === '7:1000,8:2000,9:3000,10:4000,11:5000,12:6000', `meses repetidos: montos ${montos}`);
+  ok(r.encabezado.length === 6 && r.encabezado[0] === 'july@2', `meses repetidos: encabezado ${r.encabezado}`);
+  const rep = r.revisar.filter((x) => x.motivo === 'mes repetido en el encabezado');
+  ok(rep.length === 6, `meses repetidos: ${rep.length} controles, esperaba 6`);
+  ok(rep[0] && rep[0].usado === 'C' && rep[0].ignorado === 'AA', 'meses repetidos: columnas C / AA mal informadas');
+  ok(r.revisar.length === 6, 'meses repetidos: no debe haber otros motivos de revision');
+  ok(r.avisos.some((a) => a.includes('columna C') && a.includes('columna AA')), 'meses repetidos: falta el aviso');
+
+  // Sin repetidos el resultado no cambia: mismo encabezado y sin avisos de repeticion.
+  ok(!ref.avisos.some((a) => a.includes('repetido')) && !ref.revisar.some((x) => x.motivo === 'mes repetido en el encabezado'),
+    'sin repetidos no debe avisar');
+}
+
 if (fallas.length) {
   console.error('FALLAS opps-meses:\n - ' + fallas.join('\n - '));
   process.exit(1);

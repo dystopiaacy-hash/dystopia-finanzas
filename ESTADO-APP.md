@@ -50,6 +50,13 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+00000000000000000000. (14/10) OPPS: MESES REPETIDOS EN EL ENCABEZADO YA NO SON ERROR (agus, fuente 7), sin migración, sin commit, `node --check` y `npm test` NO se pudieron correr:
+   - supabase/functions/_shared/parsers/opps.js: si un mes aparece más de una vez en la fila de meses vale SOLO la primera aparición (la de
+     más a la izquierda); las posteriores se ignoran. Deja aviso "mes repetido en el encabezado (<mes>): se uso el bloque de la columna C,
+     se ignoro el de la columna AA" (va al `mensaje` de la corrida) y una entrada en `revisar` por mes repetido (motivo 'mes repetido en el
+     encabezado', usado/ignorado) => estado 'revisar', no 'error'. El encabezado (hash) se calcula sobre los bloques usados.
+   - Sin repetidos nada cambia (Liam, Teo y el resto). procesar.js sin tocar. Test: pruebas/opps-meses.mjs (ya en `npm test`).
+   - REDEPLOY: Edge Function sincronizar (el parser vive en _shared). Ver Pendientes.
 000000000000000000000. (14/10) VENTAS DE AGUS: CIERRES (número 121 asignado por el jefe), SIN correr, sin commit, `npm test` y `node --check` NO se pudieron correr:
    - Tipo de fuente `cierres` (pestaña Clientes de "Ventas De Cero a CEO"): parsers/cierres.js, procesar.js (datos.cierres, celdas rechazadas como Data),
      nucleo.ts (TIPOS + `fin_cierres_escribir`, `fin_sync_escribir` intacta). Migración 121: tipo en fin_fuentes, tabla fin_cierres con RLS por
@@ -232,6 +239,9 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000000000000000. Correr `node --check supabase/functions/_shared/parsers/opps.js pruebas/opps-meses.mjs` y `npm test`; redeployar
+    `sincronizar` (--no-verify-jwt) y sincronizar la fuente 7: debe cargar Julio..Diciembre de C..W y quedar en 'revisar' con el aviso. Si
+    el hash del encabezado difiere del de la última corrida buena, usar aceptar_encabezado (ver DIAGNOSTICO-AGUS-2026-10-14.md).
 00000000000000000000. Correr (jefe/Joaquín) los 2 comandos de `node pruebas/diagnostico-planilla.mjs` (agus y teo, ver DIAGNOSTICO-AGUS-2026-10-14.md)
     y pasar la salida (solo conteos); recién ahí decidir redeploy + aceptar encabezado, alias nuevo (118) o corrección de celdas en Opps.
 0000000000000000000. Agus: redeployar `sincronizar` (--no-verify-jwt), sincronizar fuente 7 y mirar si carga; mirar la hoja Pagos de Agus

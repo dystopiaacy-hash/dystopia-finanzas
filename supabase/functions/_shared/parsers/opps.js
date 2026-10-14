@@ -13,7 +13,8 @@
 // Total Expenses, Retained Earnings) son CONTROL: si no cuadran, el mes se
 // carga igual con los items reales y queda en `revisar` (estado 'revisar').
 // `error` solo se setea por estructura irreconocible (sin fila de meses,
-// meses repetidos, sin anio): ahi la corrida no toca datos.
+// sin anio): ahi la corrida no toca datos. Un mes repetido en el encabezado NO
+// es error: se usa la primera aparicion, se avisa y queda en `revisar`.
 
 import { esVacio, normalizar, texto, parseMonto, parseFecha, redondear, esAmbiguo, MOTIVO_MONTO_AMBIGUO } from './comun.js';
 
@@ -48,6 +49,13 @@ export function mesDeRotulo(v) {
   if (!n) return 0;
   const i = ROTULOS_MES.findIndex((l) => l.includes(n));
   return i + 1;
+}
+
+// Indice de columna 0-based -> letra de planilla (0 = A, 26 = AA).
+function letraColumna(k) {
+  let s = '';
+  for (let n = k + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
 }
 
 const CATEGORIAS = ['staff', 'softwares', 'others'];
@@ -244,17 +252,26 @@ export function parseOpps(matriz, config = {}) {
     return out;
   }
 
+  // Un mes repetido en el encabezado (p. ej. un bloque en castellano y una copia
+  // vieja en ingles): vale solo la primera aparicion (la de mas a la izquierda),
+  // las posteriores se ignoran. Queda un aviso y el mes en `revisar`.
   const bloques = [];
+  const usados = new Map();   // mes -> columna usada
   matriz[filaMeses].forEach((v, k) => {
     const mes = mesDeRotulo(v);
-    if (mes > 0 && k >= 2) bloques.push({ mes, col: k });
+    if (!(mes > 0 && k >= 2)) return;
+    if (usados.has(mes)) {
+      const usada = letraColumna(usados.get(mes));
+      const ignorada = letraColumna(k);
+      out.avisos.push(`mes repetido en el encabezado (${MESES[mes - 1]}): se uso el bloque de la columna ${usada}, se ignoro el de la columna ${ignorada}`);
+      out.revisar.push({ mes, motivo: 'mes repetido en el encabezado', usado: usada, ignorado: ignorada });
+      return;
+    }
+    usados.set(mes, k);
+    bloques.push({ mes, col: k });
   });
   out.encabezado = bloques.map((x) => `${MESES[x.mes - 1]}@${x.col}`);
   if (bloques.length !== 12) out.avisos.push(`se esperaban 12 bloques mensuales y hay ${bloques.length}`);
-  if (new Set(bloques.map((x) => x.mes)).size !== bloques.length) {
-    out.error = 'hay meses repetidos en el encabezado';
-    return out;
-  }
 
   const mapa = filasDeCategoria(matriz, filaMeses, bloques);
   for (const { mes, col } of bloques) parseBloque(matriz, filaMeses, col, mes, anio, out, mapa);

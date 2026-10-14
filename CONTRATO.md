@@ -281,7 +281,8 @@ El PLAN decía "si una fuente falla se aborta entera". Queda así:
 |---|---|---|
 | Falta una columna obligatoria | `error` | No. Se conserva lo anterior. |
 | Cambió el hash de encabezado | `error` | No. Se conserva lo anterior. |
-| Estructura irreconocible (Opps sin fila de meses, meses repetidos) | `error` | No. |
+| Estructura irreconocible (Opps sin fila de meses) | `error` | No. |
+| Opps con un mes repetido en el encabezado | `revisar` | Sí: vale la primera aparición (la de más a la izquierda), se ignoran las otras y queda el aviso. |
 | Total de la planilla ≠ suma de ítems | `revisar` | Sí, con los ítems reales. |
 | Fecha o texto en celda de monto | `revisar` | Sí; la fila va a rechazadas. |
 | Monto ambiguo con formato de fecha (sección 0) | `revisar` | Sí; la fila va a rechazadas con su COMPROBANTE en el control. |
