@@ -169,8 +169,9 @@ export const pagoDevolver = (clave, monto, fecha, motivo) =>
 
 /* Alertas de cobros a Discord (103, solo fundador: las RPC lo verifican). La vista previa NO envía. */
 export const alertasCobrosEstado = () => rpc('fin_alertas_cobros_estado', {}, false);
-export const alertasCobrosGuardar = (cliente, activo, hora, montos) =>
-  rpc('fin_alertas_cobros_config_guardar', { p_cliente: cliente, p_activo: activo, p_hora: hora, p_montos: montos });
+export const alertasCobrosGuardar = (cliente, activo, hora, montos, hora2 = null) =>
+  rpc('fin_alertas_cobros_config_guardar',
+    { p_cliente: cliente, p_activo: activo, p_hora: hora, p_montos: montos, p_hora_2: hora2 });
 export const alertasCobrosVistaPrevia = (cliente, semana = null) =>
   rpc('fin_alertas_cobros_vista_previa', { p_cliente: cliente, p_semana: semana }, false);
 

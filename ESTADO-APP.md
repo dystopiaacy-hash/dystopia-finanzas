@@ -50,6 +50,15 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000000. (13/10) ALERTA DE COBROS DOS VECES POR DÍA (número 109 asignado por el jefe), migración SIN correr, sin commit:
+   - migraciones/109_alertas_cobros_dos_horarios.sql: config suma hora_envio_2 (null = sin 2.º aviso, 6 a 22, distinta de hora_envio),
+     ultimo_envio_2 y ultimo_resultado_2; el log suma turno (1/2; filas viejas = 1). fin_alertas_cobros_turno() elige el turno: el
+     último cuya hora ya pasó, así que si el de las 9 nunca salió, a las 21 sale uno solo (sin estado, sin filas "salteadas").
+     Cada turno se controla aparte (no repetir, máx. 3 fallidos por turno). Pisa enviar, confirmar, estado, vista_previa y
+     config_guardar (la firma de 4 args se borra, queda la de 5 con p_hora_2); respaldo de las viejas en fin_funciones_bak_109.
+     Deja liam/agus/teo en 9 y 21 sin tocar activo ni montos. No toca armar (texto), cron ni Vault. Prueba de humo interna (revierte).
+   - Front: js/views/alertas.js (dos selects de hora, el 2.º puede quedar en "Sin 2.º aviso"; último envío y resultado por turno) y
+     alertasCobrosGuardar en js/datos.js (p_hora_2). Correr la migración ANTES de publicar el front.
 000000000000000. (13/10) VENTAS-AGENDA SIN 'lucas': supabase/functions/ventas-agenda/index.ts, CLIENTES pasa de liam/lucas/teo a liam/teo
    (agus NO estaba y no se agregó: decidir). Un pedido con cliente=lucas o mauro responde 400 {ok:false,error:'cliente invalido'} antes de
    leer el body ni tocar la base. Redeploy pendiente (jefe): ventas-agenda con --no-verify-jwt, sin imports de _shared. Resto de
@@ -177,6 +186,10 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000000. Correr la 109 (no a :00/:15/:30/:45, ni a las 9:00, ni a las :05): después C1 a C7 de a uno (C3/C4 con fecha de
+    mañana). Si se corre pasadas las 21:05 de un día, el 2.º aviso de ese día sale en la hora siguiente. Después publicar el front
+    y correr `node --check js/datos.js js/views/alertas.js` y `npm test`. Ojo: los dos mensajes del día tienen el mismo encabezado
+    (el texto no se tocó); decidir si se quiere marcar "mañana/noche".
 00000000000000. Correr la 107 (no a :00/:15/:30/:45 ni a las 9:00) después del banco de pruebas: antes C0.cs (cs_maestro_columnas,
     A CONFIRMAR: filtra por programa_id), C1, C2 y C3; el bloque `do`; después C4 a C8. Decidir: (a) si se borran también las filas
     'mauro' y 'lucas' de cs_programas (Producto; bloque opcional comentado al final); (b) si se saca 'lucas' de CLIENTES en
