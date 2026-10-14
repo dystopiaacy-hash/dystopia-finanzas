@@ -99,7 +99,11 @@ grant all on table public.fin_cierres to service_role;
 drop policy if exists fin_cierres_lectura on public.fin_cierres;
 create policy fin_cierres_lectura on public.fin_cierres
   for select to authenticated
-  using (public.fin_data_puede_ver(cliente_id));
+  -- En linea (misma regla que fin_data_puede_ver): la 077 le quito el execute
+  -- de esa funcion a authenticated y una policy corre con el rol del lector.
+  using (coalesce(public.es_fundador(), false)
+         or (public.rol_actual() = 'cliente' and coalesce(public.tiene_acceso(cliente_id), false))
+         or (public.rol_actual() in ('finanzas', 'ventas') and public.fin_asignado(cliente_id)));
 
 create or replace function public.fin_cierres_escribir(
   p_corrida     bigint,
@@ -252,7 +256,7 @@ end $$;
 -- ---------------------------------------------------------------------
 do $$
 begin
-  if '<GID_CLIENTES>' like '<%' then
+  if '1210607277' like '<%' then
     raise exception '121: completar <GID_CLIENTES> antes de correr el bloque 2';
   end if;
   if not exists (select 1 from public.crm_clients where id = 'agus') then
@@ -262,7 +266,7 @@ end $$;
 
 insert into public.fin_fuentes
   (cliente_id, spreadsheet_id, gid, nombre_hoja_esperado, tipo, forma, fila_encabezado, anio, tope_monto, activo)
-select 'agus', '1BdMWa7mYmPLquDOGvpoPU-PuwoUinHF47OCdP-t3U3s', <GID_CLIENTES>, 'Clientes', 'cierres', null, 1, null, null, false
+select 'agus', '1BdMWa7mYmPLquDOGvpoPU-PuwoUinHF47OCdP-t3U3s', 1210607277, 'Clientes', 'cierres', null, 1, null, null, false
 where not exists (
   select 1 from public.fin_fuentes
   where spreadsheet_id = '1BdMWa7mYmPLquDOGvpoPU-PuwoUinHF47OCdP-t3U3s' and tipo = 'cierres');
