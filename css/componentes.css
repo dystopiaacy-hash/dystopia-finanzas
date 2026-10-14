@@ -42,6 +42,9 @@
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-4);box-shadow:var(--shadow);min-width:0;}
 .stat-num{font-family:var(--font-mono);font-size:var(--fs-kpi);line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);}
 .stat-label{font-size:var(--fs-meta);line-height:1.35;color:var(--text-dim);margin-top:var(--sp-1);font-weight:600;}
+/* Numero completo siempre: la fuente se achica segun el ancho de la tarjeta y la cantidad de caracteres (--n de statCard); el total va en el tooltip. */
+.stat-card{container-type:inline-size;}
+.stat-card .stat-num{white-space:nowrap;font-size:clamp(11px,calc(100cqi / (var(--n,8) * .64)),var(--fs-kpi));}
 .stat-alerta{border-color:var(--danger) !important;}
 .stat-alerta .stat-num{color:var(--danger);}
 .stat-link{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted;text-decoration-thickness:2px;text-underline-offset:4px;}

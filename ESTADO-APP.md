@@ -50,6 +50,12 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000000000. (14/10) DIAGNÓSTICO AGUS + TARJETAS CORTADAS, sin migración, sin commit, `node --check` sin correr, `npm test` OK:
+   - Diagnóstico en DIAGNOSTICO-AGUS-2026-10-14.md. No pude leer la hoja viva ni la base: "antes" sale del fixture del 21/09; "ahora" queda
+     NO VERIFICADO (hay que mirar la hoja). Pagos: hash de encabezado distinto; NO se aceptó nada, comando preparado en el doc.
+   - Opps: parsers/opps.js acepta meses en inglés, castellano, abreviados y con año (mesDeRotulo); hash intacto. pruebas/opps-meses.mjs
+     en `npm test`. REDEPLOY: Edge Function sincronizar (el parser vive en _shared).
+   - Tarjetas: comunes.js statCard (title con el valor completo y --n) + componentes.css (fuente adaptable por ancho con container query).
 000000000000000000. (14/10) CLOSERS NUEVOS DESDE LA APP Y PROGRAMA/CLOSER DE CUOTAS (número 116 asignado por el jefe), SIN correr, sin commit:
    - migraciones/116_finanzas_closer_agregar.sql: RPC fin_closer_agregar(p_cliente, p_nombre, p_es_persona). Permiso: fundador o rol
      finanzas asignado al cliente. Busca por nombre_norm (sin duplicar), crea fin_vendedores si falta, asigna es_closer en
@@ -217,6 +223,9 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000000000. Agus: redeployar `sincronizar` (--no-verify-jwt), sincronizar fuente 7 y mirar si carga; mirar la hoja Pagos de Agus
+    y decidir aceptar_encabezado en fuente 8 (ver DIAGNOSTICO-AGUS-2026-10-14.md); corregir rótulos de meses en la planilla Opps de Agus.
+    Revisar tarjetas del Resumen en navegador (fuente adaptable). Correr `node --check js/views/comunes.js`.
 000000000000000000. Correr la 116 (no a :00/:15/:30/:45 ni a las 9:00) ANTES de publicar el front; después C1 a C4 de a uno. Probar como
     fundador y como finanzas@liam: Cargar pago > "+ Agregar closer" con un nombre nuevo y con uno existente (no debe duplicar).
     Correr `node --check js/datos.js js/views/cargar.js js/views/cobranzas.js js/cuotas-derivar.js` y `npm test`. Decidir: si "Agregar

@@ -7,7 +7,7 @@ import { COLGADA_MIN, DESACTUALIZADA_MIN } from '../config.js';
 export function statCard(valor, label, { sub = '', alerta = false, html = false } = {}) {
   return `
     <div class="stat-card${alerta ? ' stat-alerta' : ''}">
-      <div class="stat-num">${html ? valor : esc(valor)}</div>
+      <div class="stat-num"${html ? '' : ` title="${esc(valor)}" style="--n:${Math.max(String(valor).length, 1)}"`}>${html ? valor : esc(valor)}</div>
       <div class="stat-label">${esc(label)}</div>
       ${sub ? `<div class="stat-sub">${esc(sub)}</div>` : ''}
     </div>`;

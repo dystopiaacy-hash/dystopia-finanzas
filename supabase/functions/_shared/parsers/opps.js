@@ -24,6 +24,32 @@ export const MOTIVO_REPARTO_SIN_BENEFICIARIO = 'posible reparto sin beneficiario
 const MESES = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
   'august', 'september', 'october', 'november', 'december'];
 
+// Rotulos aceptados por mes (normalizados: sin acentos, minusculas). El primero
+// de cada lista es el ingles completo (el que usa MESES para el hash).
+const ROTULOS_MES = [
+  ['january', 'enero', 'jan', 'ene'],
+  ['february', 'febrero', 'feb'],
+  ['march', 'marzo', 'mar'],
+  ['april', 'abril', 'apr', 'abr'],
+  ['may', 'mayo'],
+  ['june', 'junio', 'jun'],
+  ['july', 'julio', 'jul'],
+  ['august', 'agosto', 'aug', 'ago'],
+  ['september', 'septiembre', 'setiembre', 'sep', 'sept', 'set'],
+  ['october', 'octubre', 'oct'],
+  ['november', 'noviembre', 'nov'],
+  ['december', 'diciembre', 'dec', 'dic'],
+];
+
+// Mes (1-12) de un rotulo de encabezado, 0 si no es un mes. Tolera punto final
+// ("ene.") y el anio pegado ("enero 2026", "ENE-26").
+export function mesDeRotulo(v) {
+  const n = normalizar(v).replace(/\./g, '').replace(/[\s\-/]+(de\s+)?\d{2,4}$/, '').trim();
+  if (!n) return 0;
+  const i = ROTULOS_MES.findIndex((l) => l.includes(n));
+  return i + 1;
+}
+
 const CATEGORIAS = ['staff', 'softwares', 'others'];
 
 // Anclas conocidas (normalizadas) -> accion.
@@ -209,13 +235,19 @@ export function parseOpps(matriz, config = {}) {
   if (!Number.isInteger(anio)) { out.error = 'config.anio es obligatorio para Opps'; return out; }
   if (!Array.isArray(matriz)) { out.error = 'matriz vacia'; return out; }
 
-  const filaMeses = matriz.findIndex((f) => Array.isArray(f) && f.some((v) => normalizar(v) === 'january'));
-  if (filaMeses === -1) { out.error = "no se encontro la fila de meses ('JANUARY')"; return out; }
+  // Fila de meses: la primera con al menos 3 rotulos de mes reconocibles (ingles,
+  // castellano, abreviados), a partir de la columna 2.
+  const filaMeses = matriz.findIndex((f) => Array.isArray(f)
+    && f.filter((v, k) => k >= 2 && mesDeRotulo(v) > 0).length >= 3);
+  if (filaMeses === -1) {
+    out.error = "no se encontro la fila de meses ('JANUARY', 'ENERO' o abreviados)";
+    return out;
+  }
 
   const bloques = [];
   matriz[filaMeses].forEach((v, k) => {
-    const i = MESES.indexOf(normalizar(v));
-    if (i > -1 && k >= 2) bloques.push({ mes: i + 1, col: k });
+    const mes = mesDeRotulo(v);
+    if (mes > 0 && k >= 2) bloques.push({ mes, col: k });
   });
   out.encabezado = bloques.map((x) => `${MESES[x.mes - 1]}@${x.col}`);
   if (bloques.length !== 12) out.avisos.push(`se esperaban 12 bloques mensuales y hay ${bloques.length}`);
