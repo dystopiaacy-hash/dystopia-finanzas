@@ -50,6 +50,15 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000000000000. (14/10) VENTAS DE AGUS: CIERRES (número 121 asignado por el jefe), SIN correr, sin commit, `npm test` y `node --check` NO se pudieron correr:
+   - Tipo de fuente `cierres` (pestaña Clientes de "Ventas De Cero a CEO"): parsers/cierres.js, procesar.js (datos.cierres, celdas rechazadas como Data),
+     nucleo.ts (TIPOS + `fin_cierres_escribir`, `fin_sync_escribir` intacta). Migración 121: tipo en fin_fuentes, tabla fin_cierres con RLS por
+     `fin_data_puede_ver`, RPC, prueba de humo, alta INACTIVA de la fuente con `<GID_CLIENTES>`. Prueba: pruebas/cierres.mjs (en `npm test`).
+   - REDEPLOY: Edge Function sincronizar (el parser vive en _shared). Detalle del front en el ESTADO-APP de dystopia-ventas.
+00000000000000000000. (14/10) DIAGNÓSTICO AGUS CON PLANILLAS REALES: BLOQUEADO, sin migración, sin commit:
+   - No se pudo ejecutar `node` en la sesión (sin aprobación), así que NO hay resultados de Opps/Pagos de Agus ni de Teo. Nada inventado.
+   - Nuevo `pruebas/diagnostico-planilla.mjs` (solo lectura, parsers de `_shared`, imprime solo estructura y conteos) y sección
+     "Actualización" en DIAGNOSTICO-AGUS-2026-10-14.md con los 2 comandos y cómo decidir (a/b/c). Migración 118 sin usar.
 0000000000000000000. (14/10) DIAGNÓSTICO AGUS + TARJETAS CORTADAS, sin migración, sin commit, `node --check` sin correr, `npm test` OK:
    - Diagnóstico en DIAGNOSTICO-AGUS-2026-10-14.md. No pude leer la hoja viva ni la base: "antes" sale del fixture del 21/09; "ahora" queda
      NO VERIFICADO (hay que mirar la hoja). Pagos: hash de encabezado distinto; NO se aceptó nada, comando preparado en el doc.
@@ -223,6 +232,8 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+00000000000000000000. Correr (jefe/Joaquín) los 2 comandos de `node pruebas/diagnostico-planilla.mjs` (agus y teo, ver DIAGNOSTICO-AGUS-2026-10-14.md)
+    y pasar la salida (solo conteos); recién ahí decidir redeploy + aceptar encabezado, alias nuevo (118) o corrección de celdas en Opps.
 0000000000000000000. Agus: redeployar `sincronizar` (--no-verify-jwt), sincronizar fuente 7 y mirar si carga; mirar la hoja Pagos de Agus
     y decidir aceptar_encabezado en fuente 8 (ver DIAGNOSTICO-AGUS-2026-10-14.md); corregir rótulos de meses en la planilla Opps de Agus.
     Revisar tarjetas del Resumen en navegador (fuente adaptable). Correr `node --check js/views/comunes.js`.

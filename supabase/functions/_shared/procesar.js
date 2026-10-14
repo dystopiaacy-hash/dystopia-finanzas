@@ -5,7 +5,7 @@
 //   { estado, mensaje, hash, stats, controles, datos }
 //   estado: 'ok' | 'revisar' | 'parcial' | 'error'
 //   datos:  null si estado = 'error' (NO se toca nada), si no
-//           { pagos, pnl, saldos, reparto, cuotas, llamadas, rechazadas }
+//           { pagos, pnl, saldos, reparto, cuotas, llamadas, cierres, rechazadas }
 // fuente = fila de fin_fuentes + alias: [{ campo, alias, obligatorio, posicion }]
 // previo = { hash, filas_cargadas } de la ultima corrida no-error, o null.
 
@@ -13,6 +13,7 @@ import { parsePagos } from './parsers/pagos.js';
 import { parseOpps } from './parsers/opps.js';
 import { parseCuotas } from './parsers/cuotas.js';
 import { parseData } from './parsers/data.js';
+import { parseCierres } from './parsers/cierres.js';
 import { MOTIVO_MONTO_AMBIGUO } from './parsers/comun.js';
 
 // Red de seguridad independiente del formato: seriales de fecha 2023..2030.
@@ -52,6 +53,7 @@ function parsear(fuente, matriz) {
   if (fuente.tipo === 'data') {
     return parseData(matriz, { alias: fuente.alias, fila_encabezado: fuente.fila_encabezado });
   }
+  if (fuente.tipo === 'cierres') return parseCierres(matriz, { fila_encabezado: fuente.fila_encabezado });
   return { error: `tipo '${fuente.tipo}' no se sincroniza todavia` };
 }
 
@@ -85,7 +87,9 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
   let rechazadas = r.rechazadas || [];
   let leidas;
   let descartadas;
-  const datos = { pagos: [], pnl: [], saldos: [], reparto: [], cuotas: [], llamadas: [], rechazadas };
+  const datos = { pagos: [], pnl: [], saldos: [], reparto: [], cuotas: [], llamadas: [], cierres: [], rechazadas };
+  // Data y cierres: una celda rechazada deja la fila cargada (no cuenta para el umbral).
+  const porCelda = fuente.tipo === 'data' || fuente.tipo === 'cierres';
 
   if (fuente.tipo === 'opps') {
     datos.pnl = r.filas;
@@ -99,6 +103,7 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
   } else {
     if (fuente.tipo === 'pagos') datos.pagos = r.filas;
     else if (fuente.tipo === 'data') datos.llamadas = r.filas;
+    else if (fuente.tipo === 'cierres') datos.cierres = r.filas;
     else datos.cuotas = r.filas;
     cargadas = r.stats.filas_cargadas ?? r.filas.length;
     leidas = r.stats.filas_leidas;
@@ -129,14 +134,14 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
 
   // Filas rechazadas, no entradas: en Data una celda rechazada deja la fila
   // cargada (parsers/data.js) y no cuenta para el umbral.
-  const filasRech = fuente.tipo === 'data' ? r.stats.rechazadas : rechazadas.length;
+  const filasRech = porCelda ? r.stats.rechazadas : rechazadas.length;
   const validasMasRechazadas = cargadas + filasRech;
   const proporcion = validasMasRechazadas ? filasRech / validasMasRechazadas : 0;
   if (fuente.tipo !== 'opps' && proporcion > UMBRAL_PARCIAL) {
     estado = 'parcial';
     avisos.push(`${filasRech} de ${validasMasRechazadas} filas rechazadas (${Math.round(proporcion * 100)}%)`);
   }
-  if (fuente.tipo === 'data' && r.stats.celdas_rechazadas) {
+  if (porCelda && r.stats.celdas_rechazadas) {
     avisos.push(`${r.stats.celdas_rechazadas} celdas rechazadas (la fila se cargo sin ese valor)`);
   }
 

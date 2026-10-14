@@ -37,3 +37,19 @@ aceptó, el "antes" real difiere un poco. Lo que guarda la base es solo el HASH 
    fuente 8 (migración, necesita número del jefe) y recién después aceptar.
 4. Si la hoja de Pagos de Agus ya se cortó en la app (067, no confirmado como corrida), esta fuente no
    debería leerse: verificar `fin_fuentes.activo/cortada_en` de la 8 antes de aceptar nada.
+
+## Actualización (14/10, segunda tanda con las planillas reales): BLOQUEADA, "ahora" sigue NO VERIFICADO
+- Las planillas reales están en `jefe\insumos\planillas-2026-10-14\` (Agus y Teo, `... - Finanzas 2026.xlsx`), pero en esa
+  sesión no se pudo ejecutar `node` (pedía aprobación y no había quien la diera). Un .xlsx es un zip: no se lee a mano.
+  Por eso la columna "Ahora" de arriba no cambia y no hay conteos. No se inventó ningún resultado.
+- Dejado listo: `pruebas/diagnostico-planilla.mjs` (solo lectura, usa los parsers reales de `_shared`, imprime estructura y
+  conteos, sin nombres ni montos). Correr desde el repo:
+  `node pruebas/diagnostico-planilla.mjs agus "C:\Users\Admin\Downloads\jefe\insumos\planillas-2026-10-14\agus\De CERO a CEO - Finanzas 2026.xlsx"`
+  `node pruebas/diagnostico-planilla.mjs teo "C:\Users\Admin\Downloads\jefe\insumos\planillas-2026-10-14\teo\North Ecom - Finanzas 2026.xlsx"`
+- Qué imprime: fila y rótulos de meses de Opps (y a qué mes los lee el parser), items por mes, encabezado actual de Pagos
+  contra el fixture del 21/09 (columnas nuevas, quitadas, orden) y filas leídas/cargadas/rechazadas/descartadas por motivo.
+- Cómo decidir con el resultado: (a) Pagos con solo columnas agregadas o renombradas que el mapeo no usa y filas cargadas:
+  redeploy + aceptar encabezado; (b) "faltan columnas obligatorias": alias nuevo en `fin_alias_columnas` (migración, hay que
+  pedir número); (c) rótulos de Opps corridos (julio a septiembre bajo JANUARY/FEBRUARY): el parser lee lo que dice el
+  rótulo, la corrección es en la planilla (el script lista col:texto de cada rótulo, de ahí salen las celdas).
+- Ojo: `pruebas/config.mjs` usa los alias del seed para Agus; la base real puede tener otros en `fin_alias_columnas` (fuente 8).

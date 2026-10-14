@@ -21,7 +21,7 @@ import {
 } from '../_shared/corridas.js';
 import { gridDeTexto } from './google.ts';
 
-const TIPOS = new Set(['pagos', 'opps', 'cuotas', 'data']);
+const TIPOS = new Set(['pagos', 'opps', 'cuotas', 'data', 'cierres']);
 
 export interface Fuente {
   id: number; cliente_id: string; spreadsheet_id: string; gid: number; nombre_hoja_esperado: string;
@@ -234,7 +234,8 @@ async function correrFuente(
     // Los rechazos NO van en p_datos: fin_sync_escribir los insertaria por
     // corrida_id y se duplican en cada pasada. Van aparte, por identidad (033).
     const { rechazadas, ...datos } = r.datos;
-    const { data, error } = await sb.rpc('fin_sync_escribir', {
+    // Cierres (121) tiene su propia escritura: no toca fin_sync_escribir.
+    const { data, error } = await sb.rpc(f.tipo === 'cierres' ? 'fin_cierres_escribir' : 'fin_sync_escribir', {
       p_corrida: corridaId, p_estado: estado, p_mensaje: mensaje, p_hash: r.hash,
       p_controles: controles, p_leidas: r.stats.leidas ?? null, p_descartadas: r.stats.descartadas ?? null,
       p_datos: datos,
