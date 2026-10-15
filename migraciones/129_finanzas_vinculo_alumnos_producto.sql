@@ -27,7 +27,7 @@
 --   Funcion para PRODUCTO (solo lectura, sin montos salvo que se pida):
 --     public.fin_cs_estado_pagos(p_cliente text, p_cs_ids uuid[] default null, p_montos boolean default false)
 --     Ver el comentario de la funcion (columnas y reglas) mas abajo.
---   Cron fin_cs_vincular_auto: minutos 7, 22, 37 y 52 (la sync corre en :00/:15/:30/:45). Solo mira alumnos
+--   Cron fin_cs_vincular_auto: minutos 3, 18, 33 y 48 (la sync corre en :00/:15/:30/:45). Solo mira alumnos
 --     sin vinculo; no corre dentro de la sync ni la enlentece.
 --
 -- Requiere: 001 (fin_*), 075 (fin_ve_plata, fin_puede_anular), y de Producto cs_clientes (con pago_clave, 070)
@@ -573,7 +573,7 @@ end $$;
 
 -- ---------------------------------------------------------------------
 -- 11. Prueba de humo (se autorrevierte; no deja ningun dato)
---     Usa una ficha REAL de Producto con telefono unico (la lee, no la modifica) y un alumno
+--     Usa una ficha REAL de Producto con telefono unico y sin alumno de Finanzas coincidente (la lee, no la modifica) y un alumno
 --     "Zz Smoke 129" que solo existe dentro de la prueba.
 -- ---------------------------------------------------------------------
 do $$
@@ -604,6 +604,9 @@ begin
       end if;
     end if;
 
+    -- Ficha con telefono unico Y sin ningun alumno real de Finanzas que coincida (ni por pago_clave,
+    -- ni por telefono, ni por nombre/alias, ni vinculo previo): asi la vinculacion automatica de la
+    -- prueba solo ve al alumno "Zz Smoke 129" y nombres_finanzas = 1 aunque haya datos reales.
     select c.id, c.programa_id, c.telefono into v_cs
       from public.cs_clientes c
      where public.fin_cs_norm_tel(c.telefono) is not null
@@ -611,10 +614,24 @@ begin
        and (select count(*) from public.cs_clientes d
              where d.programa_id = c.programa_id
                and public.fin_cs_norm_tel(d.telefono) = public.fin_cs_norm_tel(c.telefono)) = 1
+       and not exists (select 1 from public.fin_cs_vinculo vv where vv.cs_cliente_id = c.id)
+       and not exists (select 1 from public.fin_pagos p
+                        where p.cliente_id = c.programa_id
+                          and ((c.pago_clave is not null and p.clave = c.pago_clave)
+                            or public.fin_cs_norm_tel(p.telefono) = public.fin_cs_norm_tel(c.telefono)
+                            or public.fin_cs_norm_nombre(p.alumno) in
+                               (select n.nom from public.fin_cs_nombres(c.programa_id) n
+                                 where n.cs_id = c.id and n.nom is not null)))
+       and not exists (select 1 from public.fin_cuotas q
+                        where q.cliente_id = c.programa_id
+                          and (public.fin_cs_norm_tel(q.telefono) = public.fin_cs_norm_tel(c.telefono)
+                            or public.fin_cs_norm_nombre(q.alumno) in
+                               (select n.nom from public.fin_cs_nombres(c.programa_id) n
+                                 where n.cs_id = c.id and n.nom is not null)))
      order by (c.programa_id = 'liam') desc, c.created_at
      limit 1;
     if not found then
-      raise notice 'smoke 129: no hay ficha de Producto con telefono unico; se omite la parte con datos';
+      raise notice 'smoke 129: no hay ficha de Producto con telefono unico y sin alumno de Finanzas coincidente; se omite la parte con datos';
       raise exception 'SMOKE_OK';
     end if;
 
@@ -749,7 +766,7 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- 12. Cron: vinculacion automatica a los :07, :22, :37 y :52 (la sync corre en :00/:15/:30/:45).
+-- 12. Cron: vinculacion automatica a los :03, :18, :33 y :48 (la sync corre en :00/:15/:30/:45).
 -- ---------------------------------------------------------------------
 select cron.unschedule(jobid) from cron.job where jobname = 'fin_cs_vincular_auto';
 select cron.schedule('fin_cs_vincular_auto', '3,18,33,48 * * * *', $cron$ select * from public.fin_cs_vincular_auto(null); $cron$);

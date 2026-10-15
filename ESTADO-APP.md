@@ -50,6 +50,14 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000000000000000. (15/10) 129 CORREGIDA (humo) + 132 ESTADO DE PAGOS PARA PRODUCTO SIN MONTOS (número 132 asignado por el jefe), SIN correr, sin commit:
+   - 129: el humo ahora elige una ficha con teléfono único y SIN alumno de Finanzas coincidente (pago_clave, teléfono, nombre/alias ni vínculo
+     previo); antes elegía una con alumno real y daba nombres_finanzas = 2. Comentarios del cron corregidos a 3,18,33,48. Nada más cambió.
+   - migraciones/132_finanzas_estado_pagos_producto.sql (depende de la 129 y de cs_puede_ver(text) de Producto): fin_cs_estado_pagos_base
+     (lógica común, solo service_role) y fin_cs_estado_pagos delega en ella sin cambiar firma ni resultados. Nueva
+     `cs_estado_pagos_alumno(p_cs_ids uuid[])`: una fila por ficha visible (es_fundador o cs_puede_ver(programa); sin sesión solo
+     service_role/postgres), SIN montos, vinculo 'vinculado' | 'sin_vinculo' (contadores NULL = sin dato, no "al día"). Máx. 500 ids.
+     Humo que revierte, controles C1 a C6 y vuelta atrás. Resuelve la decisión (a) de abajo.
 000000000000000000000000. (15/10) VINCULO ALUMNOS DE FINANZAS <-> FICHA DE PRODUCTO (número 129 asignado por el jefe), SIN correr, sin commit, `node --check` y `npm test` NO se pudieron correr:
    - Finanzas no tiene tabla de alumnos: un alumno es el texto `alumno` (y `telefono`) de fin_pagos / fin_cuotas dentro de un cliente; la sync
      los reescribe cada 15 min. El vínculo vive aparte en `fin_cs_vinculo` (cliente_id + nombre normalizado -> cs_clientes.id, estado
@@ -253,6 +261,10 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000000000000000. Correr la 129 corregida y después la 132 (no a :00/:15/:30/:45 ni a las 9:00); mirar los NOTICE de los humos
+    (si dicen "se omite la parte con datos" no hay ficha sin alumno coincidente) y controles C1 a C6 de la 132 de a uno; C5 con el uuid de un
+    consultor real de Producto. Producto llama `cs_estado_pagos_alumno(array[<ficha>])` con la sesión del usuario (ficha y aviso diario; el
+    aviso con service_role ve todo). Falta la tarea de Producto que la use. Cron de la 129 es 3,18,33,48 (no :07/:22/:37/:52).
 000000000000000000000000. Correr la 129 (no a :00/:15/:30/:45 ni a las 9:00) ANTES de publicar el front; mirar el NOTICE de la prueba de
     humo y el resultado de la primera pasada (vinculados / ambiguos / sin candidato por cliente); después C1 a C9 de a uno. Revisar C3 (ambiguos)
     y C4 (vínculos por teléfono con nombre distinto) a ojo. Correr `node --check js/datos.js js/sesion.js js/layout.js js/app.js
