@@ -1,7 +1,9 @@
 // supabase/functions/ventas-agenda/index.ts
 //
-// Ventas, fase 3. Recibe el webhook de agenda de GHL y lo guarda crudo en
-// fin_agendas_entrantes. No procesa ni toca fin_llamadas.
+// Ventas, fase 3. Recibe el webhook de agenda de GHL, lo guarda crudo en
+// fin_agendas_entrantes (con evento y de que ruta salio la cita) y llama a
+// fin_procesar_agenda (migracion 131), que lo pasa a fin_llamadas. Si el
+// procesamiento falla, el crudo queda y un cron lo reintenta.
 //
 // URL que se pega en GHL:
 //   https://<ref>.supabase.co/functions/v1/ventas-agenda?cliente=liam&wf=liam-ig&token=<VENTAS_AGENDA_TOKEN>
@@ -35,22 +37,66 @@ function mismoToken(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// Busca el ID de la cita en los lugares donde GHL suele ponerlo.
-// Si no lo encuentra devuelve null: el payload crudo queda guardado igual.
-function buscarCitaId(p: Record<string, any>): string | null {
-  const candidatos = [
-    p?.calendar?.appointmentId,
-    p?.calendar?.id,
-    p?.appointment?.id,
-    p?.appointmentId,
-    p?.appointment_id,
-    p?.customData?.cita_id,
-  ];
-  for (const c of candidatos) {
-    if (typeof c === 'string' && c.trim() !== '') return c.trim();
-    if (typeof c === 'number') return String(c);
+type Hallazgo = { valor: string; ruta: string } | null;
+
+// Primer valor no vacio entre varias rutas ("a.b.c") del payload. Ignora
+// objetos y merge fields sin resolver ("{{appointment.id}}").
+function buscar(p: Record<string, any>, rutas: string[]): Hallazgo {
+  for (const ruta of rutas) {
+    let v: any = p;
+    for (const k of ruta.split('.')) v = v && typeof v === 'object' ? v[k] : undefined;
+    if (typeof v === 'number') v = String(v);
+    if (typeof v !== 'string') continue;
+    v = v.trim();
+    if (v === '' || /^\{\{.*\}\}$/.test(v) || /^(null|undefined)$/i.test(v)) continue;
+    return { valor: v, ruta };
   }
   return null;
+}
+
+// ID de la cita. Nunca calendar.id: es el ID del CALENDARIO (igual para todas
+// las citas). "id" de primer nivel va al final y se descarta si es el del
+// contacto (en GHL suele serlo). Si no hay ID, el crudo queda guardado igual
+// y el procesamiento lo marca como sin_cita_id.
+function buscarCitaId(p: Record<string, any>): Hallazgo {
+  const h = buscar(p, [
+    'appointment.id',
+    'calendar.appointmentId',
+    'calendar.appointment_id',
+    'appointmentId',
+    'appointment_id',
+    'customData.cita_id',
+    'id',
+  ]);
+  if (h && h.ruta === 'id' && h.valor === (p?.contact_id ?? p?.contactId)) return null;
+  return h;
+}
+
+// Evento: customData.evento si viene; si no, se deduce del status de la cita.
+// "agendada" sobre una cita ya existente con otra hora la vuelve
+// "reprogramada" al procesar (en la base).
+function normalizarEvento(t: string): 'agendada' | 'reprogramada' | 'cancelada' | 'desconocido' {
+  const s = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  if (/(reprogram|reagend|resched)/.test(s)) return 'reprogramada';
+  if (/(cancel|anulad)/.test(s)) return 'cancelada';
+  if (/^(agendad|agenda|nuev|new|book|confirm|creat|schedul|reservad)/.test(s)) return 'agendada';
+  return 'desconocido';
+}
+
+function buscarEvento(p: Record<string, any>): { evento: string; ruta: string | null } {
+  const explicito = buscar(p, ['customData.evento', 'customData.event', 'evento']);
+  if (explicito) return { evento: normalizarEvento(explicito.valor), ruta: explicito.ruta };
+  const status = buscar(p, [
+    'calendar.status',
+    'calendar.appoinmentStatus', // GHL lo escribe asi en algunos payloads
+    'calendar.appointmentStatus',
+    'appointment.status',
+    'appointment.appointmentStatus',
+    'appointmentStatus',
+    'status',
+  ]);
+  if (status) return { evento: normalizarEvento(status.valor), ruta: status.ruta };
+  return { evento: 'desconocido', ruta: null };
 }
 
 Deno.serve(async (req) => {
@@ -77,15 +123,47 @@ Deno.serve(async (req) => {
     payload = { _crudo: crudo, _content_type: req.headers.get('content-type') };
   }
 
-  const { data, error } = await sb
-    .from('fin_agendas_entrantes')
-    .insert({ cliente_id: cliente, origen_wf: wf, ghl_cita_id: buscarCitaId(payload as any), payload })
-    .select('id')
-    .single();
+  const cita = buscarCitaId(payload as any);
+  const ev = buscarEvento(payload as any);
 
-  if (error) {
-    console.error('[ventas-agenda] insert', error.message);
+  const fila = {
+    cliente_id: cliente,
+    origen_wf: wf,
+    ghl_cita_id: cita?.valor ?? null,
+    cita_ruta: cita?.ruta ?? null,
+    evento: ev.evento,
+    evento_ruta: ev.ruta,
+    payload,
+  };
+  let { data, error } = await sb.from('fin_agendas_entrantes').insert(fila).select('id').single();
+
+  // 131 sin correr: las columnas nuevas no existen (42703 / PGRST204). Se guarda
+  // como antes, sin evento ni rutas, para no perder el webhook.
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    const { cita_ruta: _a, evento: _b, evento_ruta: _c, ...vieja } = fila;
+    ({ data, error } = await sb.from('fin_agendas_entrantes').insert(vieja).select('id').single());
+  }
+  if (error || !data) {
+    console.error('[ventas-agenda] insert', error?.message);
     return responder(500, { ok: false, error: 'no se pudo guardar' });
   }
-  return responder(200, { ok: true, id: data.id });
+
+  // Procesar a fin_llamadas. Si falla (o la 131 no esta), el crudo ya esta
+  // guardado y el cron de respaldo lo procesa: nunca se devuelve error a GHL
+  // por esto (GHL reintentaria y duplicaria filas crudas).
+  let procesada: Record<string, unknown> | null = null;
+  try {
+    const r = await sb.rpc('fin_procesar_agenda', { p_id: data.id });
+    if (r.error) console.error('[ventas-agenda] procesar', r.error.message);
+    else procesada = r.data as Record<string, unknown>;
+  } catch (e) {
+    console.error('[ventas-agenda] procesar', String(e));
+  }
+  return responder(200, {
+    ok: true,
+    id: data.id,
+    evento: ev.evento,
+    ghl_cita_id: cita?.valor ?? null,
+    procesada,
+  });
 });
