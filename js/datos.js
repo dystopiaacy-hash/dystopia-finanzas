@@ -187,6 +187,15 @@ export const alertasCobrosGuardar = (cliente, activo, hora, montos, hora2 = null
 export const alertasCobrosVistaPrevia = (cliente, semana = null) =>
   rpc('fin_alertas_cobros_vista_previa', { p_cliente: cliente, p_semana: semana }, false);
 
+/* Vincular alumnos con su ficha de Producto (129). Las RPC verifican el permiso (fundador o quien edita
+   pagos del cliente) y no traen montos. accion: 'vincular' (con csId) | 'desvincular' | 'no_producto'. */
+export const vinculosResumen = cliente => rpc('fin_cs_resumen', { p_cliente: cliente }, false);
+export const vinculosLista = (cliente, filtro) => rpc('fin_cs_lista', { p_cliente: cliente, p_filtro: filtro }, false);
+export const vinculosBuscar = (cliente, q) => rpc('fin_cs_buscar', { p_cliente: cliente, p_q: q }, false);
+export const vinculosMarcar = (cliente, alumnoNorm, accion, csId = null) =>
+  rpc('fin_cs_marcar', { p_cliente: cliente, p_alumno_norm: alumnoNorm, p_accion: accion, p_cs_cliente_id: csId });
+export const vinculosAuto = cliente => rpc('fin_cs_vincular_auto', { p_cliente: cliente });
+
 /* Catálogos de Pagos (064) en un solo select; se resuelven en el cliente. */
 export const catalogos = () =>
   todas(() => sb.from('fin_catalogos').select('id,cliente_id,dimension,valor')

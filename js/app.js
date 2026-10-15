@@ -6,7 +6,7 @@ import { sb } from './supabase.js';
 import { precargarConciliacion } from './datos.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos, puedeVincular } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -18,6 +18,7 @@ import { vistaPagos } from './views/pagos.js';
 import { vistaCargar } from './views/cargar.js';
 import { vistaSalud } from './views/salud.js';
 import { vistaAlertas } from './views/alertas.js';
+import { vistaVincular } from './views/vincular.js';
 
 const app = document.getElementById('app');
 let appIniciada = false;
@@ -145,6 +146,12 @@ function registrarRutas() {
     renderNav({ vista: 'salud' });
     setHeader('Salud de sincronización', 'Última corrida de cada planilla');
     montar(vistaSalud);
+  }));
+
+  ruta('vincular', guardia(puedeVincular, () => {
+    renderNav({ vista: 'vincular' });
+    setHeader('Vincular alumnos', 'Alumnos de Finanzas con su ficha en Producto');
+    montar(vistaVincular);
   }));
 
   ruta('alertas', guardia(esFundador, () => {

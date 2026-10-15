@@ -68,6 +68,9 @@ export const puedeCargar = () => yo.carga.length > 0;
 /* Grilla de Pagos: fundador, o cliente/finanzas con sus clientes de fin_clientes_carga(). */
 export const vePagos = () => esFundador() || ((yo.rol === 'cliente' || yo.rol === 'finanzas') && puedeCargar());
 export const puedeAnular = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_anular);
+/* Vincular alumnos con Producto (129): quien puede editar pagos (fundador, o cliente en clientes sin áreas). */
+export const clientesVinculables = () => yo.carga.filter(c => c.puede_anular).map(c => c.cliente_id);
+export const puedeVincular = () => clientesVinculables().length > 0;
 /* Valores de las columnas nuevas: en un cliente por áreas solo fundador (075). */
 export const puedeExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_extras !== false);
 

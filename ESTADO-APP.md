@@ -50,7 +50,21 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
-00000000000000000000. (14/10) OPPS: MESES REPETIDOS EN EL ENCABEZADO YA NO SON ERROR (agus, fuente 7), sin migración, sin commit, `node --check` y `npm test` NO se pudieron correr:
+000000000000000000000000. (15/10) VINCULO ALUMNOS DE FINANZAS <-> FICHA DE PRODUCTO (número 129 asignado por el jefe), SIN correr, sin commit, `node --check` y `npm test` NO se pudieron correr:
+   - Finanzas no tiene tabla de alumnos: un alumno es el texto `alumno` (y `telefono`) de fin_pagos / fin_cuotas dentro de un cliente; la sync
+     los reescribe cada 15 min. El vínculo vive aparte en `fin_cs_vinculo` (cliente_id + nombre normalizado -> cs_clientes.id, estado
+     vinculado / no_producto / desvinculado, origen auto_pago_clave / auto_telefono / auto_nombre / manual). Sin FK a cs_*; solo se leen.
+   - migraciones/129_finanzas_vinculo_alumnos_producto.sql: tabla + RLS (fundador / fin_ve_plata), funciones internas (norm, match),
+     RPC de la app (fin_cs_resumen, fin_cs_lista, fin_cs_buscar, fin_cs_marcar, fin_cs_vincular_auto; permiso fin_puede_anular), función
+     para Producto `fin_cs_estado_pagos(p_cliente text, p_cs_ids uuid[] default null, p_montos boolean default false)`, cron
+     fin_cs_vincular_auto a :07/:22/:37/:52, prueba de humo que se revierte, primera pasada y controles C1 a C9 con vuelta atrás.
+   - Reglas: dentro del mismo programa y solo si el resultado es único: 0) cs_clientes.pago_clave = clave de un pago del alumno,
+     1) teléfono (últimos 8 dígitos), 2) nombre normalizado = nombre de la ficha o alias (cs_clientes_alias, opcional). Teléfono y nombre
+     que apuntan a fichas distintas = ambiguo. Desvincular a mano deja 'desvinculado' y la automática no lo rehace.
+   - Front: js/views/vincular.js (#/vincular, "Vincular alumnos": pendientes con candidatos, buscador de Producto, vincular, desvincular,
+     "No está en Producto"), datos.js (vinculos*), sesion.js (puedeVincular), layout.js, app.js. Visible para quien tiene puede_anular
+     en algún cliente (fundador; cliente en clientes sin áreas; en liam solo fundador).
+000000000000000000000. (14/10) OPPS: MESES REPETIDOS EN EL ENCABEZADO YA NO SON ERROR (agus, fuente 7), sin migración, sin commit, `node --check` y `npm test` NO se pudieron correr:
    - supabase/functions/_shared/parsers/opps.js: si un mes aparece más de una vez en la fila de meses vale SOLO la primera aparición (la de
      más a la izquierda); las posteriores se ignoran. Deja aviso "mes repetido en el encabezado (<mes>): se uso el bloque de la columna C,
      se ignoro el de la columna AA" (va al `mensaje` de la corrida) y una entrada en `revisar` por mes repetido (motivo 'mes repetido en el
@@ -239,6 +253,13 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000000000000000000. Correr la 129 (no a :00/:15/:30/:45 ni a las 9:00) ANTES de publicar el front; mirar el NOTICE de la prueba de
+    humo y el resultado de la primera pasada (vinculados / ambiguos / sin candidato por cliente); después C1 a C9 de a uno. Revisar C3 (ambiguos)
+    y C4 (vínculos por teléfono con nombre distinto) a ojo. Correr `node --check js/datos.js js/sesion.js js/layout.js js/app.js
+    js/views/vincular.js` y `npm test`; probar #/vincular como fundador (mock) y como cliente de un cliente sin áreas. Decidir: (a) cómo llama
+    Producto a `fin_cs_estado_pagos` (solo fundador / fin_ve_plata / service_role / postgres: un consultor de Producto con su sesión NO puede;
+    si hace falta, otra función con permiso por cs_puede_ver, necesita número); (b) si una cuota con monto_cobrado >= monto y estado vacío
+    debe contar como pagada (hoy cuenta pendiente, igual que fin_v_cobranzas); (c) la tarea de Producto que use la función y el vínculo.
 000000000000000000000. Correr `node --check supabase/functions/_shared/parsers/opps.js pruebas/opps-meses.mjs` y `npm test`; redeployar
     `sincronizar` (--no-verify-jwt) y sincronizar la fuente 7: debe cargar Julio..Diciembre de C..W y quedar en 'revisar' con el aviso. Si
     el hash del encabezado difiere del de la última corrida buena, usar aceptar_encabezado (ver DIAGNOSTICO-AGUS-2026-10-14.md).

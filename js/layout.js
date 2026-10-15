@@ -1,7 +1,7 @@
 /* Layout (replica Seguimiento): sidebar con marca (y nav-areas),
    navegación y pie (email + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
-import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, etiquetaRol } from './sesion.js';
+import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, puedeVincular, etiquetaRol } from './sesion.js';
 
 /* [ruta, etiqueta, subtítulo, visible()] */
 const VISTAS = [
@@ -12,6 +12,7 @@ const VISTAS = [
   ['mis-numeros', 'Mis números', 'Closers y setters', veMisNumeros],
   ['cargar', 'Cargar pago', 'Alta de un pago', puedeCargar],
   ['pagos', 'Pagos', 'Grilla y catálogos', vePagos],
+  ['vincular', 'Vincular alumnos', 'Finanzas con Producto', puedeVincular],
   ['alertas', 'Alertas de cobros', 'Aviso diario a Discord', esFundador],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]
 ];
