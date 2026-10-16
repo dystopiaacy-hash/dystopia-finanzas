@@ -1,8 +1,6 @@
 /* =====================================================================
-   Dystopia Finanzas — lo propio de esta app. Todo lo demás (base, layout,
-   componentes, responsive, vistas) es copia textual de Seguimiento: no se
-   redefine acá ningún color ni medida, solo se usan sus variables.
-   Se carga último.
+   Dystopia Finanzas — lo propio de esta app. No se redefine acá ningún color
+   ni medida, solo se usan los tokens de css/tema.css.
    ===================================================================== */
 
 /* ===== Utilidades ===== */
@@ -15,13 +13,13 @@
 
 /* Número con link a su celda de la planilla */
 .celda-link{color:inherit;text-decoration:underline dotted var(--accent-line);text-decoration-thickness:2px;text-underline-offset:3px;}
-.celda-link:hover{color:var(--accent);text-decoration-color:var(--accent);}
+.celda-link:hover{color:var(--accent-text);text-decoration-color:var(--accent);}
 .celda-link::after{content:'↗';font-size:10px;margin-left:3px;color:var(--text-faint);}
 
 /* ===== P&L del cliente ===== */
 .mes-btn{background:none;border:0;padding:2px 6px;border-radius:var(--radius-sm);font:inherit;font-weight:700;color:var(--text-faint);cursor:pointer;text-transform:uppercase;letter-spacing:.04em;}
 .mes-btn:hover{background:var(--surface-2);color:var(--ink);}
-.mes-btn.activo{background:var(--accent-soft);color:var(--accent);}
+.mes-btn.activo{background:var(--accent-soft);color:var(--accent-text);}
 .pnl-tabla td.col-activa{background:var(--accent-soft);}
 .pnl-tabla tr.pnl-fuerte td{font-weight:800;color:var(--ink);}
 .pnl-tabla tr.pnl-sub td:first-child{padding-left:var(--sp-8);color:var(--text-dim);}

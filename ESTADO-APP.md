@@ -50,6 +50,12 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+1. (16/10) REDISEÑO VISUAL: MISMO TEMA OSCURO/CLARO QUE PRODUCTO (sin SQL ni migración, sin commit; CSS y JS SIN PROBAR en navegador, `node --check` no corrido):
+   - Copiados TAL CUAL de Producto: `css/tema.css`, `js/tema-init.js`, `js/tema.js`, `css/nav-areas.css` (el de Finanzas era la versión vieja compartida, sin nada propio). Acento violeta #7F77DD; tema por defecto = `prefers-color-scheme`, recordado en localStorage `dystopia_tema`.
+   - `index.html`: `tema-init.js` en el `<head>` antes del CSS y `tema.css` primero. `base.css` (solo `--c-*`, semáforo a tokens, escala tipográfica), `layout.css`, `responsive.css` y `componentes.css` reescritos con el lenguaje de Producto (logo, tarjeta de perfil, secciones en mayúscula gris, ítems con ícono, activo con fondo sutil, pestañas con subrayado, filtros pill, KPI con etiqueta arriba, tablas, modales, badges, gráficos con `--chart-grid`). Se conservaron los extras de Finanzas (`.marca-opps`, `.form-error`, KPI con fuente adaptable por `--n`).
+   - `js/layout.js`: logo, perfil (nombre + rol, `#user-email` ahora es el nombre), íconos lineales por pantalla (mapa `ICONOS`), botón sol/luna junto a Salir. Navegación y permisos sin cambios.
+   - `vistas.css`, `columnas.css`, `finanzas.css`, `dystopita.css`: sin hex/rgba/white sueltos (quedan solo `--c-liam/agus/teo`, el sprite de Dystopita y los fallbacks de `nav-areas.css`); texto de acento pasa a `--accent-text`. El JS inyecta solo `var(--...)` (conceptos, badges, cliente chip); no se tocó la lógica de Dystopita ni del menú de áreas.
+   - Revisar en navegador: los dos temas en Resumen, Cliente (P&L), Conciliación, Cash por concepto (donut), Cobranzas, Cargar pago, Pagos (grilla editable y panel Columnas), Comprobantes, Lectura, Vincular, Alertas, Salud; Dystopita y menú de áreas; móvil (<860px).
 000000000000000000000000000000. (16/10) ARREGLOS DE LA REVISIÓN DEL 16/10 + DYSTOPITA ACTUALIZADA (número 160 = solo controles de lectura), sin SQL corrido, sin commit; `node --check`/`npm test` NO se pudieron correr:
    - Sync de liam "Inactiva desde el 12/10": NO es una falla. Es el corte intencional de la 076 (fuente Pagos: activo=false, cortada_en=now()) y la 077 (Data), corridas el 12/10;
      desde ahí liam se carga en la app (origen 'app'). Por eso octubre muestra 1 pago (US$ 1.500) y Ventas declara US$ 13.300: los pagos no se están cargando en la app.
@@ -334,6 +340,7 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+1. Rediseño 16/10: probar en navegador los dos temas en todas las pantallas (lista arriba), correr `node --check js/layout.js js/tema.js`, y recién ahí commit y push. El color de cada cliente en el menú viene de `crm_clients.color` si existe (dato, no se tocó).
 0000000000000000000000000000000. Revisión 16/10: (1) correr de a uno C1 a C4 de la 160 (solo lectura) y pasar C3/C4 para cerrar liam y teo; (2) decidir cómo se cargan los pagos de liam
     desde el 12/10 (la planilla está cortada: hay que cargarlos en la app o reabrir la fuente, decisión de Joaquín); (3) redeployar `sincronizar` (--no-verify-jwt) y correr
     `node --check supabase/functions/_shared/procesar.js js/datos.js js/views/resumen.js js/views/vincular.js js/views/preguntar-ia.js js/dystopita.js` y `npm test`;

@@ -1,15 +1,11 @@
 /* =====================================================================
-   Dystopia Seguimiento — header de vista, panel general, avisos y programa.
-   Parte de la hoja de estilos partida. ORDEN DE CARGA (no cambiarlo,
-   la cascada depende de él): base, layout, componentes, responsive,
-   vistas, ficha, vistas-fase4, formularios. index.html los carga todos en
-   ese orden; form.html (página pública) carga solo base, componentes y
-   formularios, que son las únicas que usa.
+   Dystopia Finanzas — header de vista, avisos, listas y pantallas propias.
+   Solo tokens de css/tema.css (sin colores sueltos).
    ===================================================================== */
 /* ===== HEADER DE VISTA (título + En vivo + rol) ===== */
 .view-head{align-items:flex-start;}
 .view-head-meta{display:flex;align-items:center;gap:var(--sp-2);flex-shrink:0;}
-.live-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-weight:700;font-size:var(--fs-micro);color:var(--text-faint);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px;white-space:nowrap;}
+.live-pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:var(--fs-micro);color:var(--text-faint);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px;white-space:nowrap;}
 .live-dot{width:8px;height:8px;border-radius:50%;background:var(--text-faint);}
 .live-pill[data-on="1"]{color:var(--success);}
 .live-pill[data-on="1"] .live-dot{background:var(--success);box-shadow:0 0 0 3px var(--success-soft);}
@@ -71,7 +67,7 @@
 .stat-row-kpi{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));}
 .stat-nav{display:block;color:inherit;text-decoration:none;transition:border-color .12s,box-shadow .12s;}
 .stat-nav:hover{border-color:var(--accent-line);box-shadow:var(--shadow-md);}
-.stat-nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.stat-nav:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px;}
 .stat-card .stat-sub + .stat-sub{margin-top:1px;}
 
 /* Requiere atención */
@@ -84,7 +80,7 @@
 .aten-nombre{font-weight:700;color:var(--ink);font-size:var(--fs-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .aten-motivos{font-size:var(--fs-meta);color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .aten-dias{font-family:var(--font-mono);font-size:var(--fs-meta);font-weight:700;color:var(--text-faint);white-space:nowrap;}
-.aten-ir{font-size:var(--fs-micro);font-weight:700;color:var(--accent);white-space:nowrap;}
+.aten-ir{font-size:var(--fs-micro);font-weight:700;color:var(--accent-text);white-space:nowrap;}
 
 /* Alertas */
 .alerta-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:var(--sp-3);align-items:center;
@@ -105,7 +101,7 @@
 .tabla-clientes .col-prog{min-width:130px;}
 .tabla-clientes .col-chq{white-space:nowrap;}
 .cli-nombre{font-weight:700;color:var(--ink);text-decoration:none;}
-.cli-nombre:hover{color:var(--accent);text-decoration:underline;}
+.cli-nombre:hover{color:var(--accent-text);text-decoration:underline;}
 .cli-email{display:block;font-size:var(--fs-micro);color:var(--text-faint);font-weight:500;line-height:1.2;}
 .tabla-clientes td{height:auto;padding-top:6px;padding-bottom:6px;}
 .prog-cell{display:flex;align-items:center;gap:var(--sp-2);}
@@ -116,7 +112,7 @@
 .prog-rojo{background:var(--sem-rojo);}
 .prog-dias{font-family:var(--font-mono);font-size:var(--fs-micro);font-weight:700;white-space:nowrap;}
 .cuenta{font-weight:700;}
-.cuenta-venc{display:inline-block;margin-left:4px;font-size:var(--fs-micro);font-weight:800;color:#fff;background:var(--danger);
+.cuenta-venc{display:inline-block;margin-left:4px;font-size:var(--fs-micro);font-weight:800;color:var(--bg);background:var(--danger);
   border-radius:999px;padding:0 5px;line-height:15px;}
 
 /* Celdas tipo tarjeta en celular: la tabla no scrollea al costado. */
@@ -165,10 +161,10 @@
 
 /* Comprobantes de pago (143): caja en Cargar pago, bandeja y pantalla mínima. */
 .comp-caja{margin-bottom:var(--sp-3);}
-.comp-info{display:flex;flex-direction:column;gap:var(--sp-1);padding:var(--sp-3);margin-bottom:var(--sp-3);border:1px solid var(--border);border-radius:8px;}
+.comp-info{display:flex;flex-direction:column;gap:var(--sp-1);padding:var(--sp-3);margin-bottom:var(--sp-3);border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
 .comp-info[hidden]{display:none;}
 .comp-aviso{color:var(--danger);}
-.comp-dup{padding:var(--sp-2) var(--sp-3);border-left:3px solid var(--danger);background:color-mix(in srgb, var(--danger) 8%, white);font-size:var(--fs-meta);}
+.comp-dup{padding:var(--sp-2) var(--sp-3);border-left:3px solid var(--danger);background:var(--danger-soft);font-size:var(--fs-meta);}
 .comp-dup label{display:block;margin-top:var(--sp-1);font-weight:600;}
 .comp-item{display:flex;flex-direction:column;gap:var(--sp-1);margin-bottom:var(--sp-3);}
 .comp-cab{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);}
