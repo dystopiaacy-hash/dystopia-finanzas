@@ -50,6 +50,15 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000000000000000000. (16/10) FINANZAS CONFIRMA COMPROBANTES EN AGUS Y TEO (número 145 asignado por el jefe), SIN correr, sin commit, sin front:
+   - Causa: fin_comp_puede_confirmar (143) ya incluía a finanzas asignado, pero confirmar = fin_pago_cargar, que exige fin_puede_cargar (075), y en
+     clientes sin áreas esa función no incluía a finanzas. migraciones/145_finanzas_confirma_comprobantes_sin_areas.sql redefine SOLO fin_puede_cargar
+     (igual a la 075 + `rol finanzas y fin_asignado` en la rama sin áreas). Guardas: forma de la función vigente, y foto usuario x cliente antes/después
+     (solo puede cambiar finanzas asignado, sin áreas, de false a true; si no, aborta). Humo que revierte (finanzas carga y confirma; closer, setter y
+     cliente no confirman; ciclo fin_pago_cargar + fin_comp_confirmar si hay cliente sin áreas con planilla cortada). Controles C1 a C5 y vuelta atrás.
+   - Efecto colateral inevitable (misma función): finanzas ve "Cargar pago" y la grilla Pagos de agus/teo, completa columnas extra y suma opciones
+     de catálogo; NO edita ni anula (fin_puede_anular no cambia). Lo que ya veía no cambia. Front sin cambios.
+   - Requisitos de datos que no resuelve: Valen/Nacho en crm_asignaciones con agus/teo (C3) y planilla de pagos cortada en agus/teo (C4).
 00000000000000000000000000. (16/10) IA FASE 3: LECTURA DE COMPROBANTES DE PAGO (número 143 asignado por el jefe), SIN correr, sin commit, `node --check`, `deno check` y `npm test` NO se pudieron correr:
    - migraciones/143_finanzas_comprobantes.sql: bucket privado `comprobantes` (10 MB, jpg/png/webp/pdf) con policies por cliente; tabla
      `fin_comprobantes` (archivo, extraído, propuesta, duplicados, quién subió/confirmó, pago_clave); permisos fin_comp_puede_subir (fundador, o
@@ -280,6 +289,10 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+000000000000000000000000000. Correr la 145 DESPUÉS de la 143 (no a :00/:15/:30/:45 ni a las 9:00): mirar los NOTICE "M145 OK" y "HUMO 145 OK" y
+    controles C1 a C5 de a uno. Verificar con C3 que Valen y Nacho tengan agus y teo en crm_asignaciones (si no, hay que asignarlos: dato, decide
+    Joaquín) y con C4 que la planilla de pagos de agus/teo esté cortada (la 067 de agus puede no estar corrida). Esto cierra la decisión (a) del
+    pendiente de la 143. Probar en navegador como finanzas asignado a agus: bandeja > "Cargar como pago" > guardar > comprobante confirmado.
 00000000000000000000000000. IA Fase 3 (143): correr la 143 (no a :00/:15/:30/:45 ni a las 9:00; mirar el NOTICE "HUMO 143 OK") y controles C1 a C6 de a
     uno; deploy `supabase functions deploy comprobante-leer --no-verify-jwt`; después push del front. Correr `node --check js/sesion.js
     js/comprobantes.js js/app.js js/layout.js js/views/cargar.js js/views/cargar-comprobante.js js/views/comprobantes.js
