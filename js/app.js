@@ -6,7 +6,7 @@ import { sb } from './supabase.js';
 import { precargarConciliacion } from './datos.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos, puedeVincular, puedeSubirComprobante, puedeConfirmarComprobante } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos, puedeVincular, puedeSubirComprobante, puedeConfirmarComprobante, puedeVerLectura } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -21,6 +21,7 @@ import { vistaAlertas } from './views/alertas.js';
 import { vistaVincular } from './views/vincular.js';
 import { vistaSubirComprobante } from './views/comprobante-subir.js';
 import { vistaComprobantes } from './views/comprobantes.js';
+import { vistaLectura } from './views/lectura.js';
 
 const app = document.getElementById('app');
 let appIniciada = false;
@@ -149,6 +150,12 @@ function registrarRutas() {
     renderNav({ vista: 'comprobantes' });
     setHeader('Comprobantes', 'Subidos por el equipo, pendientes de confirmar');
     montar(vistaComprobantes);
+  }));
+  /* 148: lectura mensual de números con IA, solo fundador y finanzas. */
+  ruta('lectura', guardia(puedeVerLectura, () => {
+    renderNav({ vista: 'lectura' });
+    setHeader('Lectura del mes', 'Qué subió, qué bajó y qué revisar, leído por IA');
+    montar(vistaLectura);
   }));
   ruta('pagos', guardia(vePagos, () => {
     renderNav({ vista: 'pagos' });

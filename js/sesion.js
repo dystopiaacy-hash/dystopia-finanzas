@@ -5,11 +5,13 @@
    clientes que están en fin_clientes_areas (hoy liam). producto y contenido no
    entran a Finanzas. */
 import { sb } from './supabase.js';
+import { lecturaClientes } from './lectura.js';
 
 /* carga: filas de fin_clientes_carga() {cliente_id, habilitada, puede_anular, puede_extras}.
    areas: clientes con permisos por área (fin_clientes_por_areas, 075). */
-/* comp: filas de fin_comp_clientes() {cliente_id, nombre, puede_confirmar} (143): clientes donde sube comprobantes. */
-export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [], comp: [] };
+/* comp: filas de fin_comp_clientes() {cliente_id, nombre, puede_confirmar} (143): clientes donde sube comprobantes.
+   lectura: filas de fin_lectura_clientes() {cliente_id, nombre} (148): clientes con "Lectura del mes". */
+export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [], comp: [], lectura: [] };
 
 const ROLES = ['fundador', 'cliente', 'closer', 'setter', 'finanzas', 'ventas'];
 /* Mismo orden que las cuentas en Dystopia. */
@@ -53,7 +55,7 @@ export async function cargarSesion(user) {
   yo.rol = mem ? mem.rol : null;
   yo.nombre = (mem && mem.nombre) || yo.email;
   if (!ROLES.includes(yo.rol)) return false;
-  [yo.clientes, yo.carga, yo.areas, yo.comp] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas(), cargarComp()]);
+  [yo.clientes, yo.carga, yo.areas, yo.comp, yo.lectura] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas(), cargarComp(), lecturaClientes()]);
   return true;
 }
 
@@ -85,6 +87,8 @@ export const puedeConfirmarComprobante = () => yo.comp.some(c => c.puede_confirm
 export const confirmaComprobante = clienteId => yo.comp.some(c => c.cliente_id === clienteId && c.puede_confirmar);
 /* Pantalla mínima "Subir comprobante": quien sube pero no confirma (closer, setter, cliente). */
 export const soloSubeComprobante = () => puedeSubirComprobante() && !puedeConfirmarComprobante();
+/* Lectura del mes con IA (148): solo fundador y finanzas, en los clientes que ven (fin_lectura_clientes). */
+export const puedeVerLectura = () => ['fundador', 'finanzas'].includes(yo.rol) && yo.lectura.length > 0;
 /* Valores de las columnas nuevas: en un cliente por áreas solo fundador (075). */
 export const puedeExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_extras !== false);
 

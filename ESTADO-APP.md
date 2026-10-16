@@ -50,6 +50,22 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000000000000000000. (16/10) IA: LECTURA MENSUAL DE NÚMEROS (número 148 asignado por el jefe), SIN correr, sin commit, sin deploy; `node --check` y `deno check` NO se pudieron correr:
+   - migraciones/148_finanzas_ia_lectura_mensual.sql (idempotente, sin begin/commit): tabla `fin_lecturas_mes` (cliente, periodo YYYY-MM, texto,
+     datos jsonb, modelo, origen cron/manual, generado_por, costo, generado_en; historial: regenerar agrega fila), RLS solo por
+     `fin_lectura_puede_ver` (fundador, o rol finanzas con el cliente en crm_asignaciones), `fin_lectura_clientes()` (liam/agus/teo visibles),
+     `fin_lectura_numeros` + `fin_lectura_mes_base` (resumen agregado en jsonb: pagos cobrados neto y por concepto/programa, devoluciones, P&L de
+     Opps por categoría, net cash flow Pagos−Gastos, diferencia Opps−Pagos, saldos, comisiones por rol/vendedor, mes previo y foto de cobranzas
+     de hoy; sin nombres de alumnos) y `fin_lectura_guardar` (las tres solo service_role). Bloque 1 guardas+objetos, bloque 2 humo (termina en
+     ERROR "HUMO 148 OK", revierte), bloque 3 cron `ia_lectura_mensual` `31 11 1 * *` (11:31 UTC = 8:31 ART) con Vault `ia_lectura_mensual_url`
+     (se crea si falta) + `fin_sync_service_key`. Controles C1 a C7 y vuelta atrás.
+   - supabase/functions/ia-lectura-mensual/index.ts (nueva, --no-verify-jwt, auth propia como comprobante-leer): `mensual` (solo secret key; liam,
+     agus y teo en paralelo, mes anterior, no repite si ya hay lectura del cron, `forzar`, `periodo`) y `regenerar` (secret key o usuario con
+     fin_lectura_puede_ver; freno de 60 s por cliente y mes). claude-sonnet-5-5 vía _shared/ia.ts (sin editarlo; app 'finanzas', funcion
+     'lectura_mensual', effort medium, max_tokens 6000): 5 a 8 bullets rioplatenses; si vuelve < 3 bullets o se corta, error y no guarda.
+   - Front: js/lectura.js, js/views/lectura.js (#/lectura "Lectura del mes": selector de cliente, de mes (12 meses + los que tienen lectura) y de
+     versión, botón Regenerar), sesion.js (yo.lectura, puedeVerLectura = fundador/finanzas con clientes de fin_lectura_clientes), app.js, layout.js,
+     css/vistas.css. Cliente, closer, setter y ventas no ven la pantalla ni la tabla (RLS).
 000000000000000000000000000. (16/10) FINANZAS CONFIRMA COMPROBANTES EN AGUS Y TEO (número 145 asignado por el jefe), SIN correr, sin commit, sin front:
    - Causa: fin_comp_puede_confirmar (143) ya incluía a finanzas asignado, pero confirmar = fin_pago_cargar, que exige fin_puede_cargar (075), y en
      clientes sin áreas esa función no incluía a finanzas. migraciones/145_finanzas_confirma_comprobantes_sin_areas.sql redefine SOLO fin_puede_cargar
@@ -289,6 +305,14 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000000000000000000. Lectura mensual (148): (1) correr bloques 1 y 2 de la 148 (no a :00/:15/:30/:45 ni a las 9:00; el humo debe terminar en
+    ERROR "HUMO 148 OK"); (2) `supabase functions deploy ia-lectura-mensual --no-verify-jwt` (ANTHROPIC_API_KEY ya está); (3) bloque 3 (cron + secreto
+    Vault `ia_lectura_mensual_url`, se crea solo con la URL de la función; `fin_sync_service_key` ya existe); (4) controles C1 a C6 de a uno, C4 contra
+    el P&L de la app; (5) prueba manual: `curl` con la secret key `{"accion":"mensual","periodo":"AAAA-MM","forzar":true}` o botón Regenerar como
+    fundador y como finanzas asignado; (6) push del front DESPUÉS de la 148 y el deploy. Correr `node --check js/lectura.js js/views/lectura.js
+    js/sesion.js js/app.js js/layout.js`, `deno check --node-modules-dir=none supabase/functions/ia-lectura-mensual/index.ts` y `npm test`. Decidir:
+    (a) las cuotas pendientes son la foto de hoy, no del cierre del mes (la IA lo sabe); (b) comisiones salen de fin_v_comisiones_mensual (solo
+    estado 'calculado'); (c) la primera lectura automática sale el 1/11 (8:31 ART) y trae octubre; para tener septiembre antes, usar el curl con `periodo`.
 000000000000000000000000000. Correr la 145 DESPUÉS de la 143 (no a :00/:15/:30/:45 ni a las 9:00): mirar los NOTICE "M145 OK" y "HUMO 145 OK" y
     controles C1 a C5 de a uno. Verificar con C3 que Valen y Nacho tengan agus y teo en crm_asignaciones (si no, hay que asignarlos: dato, decide
     Joaquín) y con C4 que la planilla de pagos de agus/teo esté cortada (la 067 de agus puede no estar corrida). Esto cierra la decisión (a) del

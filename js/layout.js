@@ -1,7 +1,7 @@
 /* Layout (replica Seguimiento): sidebar con marca (y nav-areas),
    navegación y pie (email + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
-import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, puedeVincular, soloSubeComprobante, puedeConfirmarComprobante, etiquetaRol } from './sesion.js';
+import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, puedeVincular, soloSubeComprobante, puedeConfirmarComprobante, puedeVerLectura, etiquetaRol } from './sesion.js';
 
 /* [ruta, etiqueta, subtítulo, visible()] */
 const VISTAS = [
@@ -13,6 +13,7 @@ const VISTAS = [
   ['cargar', 'Cargar pago', 'Alta de un pago', puedeCargar],
   ['comprobante', 'Subir comprobante', 'Foto o PDF de la transferencia', soloSubeComprobante],
   ['comprobantes', 'Comprobantes', 'Pendientes de confirmar', puedeConfirmarComprobante],
+  ['lectura', 'Lectura del mes', 'Resumen con IA', puedeVerLectura],
   ['pagos', 'Pagos', 'Grilla y catálogos', vePagos],
   ['vincular', 'Vincular alumnos', 'Finanzas con Producto', puedeVincular],
   ['alertas', 'Alertas de cobros', 'Aviso diario a Discord', esFundador],
