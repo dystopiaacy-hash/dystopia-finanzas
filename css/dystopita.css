@@ -91,6 +91,15 @@
   white-space:pre-wrap;overflow-wrap:anywhere;}
 .chat-ia-msg-yo{background:var(--accent-soft);border-color:var(--accent-line);align-self:flex-end;max-width:90%;}
 .chat-ia-msg-ia{background:var(--surface);}
+.chat-ia-msg-ia{white-space:normal;}
+.chat-ia-md > :first-child{margin-top:0;}
+.chat-ia-md > :last-child{margin-bottom:0;}
+.chat-ia-md p{margin:0 0 var(--sp-2);}
+.chat-ia-md ul,.chat-ia-md ol{margin:0 0 var(--sp-2);padding-left:var(--sp-5, 20px);}
+.chat-ia-md li{margin:2px 0;}
+.chat-ia-md h4{margin:var(--sp-2) 0 var(--sp-1);font-size:inherit;font-weight:700;color:var(--ink);}
+.chat-ia-md strong{font-weight:700;color:var(--ink);}
+.chat-ia-md code{font-family:var(--font-mono);font-size:.92em;padding:1px 5px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);}
 .chat-ia-meta{font-size:var(--fs-micro);color:var(--text-faint);margin-top:var(--sp-1);}
 
 /* ---------- Pantallas chicas: 3 px por pixel, fija en la esquina, sin arrastre; panel casi a pantalla completa ---------- */

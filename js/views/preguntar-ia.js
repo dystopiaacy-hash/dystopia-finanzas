@@ -32,6 +32,41 @@ function mensajeError(e) {
   return msg || 'Error desconocido.';
 }
 
+/* Markdown mínimo y seguro para las respuestas de Dystopita: primero escapa TODO el HTML, después arma solo estas etiquetas:
+   strong, em, code, ul/li, ol/li, h4 y br/p. Sin links ni imágenes (quedan como texto). */
+export function dystopitaMd(texto) {
+  const codigos = [];
+  const inline = linea => esc(linea)
+    .replace(/`([^`]+)`/g, (_, c) => `\u0000${codigos.push(c) - 1}\u0000`)
+    .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\s](?:[^*]*[^*\s])?)\*(?![*\w])/g, '$1<em>$2</em>')
+    .replace(/(^|[^\w])_([^_\s](?:[^_]*[^_\s])?)_(?!\w)/g, '$1<em>$2</em>')
+    .replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codigos[i]}</code>`);
+  const salida = [];
+  let lista = null;    // 'ul' | 'ol' abierta
+  let parrafo = [];
+  const cerrarParrafo = () => { if (parrafo.length) salida.push(`<p>${parrafo.join('<br>')}</p>`); parrafo = []; };
+  const cerrarLista = () => { if (lista) salida.push(`</${lista}>`); lista = null; };
+  String(texto == null ? '' : texto).replace(/\r\n?/g, '\n').split('\n').forEach(linea => {
+    let m;
+    if (!linea.trim()) { cerrarParrafo(); cerrarLista(); return; }
+    if ((m = linea.match(/^\s*#{1,6}\s+(.*)$/))) {
+      cerrarParrafo(); cerrarLista(); salida.push(`<h4>${inline(m[1])}</h4>`); return;
+    }
+    if ((m = linea.match(/^\s*([-*]|\d+\.)\s+(.*)$/))) {
+      const tipo = /\d/.test(m[1]) ? 'ol' : 'ul';
+      cerrarParrafo();
+      if (lista !== tipo) { cerrarLista(); salida.push(`<${tipo}>`); lista = tipo; }
+      salida.push(`<li>${inline(m[2])}</li>`);
+      return;
+    }
+    cerrarLista();
+    parrafo.push(inline(linea.trim()));
+  });
+  cerrarParrafo(); cerrarLista();
+  return salida.join('');
+}
+
 export function vistaPreguntar(el, clienteId, vigente) {
   if (!puedeUsarChatIa()) {
     el.innerHTML = '<div class="card empty-state"><div class="big">No tenés acceso a esta sección.</div></div>';
@@ -47,7 +82,7 @@ export function vistaPreguntar(el, clienteId, vigente) {
   function mensajes() {
     return hilo.map(m => m.rol === 'yo'
       ? `<div class="chat-ia-msg chat-ia-msg-yo">${esc(m.texto)}</div>`
-      : `<div class="chat-ia-msg chat-ia-msg-ia">${esc(m.texto)}${m.consultas && m.consultas.length
+      : `<div class="chat-ia-msg chat-ia-msg-ia"><div class="chat-ia-md">${dystopitaMd(m.texto)}</div>${m.consultas && m.consultas.length
           ? `<div class="chat-ia-meta">Consultó: ${esc(m.consultas.map(c => `${HERRAMIENTA[c.herramienta] || c.herramienta}${c.filas == null ? '' : ` (${c.filas} ${c.filas === 1 ? 'fila' : 'filas'})`}`).join(', '))}</div>` : ''}</div>`
     ).join('');
   }

@@ -50,6 +50,13 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0b. (16/10) DYSTOPITA: MARKDOWN RENDERIZADO EN LAS RESPUESTAS (sin SQL, sin commit; SIN PROBAR, no pude correr node ni el navegador, solo revisé las regex leyendo):
+   - `js/views/preguntar-ia.js`: nueva `export function dystopitaMd(texto)`: escapa todo con `esc` y recién después arma strong, em, code, ul/ol, h4 (por # a ######) y p/br. Sin links ni imágenes (quedan como texto). La respuesta de la IA se pinta con ella dentro de `.chat-ia-md`; el mensaje del usuario sigue con `esc`.
+   - `css/dystopita.css`: estilos de `.chat-ia-md` con variables de tema (--ink, --surface-2, --border). `.chat-ia-msg-ia` pasa a `white-space:normal` (el pre-wrap duplicaba los saltos).
+0. (16/10) PROPUESTA DE VINCULACIÓN DE PAGOS RENOV/RENEW/RESELL DE LIAM SIN FICHA (sin SQL corrido, sin commit; consulta y migración NO probadas contra Postgres):
+   - `migraciones/propuestas/vinculos-liam-renov.sql`: un SELECT, una fila por pago, con mejor ficha candidata, confianza (Alta/Media/Baja/Sin candidato), motivo, otros candidatos y datos de la ficha. Señales: pago_clave, nombre exacto, alias (`cs_clientes_alias` hace de apodo), teléfono (8 dígitos), apellido + nombre de pila parecido, nombre abreviado + renovación a 45 días o menos (`cs_renovaciones`). `fin_pagos` no tiene email: no hay señal por mail. Excluye las fichas cerradas por la 164.
+   - `migraciones/166_vinculos_liam_renov.sql` (número dado por el jefe): solo Alta; transacción con lock de `fin_cs_vinculo`, guardas (vigentes presentes, `v_esperado` obligatorio, nombre con dos fichas, vínculo ya existente), inserta origen 'manual', controles C1-C4 y vuelta atrás por `creado_en`. Duplica los CTEs de la consulta: mantener ambos iguales.
+   - `migraciones/propuestas/vinculos-liam-renov.md`: criterios, estructura de la tabla (a completar con la salida) y casos conocidos.
 1. (16/10) REDISEÑO VISUAL: MISMO TEMA OSCURO/CLARO QUE PRODUCTO (sin SQL ni migración, sin commit; CSS y JS SIN PROBAR en navegador, `node --check` no corrido):
    - Copiados TAL CUAL de Producto: `css/tema.css`, `js/tema-init.js`, `js/tema.js`, `css/nav-areas.css` (el de Finanzas era la versión vieja compartida, sin nada propio). Acento violeta #7F77DD; tema por defecto = `prefers-color-scheme`, recordado en localStorage `dystopia_tema`.
    - `index.html`: `tema-init.js` en el `<head>` antes del CSS y `tema.css` primero. `base.css` (solo `--c-*`, semáforo a tokens, escala tipográfica), `layout.css`, `responsive.css` y `componentes.css` reescritos con el lenguaje de Producto (logo, tarjeta de perfil, secciones en mayúscula gris, ítems con ícono, activo con fondo sutil, pestañas con subrayado, filtros pill, KPI con etiqueta arriba, tablas, modales, badges, gráficos con `--chart-grid`). Se conservaron los extras de Finanzas (`.marca-opps`, `.form-error`, KPI con fuente adaptable por `--n`).
@@ -340,6 +347,8 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0b. Dystopita markdown (16/10): probar en navegador (tema oscuro y claro) con una respuesta que tenga negrita, lista y título. Si las otras 3 apps reciben la misma tarea, mantener igual `dystopitaMd` y el bloque `.chat-ia-md` del CSS.
+0. Vínculos de renovaciones de liam (16/10): correr `migraciones/propuestas/vinculos-liam-renov.sql` (solo SELECT, una sentencia), pasar la salida, completar `vinculos-liam-renov.md`, poner `v_esperado` en `166_vinculos_liam_renov.sql` (nombres Alta) y correrla fuera de :00/:15/:30/:45 y :03/:18/:33/:48. Media/Baja las decide Joaquín (la 166 no las toca).
 1. Rediseño 16/10: probar en navegador los dos temas en todas las pantallas (lista arriba), correr `node --check js/layout.js js/tema.js`, y recién ahí commit y push. El color de cada cliente en el menú viene de `crm_clients.color` si existe (dato, no se tocó).
 0000000000000000000000000000000. Revisión 16/10: (1) correr de a uno C1 a C4 de la 160 (solo lectura) y pasar C3/C4 para cerrar liam y teo; (2) decidir cómo se cargan los pagos de liam
     desde el 12/10 (la planilla está cortada: hay que cargarlos en la app o reabrir la fuente, decisión de Joaquín); (3) redeployar `sincronizar` (--no-verify-jwt) y correr
