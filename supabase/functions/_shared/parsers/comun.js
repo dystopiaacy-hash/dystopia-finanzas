@@ -115,13 +115,15 @@ export function parseFecha(v) {
 // ZONA HORARIA: el resultado es un date, no un instante. Anio, mes y dia se
 // sacan del texto y la hora se descarta: NUNCA new Date(texto), que interpreta
 // en la zona del servidor y corre el dia en las llamadas de la noche.
-// El dia de la semana se exige en el patron pero no se contrasta con la fecha.
+// El dia de la semana se exige en el patron pero no se contrasta con la fecha
+// ("Monday, September 18, 2026": el 18/9/2026 es viernes y se carga igual).
+// Antes de la hora puede haber coma o no ("..., 2026, 7:00 PM" / "... 2026 7:00 PM").
 const MESES_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
   'august', 'september', 'october', 'november', 'december'];
 const RE_FECHA_GHL = new RegExp(
   '^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), '
   + '(January|February|March|April|May|June|July|August|September|October|November|December) '
-  + '(\\d{1,2}), (\\d{4}) (1[0-2]|0?[1-9]):([0-5]\\d) (AM|PM)$');
+  + '(\\d{1,2}), (\\d{4}),? (1[0-2]|0?[1-9]):([0-5]\\d) (AM|PM)$');
 
 export function parseFechaTexto(v) {
   if (typeof v !== 'string') return null;

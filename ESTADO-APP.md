@@ -50,6 +50,34 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+000000000000000000000000000000. (16/10) ARREGLOS DE LA REVISIÓN DEL 16/10 + DYSTOPITA ACTUALIZADA (número 160 = solo controles de lectura), sin SQL corrido, sin commit; `node --check`/`npm test` NO se pudieron correr:
+   - Sync de liam "Inactiva desde el 12/10": NO es una falla. Es el corte intencional de la 076 (fuente Pagos: activo=false, cortada_en=now()) y la 077 (Data), corridas el 12/10;
+     desde ahí liam se carga en la app (origen 'app'). Por eso octubre muestra 1 pago (US$ 1.500) y Ventas declara US$ 13.300: los pagos no se están cargando en la app.
+     El código de sync (nucleo.ts, cargarFuentes: solo activo=true) y el cron no se tocaron. Teo (último pago 30/09): no se pudo verificar sin base; hipótesis: filas de octubre
+     rechazadas ("fecha en celda de monto") o planilla sin cargar. migraciones/160_diagnostico_sync_salud.sql: controles C1 a C4 (fuentes, última corrida, liam por mes/origen, teo y sus rechazos).
+   - Estado con rechazos (punto 3): _shared/procesar.js: una corrida 'ok' con filas rechazadas pasa a 'revisar' (parcial/error se conservan). pruebas/data.mjs ajustado
+     (mauro y formulario ahora esperan 'revisar'). REDEPLOY de `sincronizar`; el estado se corrige en la próxima corrida de cada fuente.
+   - Resumen octubre (punto 2): Revenue Opps y Gastos en 0 es dato (Opps de octubre sin cargar), no del parser. js/datos.js oppsSinCargar + aviso en Resumen
+     ("Opps sin cargar... net cash flow inflado"). Las 5 fuentes en Revisar son por diseño: meses repetidos en Opps de agus (14/10, necesita redeploy), "monto ambiguo / fecha en celda de monto"
+     en Pagos de agus y teo (la celda tiene formato fecha: se corrige el formato en la hoja; el parser no adivina) y descuadres de gastos. No se cambió el parser.
+   - Vincular (punto 4): vincular.js cuenta el resumen desde las filas pendientes (ambiguos / con candidato parecido / sin candidato); la base (fin_cs_resumen) solo cuenta coincidencias exactas.
+   - Dystopita (punto 5): css/dystopita.css y js/dystopita.js con lo nuevo de Seguimiento (panel opaco, z-index 90, burbuja oculta en celular con panel abierto); .chat-ia* conservados.
+     datos-ia-chat.js ya mandaba app:'finanzas'; preguntar-ia.js: mapa de herramientas suma las 4 de Producto/Marketing y el texto de ayuda.
+00000000000000000000000000000000. (16/10) DYSTOPITA EN FINANZAS + HERRAMIENTAS DE VENTAS Y FINANZAS PARA EL CHAT (número 158 asignado por el jefe), SIN correr, sin commit, sin deploy; `node --check` NO se pudo correr:
+   - migraciones/158_ia_herramientas_ventas_finanzas.sql: 7 funciones de solo lectura que devuelven un resumen corto en jsonb: `ia_chat_ventas_resumen`
+     (llamadas agendadas/presentadas/cerradas por cliente y mes), `ia_chat_ventas_equipo` (por closer o setter), `ia_chat_ventas_leads` (calificación IA),
+     `ia_chat_fin_cobros`, `ia_chat_fin_resultado` (ingresos/gastos/net por cliente y mes), `ia_chat_fin_deudas`, `ia_chat_fin_pagos` + 5 ayudantes
+     (`ia_chat_rol/periodo/cliente/solo_panel/clientes_ok`). Guardas, humo sin escrituras (como fundador con rol authenticated), controles C1 a C10, vuelta atrás.
+     DECISIÓN QUE SE APARTA DE LO PEDIDO: SECURITY INVOKER, no DEFINER: leen las tablas/vistas de la app con su RLS (cada rol recibe lo que ya ve, sin duplicar
+     reglas de permiso) y además validan rol y recortan lo que el front oculta (P&L solo con fin_ve_plata; cobros/pagos/deudas no para cliente "solo panel";
+     setter y ventas sin cobranzas). Definiciones iguales a las vistas de la app (fin_v_metricas_ventas, fin_v_cobranzas, net = Pagos − Gastos).
+   - docs/dystopita-herramientas.md: cada función (parámetros, qué devuelve, qué roles), mapa sugerido de herramientas para `ia-preguntar` y puntos a resolver allá.
+   - Front: Dystopita copiada de Seguimiento: js/dystopita.js (contexto = cliente de #/cliente/:id), js/dystopita-sprites.js, js/dystopita-efectos.js,
+     js/views/preguntar-ia.js (chat genérico, ejemplos de Finanzas/Ventas), js/datos-ia-chat.js (mismo POST a `ia-preguntar`; suma `app:'finanzas'`),
+     css/dystopita.css (incluye los estilos .chat-ia*). Cableado: index.html (css), app.js (montar tras iniciar el router, desmontar al cerrar sesión),
+     sesion.js (`puedeUsarChatIa` = los 6 roles que entran a Finanzas). Seguimiento no se tocó.
+   - LIMITACIÓN: `ia-preguntar` hoy solo deja pasar a fundador/producto/cliente (cs_chat_puede) y solo conoce 3 herramientas de Producto: closer, setter, finanzas y
+     ventas ven la mascota pero el chat devuelve 403 hasta que se amplíe allá, y ninguna respuesta de Ventas/Finanzas funciona hasta conectar las 7 herramientas.
 0000000000000000000000000000000. (16/10) MENÚ DE ÁREAS: el rol `producto` ahora ve "Marketing" en js/nav-areas.js (línea Marketing: roles + 'producto'; sin migración, sin commit). Mismo cambio en las 4 apps; la 152 ya habilitaba el acceso.
 0000000000000000000000000000. (16/10) IA: LECTURA MENSUAL DE NÚMEROS (número 148 asignado por el jefe), SIN correr, sin commit, sin deploy; `node --check` y `deno check` NO se pudieron correr:
    - migraciones/148_finanzas_ia_lectura_mensual.sql (idempotente, sin begin/commit): tabla `fin_lecturas_mes` (cliente, periodo YYYY-MM, texto,
@@ -306,6 +334,19 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0000000000000000000000000000000. Revisión 16/10: (1) correr de a uno C1 a C4 de la 160 (solo lectura) y pasar C3/C4 para cerrar liam y teo; (2) decidir cómo se cargan los pagos de liam
+    desde el 12/10 (la planilla está cortada: hay que cargarlos en la app o reabrir la fuente, decisión de Joaquín); (3) redeployar `sincronizar` (--no-verify-jwt) y correr
+    `node --check supabase/functions/_shared/procesar.js js/datos.js js/views/resumen.js js/views/vincular.js js/views/preguntar-ia.js js/dystopita.js` y `npm test`;
+    (4) corregir en las hojas de Pagos de agus y teo el formato de las celdas de monto con formato fecha, y cargar Opps de octubre.
+00000000000000000000000000000. Dystopita en Finanzas + herramientas (158): (1) correr los bloques 0, 1 y 2 de la 158 (no a :00/:15/:30/:45 ni a las 9:00; el
+    humo termina en NOTICE "HUMO 158 OK") y los controles C1 a C10 de a uno (C3 vs C4 y C5/C6 contra la app; C7 a C9 con uuids reales de closer, setter y
+    cliente solo panel); (2) publicar el front (css/js nuevos) y correr `node --check js/dystopita.js js/dystopita-sprites.js js/dystopita-efectos.js
+    js/views/preguntar-ia.js js/datos-ia-chat.js js/sesion.js js/app.js`; (3) probar en navegador con cada rol (la mascota, el panel, arrastre, móvil);
+    (4) en dystopia-seguimiento: ampliar la puerta de `ia-preguntar` (cs_chat_puede solo deja fundador/producto/cliente) y conectar las 7 herramientas según
+    docs/dystopita-herramientas.md; hasta entonces el chat de Finanzas no responde datos de Ventas/Finanzas (closer/setter/finanzas/ventas reciben 403).
+    Decidir: (a) SECURITY INVOKER en vez de DEFINER (explicado arriba); (b) rol `ventas` ve 0 en cobros/pagos (la RLS de pagos no lo incluye; relevamiento 13/10 punto 2);
+    (c) agendadas = todas las llamadas con fecha en el periodo, incluidas las ya agendadas a futuro y las canceladas por la agenda (como la app); (d) Dystopita en
+    Ventas: copiar los mismos archivos; (e) si hacen falta más herramientas (comisiones, liquidaciones, comprobantes) hay que pedir otro número de migración.
 0000000000000000000000000000. Lectura mensual (148): (1) correr bloques 1 y 2 de la 148 (no a :00/:15/:30/:45 ni a las 9:00; el humo debe terminar en
     ERROR "HUMO 148 OK"); (2) `supabase functions deploy ia-lectura-mensual --no-verify-jwt` (ANTHROPIC_API_KEY ya está); (3) bloque 3 (cron + secreto
     Vault `ia_lectura_mensual_url`, se crea solo con la URL de la función; `fin_sync_service_key` ya existe); (4) controles C1 a C6 de a uno, C4 contra

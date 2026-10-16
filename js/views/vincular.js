@@ -53,7 +53,15 @@ export async function vistaVincular(el, vigente) {
   const [resumen, filas] = await Promise.all([vinculosResumen(est.cliente), vinculosLista(est.cliente, est.filtro)]);
   if (!vigente()) return;
 
-  const r = resumen || {};
+  const r = { ...(resumen || {}) };
+  /* El resumen de la base cuenta solo coincidencias exactas (pago, teléfono, nombre); las filas también
+     proponen "(parecido)". Con la lista de pendientes a la vista se cuenta igual que las filas. */
+  if (est.filtro === 'pendientes') {
+    const conCand = filas.filter(f => (f.candidatos || []).length);
+    r.ambiguos = filas.filter(f => f.resultado === 'ambiguo').length;
+    r.con_parecidos = conCand.filter(f => f.resultado !== 'ambiguo').length;
+    r.sin_candidato = filas.length - conCand.length;
+  }
   const opcionesCliente = clientes.map(c =>
     `<option value="${esc(c)}"${c === est.cliente ? ' selected' : ''}>${esc(nombreCliente(c))}</option>`).join('');
   el.innerHTML = `
@@ -65,7 +73,7 @@ export async function vistaVincular(el, vigente) {
     </div>
     <p class="aviso-texto">${r.alumnos ?? 0} alumnos en Finanzas · ${r.vinculados ?? 0} vinculados
       (${r.vinculados_auto ?? 0} automáticos, ${r.vinculados_manual ?? 0} a mano) · ${r.pendientes ?? 0} pendientes
-      (${r.ambiguos ?? 0} ambiguos, ${r.sin_candidato ?? 0} sin candidato) · ${r.no_producto ?? 0} fuera de Producto
+      (${r.ambiguos ?? 0} ambiguos${r.con_parecidos !== undefined ? `, ${r.con_parecidos} con candidato parecido` : ''}, ${r.sin_candidato ?? 0} sin candidato) · ${r.no_producto ?? 0} fuera de Producto
       · ${r.fichas_producto ?? 0} fichas en Producto</p>
     <div class="tabs tabs-inline">${FILTROS.map(([k, t]) =>
       `<button type="button" class="tab-btn${k === est.filtro ? ' active' : ''}" data-filtro="${k}">${t}</button>`).join('')}</div>

@@ -22,6 +22,7 @@ import { vistaVincular } from './views/vincular.js';
 import { vistaSubirComprobante } from './views/comprobante-subir.js';
 import { vistaComprobantes } from './views/comprobantes.js';
 import { vistaLectura } from './views/lectura.js';
+import { montarDystopita, desmontarDystopita } from './dystopita.js';
 
 const app = document.getElementById('app');
 let appIniciada = false;
@@ -217,11 +218,13 @@ async function iniciarApp() {
   window.montarNavAreas(document.getElementById('nav-areas'), yo.rol);
   registrarRutas();
   iniciarRouter();
+  montarDystopita();   // mascota + chat interno: todos los roles que entran a Finanzas
 }
 
 sb.auth.onAuthStateChange(evento => {
   if (evento === 'SIGNED_OUT' && appIniciada) {
     appIniciada = false;
+    desmontarDystopita();
     renderLogin();
   }
 });

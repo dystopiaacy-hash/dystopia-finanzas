@@ -1,0 +1,87 @@
+-- =====================================================================
+-- 161b_ventas_diagnostico_teo_llamadas.sql
+-- SOLO LECTURA. Diagnostico: teo no tiene llamadas de octubre (la ultima es
+-- del 30/09) y la pantalla cae sola en septiembre.
+-- No cambia nada. Correr cada consulta por separado y pasar el resultado.
+--
+-- DE DONDE SALEN LAS LLAMADAS DE TEO (por codigo):
+--   1. Sync de Google Sheets, fuente tipo 'data' de teo: planilla "CRM Ventas
+--      NEC" (id 1x2VqX4rzIXJRIrKM-De3amfxR6MO8gks-iXMAAZZh-U), pestana DATA
+--      (gid 0). Corre cada 15 min (Edge Function sincronizar). Reemplaza TODAS
+--      las filas origen='sheet' de la fuente en cada corrida.
+--   2. Webhook de GHL (ventas-agenda -> fin_agendas_entrantes -> fin_llamadas
+--      origen='ghl'). Teo esta en la lista de clientes de la funcion, pero el
+--      workflow de GHL de teo NO esta replicado (ESTADO-APP, pendiente 4).
+--   El parser (parsers/data.js) no corta por fecha: lee hasta la ultima fila con
+--   fecha, acepta octubre (rango 2024-2027) y las fechas de GHL en texto. Por
+--   codigo no hay nada que descarte octubre: la causa es de DATOS o de la
+--   CORRIDA. Los controles separan las 4 hipotesis:
+--     H1 la fuente esta inactiva o cortada (activo=false / cortada_en);
+--     H2 la corrida falla (encabezado cambiado, hoja no compartida, hoja vacia,
+--        payload grande, corte por tiempo) y por eso la base conserva lo ultimo
+--        que cargo bien (30/09);
+--     H3 la corrida anda pero la planilla de teo no tiene filas de octubre
+--        (no las cargaron, o pasaron a otra pestana/planilla);
+--     H4 hay filas de octubre en la planilla pero se rechazan (fecha en texto
+--        no reconocida, falta closer o nombre).
+-- =====================================================================
+
+-- C1. La fuente de teo: activa? cortada? a que planilla y pestana apunta?
+-- select id, tipo, spreadsheet_id, gid, nombre_hoja_esperado, fila_encabezado, activo, cortada_en
+--   from fin_fuentes where cliente_id = 'teo' order by tipo;
+--   H1: tipo 'data' con activo=false o cortada_en con fecha.
+--
+-- C2. Ultimas 15 corridas de la fuente data de teo (estado, motivo, filas).
+-- select c.id, c.inicio, c.estado, c.corte, c.filas_leidas, c.filas_cargadas,
+--        c.filas_rechazadas, c.filas_descartadas, left(c.mensaje, 200) as mensaje
+--   from fin_sync_corridas c join fin_fuentes f on f.id = c.fuente_id
+--  where f.cliente_id = 'teo' and f.tipo = 'data'
+--  order by c.inicio desc limit 15;
+--   H2: sin corridas recientes, o estado error/revisar/parcial repetido (leer mensaje).
+--   H3/H4: corridas 'ok' con filas_cargadas parecido al total de septiembre.
+--
+-- C3. Que hay hoy cargado de teo por mes y por origen (esperado: nada en 2026-10).
+-- select to_char(fecha_llamada, 'YYYY-MM') as mes, origen, count(*) as llamadas,
+--        min(fecha_llamada) as desde, max(fecha_llamada) as hasta
+--   from fin_llamadas where cliente_id = 'teo' group by 1, 2 order by 1 desc, 2;
+--
+-- C4. Rechazos de la ultima corrida con filas (H4). Si hay fechas de octubre,
+-- el motivo dice por que.
+-- select r.fila_planilla, r.motivo, r.valor_crudo
+--   from fin_filas_rechazadas r
+--  where r.corrida_id = (select c.id from fin_sync_corridas c join fin_fuentes f on f.id = c.fuente_id
+--                         where f.cliente_id = 'teo' and f.tipo = 'data' and c.filas_leidas is not null
+--                         order by c.inicio desc limit 1)
+--  order by r.fila_planilla desc limit 40;
+--
+-- C5. Salud de la sync segun la vista (solo fundador).
+-- select * from fin_v_salud_sync where cliente_id = 'teo';
+--
+-- C6. Llegaron agendas de GHL de teo en octubre? (si no, no hay otra via)
+-- select date_trunc('day', recibido_en) as dia, count(*) as recibidas,
+--        count(*) filter (where error is not null) as con_error
+--   from fin_agendas_entrantes where cliente_id = 'teo' and recibido_en >= '2026-09-25'
+--  group by 1 order by 1 desc;
+--
+-- COMO LEER EL RESULTADO Y QUE ARREGLO CORRESPONDE (preparado, NO ejecutado):
+--   H1 (C1 activo=false, sin cortada_en): reactivar la fuente.
+--        update fin_fuentes set activo = true where cliente_id = 'teo' and tipo = 'data';
+--      Si tiene cortada_en NO se reactiva (constraint 059): hay que crear una
+--      fuente nueva con el mismo spreadsheet_id/gid y copiar los alias de
+--      fin_alias_columnas; decision de Joaquin (el corte fue deliberado).
+--   H2 (C2 error): el mensaje dice la causa. Si es "hoja no compartida" o
+--      permiso: compartir la planilla CRM Ventas NEC con la cuenta de servicio
+--      (la de GOOGLE_* en los secrets de sincronizar). Si es "encabezado
+--      cambiado": ver con el equipo que columna cambio y lanzar la sync con
+--      {"fuente_id": <id>, "aceptar_encabezado": true} despues de revisar.
+--      Si es payload > umbral (como mauro): no hay arreglo de datos, es el
+--      umbral de la funcion (aplicarUmbralPayload).
+--   H3 (C2 ok y C3 sin octubre): no es de la app. La planilla no tiene filas de
+--      octubre en la pestana DATA: preguntarle a teo/NEC si cargan en otra
+--      pestana o planilla nueva (cambio de gid/spreadsheet_id en C1) o si GHL
+--      dejo de escribir la fila (el sintoma "Teo: 47 telefonos #ERROR!" indica
+--      que GHL escribe ahi por API). Arreglo de fondo: replicar el webhook de
+--      GHL en el workflow de teo (docs/ghl-agenda-checklist.md).
+--   H4 (C4 con fechas de octubre): ajustar parsers/data.js segun el motivo
+--      (cambia codigo y requiere redeploy de sincronizar).
+-- =====================================================================

@@ -88,6 +88,8 @@ export const confirmaComprobante = clienteId => yo.comp.some(c => c.cliente_id =
 /* Pantalla mínima "Subir comprobante": quien sube pero no confirma (closer, setter, cliente). */
 export const soloSubeComprobante = () => puedeSubirComprobante() && !puedeConfirmarComprobante();
 /* Lectura del mes con IA (148): solo fundador y finanzas, en los clientes que ven (fin_lectura_clientes). */
+/* Chat interno / Dystopita: todos los roles que entran a Finanzas (los permisos de datos los impone la base). */
+export const puedeUsarChatIa = () => ROLES.includes(yo.rol);
 export const puedeVerLectura = () => ['fundador', 'finanzas'].includes(yo.rol) && yo.lectura.length > 0;
 /* Valores de las columnas nuevas: en un cliente por áreas solo fundador (075). */
 export const puedeExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_extras !== false);

@@ -144,6 +144,12 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
   if (porCelda && r.stats.celdas_rechazadas) {
     avisos.push(`${r.stats.celdas_rechazadas} celdas rechazadas (la fila se cargo sin ese valor)`);
   }
+  // Con rechazos la corrida no puede quedar en 'ok' (Salud decia "Sin problemas" con 39 filas
+  // rechazadas): pasa a 'revisar'. 'parcial' y 'revisar' que ya traia se conservan.
+  if (estado === 'ok' && rechazadas.length > 0) {
+    estado = 'revisar';
+    if (!porCelda || !r.stats.celdas_rechazadas) avisos.push(`${rechazadas.length} filas rechazadas`);
+  }
 
   return {
     hash, estado, controles, datos,

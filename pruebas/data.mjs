@@ -170,7 +170,7 @@ check(rech('mauro').filter((x) => x.fila_planilla === 3).length === 3, 'mauro f3
 const m4 = llam('mauro', 4);
 check(m4 && m4.show_up === null && m4.calificacion === 'calificado', 'mauro f4: show_up inventado no dejo la fila cargada con show_up null');
 check(rech('mauro').every((x) => x.motivo.includes(MOTIVO_CELDA)), 'mauro: una celda rechazada se rechazo como fila');
-check(R.mauro.estado === 'ok', `mauro: celdas rechazadas no deben poner la corrida en parcial (dio ${R.mauro.estado})`);
+check(R.mauro.estado === 'revisar', `mauro: celdas rechazadas dejan la corrida en revisar, no en ok ni parcial (dio ${R.mauro.estado})`);
 check(llam('teo', 4)?.calificacion === null && rech('teo').some((x) => x.fila_planilla === 4 && x.valor_crudo === 'Regenda'),
   "teo f4: calificacion 'Regenda' (real) no se rechazo como celda");
 check(llam('teo', 2)?.cc_cerrado === null && rech('teo').some((x) => x.fila_planilla === 2 && x.valor_crudo === 'abc'),
@@ -225,7 +225,11 @@ const REALES = [
   ['lucas', 265, '11/062026', null],
   ['lucas', 380, 'bloqueo(abuela)', null],
   ['teo', 177, 'Monady, June 15, 2026 3:00 PM', null],
-  ['teo', 293, 'Thursday, August 20, 2026, 8:00 PM', null],
+  ['teo', 293, 'Thursday, August 20, 2026, 8:00 PM', '2026-08-20'],     // coma antes de la hora (161c)
+  ['teo', 0, 'Monday, September 18, 2026, 7:00 PM', '2026-09-18'],      // el 18/9/2026 es viernes: se ignora el dia
+  ['teo', 0, 'Monday, August 31, 2026, 4:00 PM', '2026-08-31'],
+  ['teo', 0, ' Monday, August 31, 2026,  4:00 PM ', null],               // doble espacio: no se adivina
+  ['teo', 0, 'Wednesday, September 30, 3;30 PM', null],                 // sin anio ni hora valida
   ['teo', 353, 'friday, september 22, 2026', null],
   ['mauro', 704, 'Tuesday, June 23 2026 9:00AM', null],
 ];
@@ -245,11 +249,13 @@ for (const txt of ['Monday, Junio 1, 2026 9:00 PM', 'Monday, June 0, 2026 9:00 P
 // Las mismas por el parser: la nocturna se carga con su dia; la que no matchea se rechaza.
 const noche = [ENC.teo,
   fila('teo', { 1: 'Nocturna', 2: ' Thursday, July 16, 2026 10:00 PM', 3: 'Franco Lagrega', 4: 'SI' }),
-  fila('teo', { 1: 'Coma de mas', 2: 'Thursday, August 20, 2026, 8:00 PM', 3: 'Franco Lagrega', 4: 'SI' })];
+  fila('teo', { 1: 'Coma antes de la hora', 2: 'Thursday, August 20, 2026, 8:00 PM', 3: 'Franco Lagrega', 4: 'SI' }),
+  fila('teo', { 1: 'Sin anio', 2: 'Wednesday, September 30, 3;30 PM', 3: 'Franco Lagrega', 4: 'SI' })];
 const pn = parseData(noche, { alias: ALIAS.teo });
-check(pn.filas.length === 1 && pn.filas[0].fecha_llamada === '2026-07-16', `teo nocturna: ${JSON.stringify(pn.filas)}`);
+check(pn.filas.length === 2 && pn.filas[0].fecha_llamada === '2026-07-16' && pn.filas[1].fecha_llamada === '2026-08-20'
+  && pn.filas[1].hora_llamada === '20:00', `teo nocturna / coma: ${JSON.stringify(pn.filas)}`);
 check(pn.rechazadas.length === 1 && pn.rechazadas[0].motivo === MOTIVO_FECHA_TEXTO
-  && pn.rechazadas[0].valor_crudo === 'Thursday, August 20, 2026, 8:00 PM', `teo texto que no matchea: ${JSON.stringify(pn.rechazadas)}`);
+  && pn.rechazadas[0].valor_crudo === 'Wednesday, September 30, 3;30 PM', `teo texto que no matchea: ${JSON.stringify(pn.rechazadas)}`);
 
 // 8. posicion que no coincide.
 const malo = ALIAS.liam.map((a) => (a.campo === 'fecha_llamada' ? { ...a, posicion: 3 } : a));
@@ -283,7 +289,7 @@ check(rf.datos.rechazadas.length === 2 && rf.datos.rechazadas[0].fila_planilla =
   `formulario #ERROR!: no quedo como celda rechazada: ${JSON.stringify(rf.datos.rechazadas.map((x) => x.motivo))}`);
 check(!lf(5) && rf.stats.descartadas === 1, 'formulario: una fila con solo columnas de formulario no se descarto como vacia');
 check(igual(lf(6)?.formulario, {}), 'formulario: fila sin respuestas deberia dar {}');
-check(rf.estado === 'ok', `formulario: la corrida dio ${rf.estado}`);
+check(rf.estado === 'revisar', `formulario: con celdas rechazadas la corrida es revisar (dio ${rf.estado})`);
 
 // 10. email (texto) y hora_llamada (misma celda que fecha_llamada).
 const aliasEmail = [...ALIAS.liam, { campo: 'email', alias: 'Email', obligatorio: false, posicion: null }];

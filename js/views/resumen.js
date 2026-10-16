@@ -4,7 +4,7 @@
 import { esc, hoyAR } from '../ui.js';
 import { navegar } from '../router.js';
 import { yo, esFundador, clienteUnico, nombreCliente } from '../sesion.js';
-import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo, netCashFlow, sinPagosCargados } from '../datos.js';
+import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo, netCashFlow, sinPagosCargados, oppsSinCargar } from '../datos.js';
 import {
   statCard, vacio, selectAnio, selectMes, anios, clienteChip, estadoFuente, peorEstado,
   requiereAccion, badgeEstado, botonRecargar
@@ -69,6 +69,7 @@ export async function vistaResumen(el, vigente) {
     const delAnio = filas.filter(f => f.anio === anio);
     const meses = [...new Set(delAnio.map(f => f.mes))].sort((a, b) => a - b);
     const sinPagos = meses.map(m => [m, delAnio.filter(f => f.mes === m && sinPagosCargados(f)).map(f => f.cliente_id)]).filter(([, ids]) => ids.length);
+    const sinOpps = meses.map(m => [m, delAnio.filter(f => f.mes === m && oppsSinCargar(f)).map(f => f.cliente_id)]).filter(([, ids]) => ids.length);
     /* Sincronización es solo del fundador. */
     const columnas = armarColumnas(BASE_RESUMEN.filter(c => esFundador() || c.k !== 'sincronizacion'), config);
     const cols = columnas.visibles;
@@ -116,7 +117,9 @@ export async function vistaResumen(el, vigente) {
         </table>
       </div>
       ${sinPagos.length ? `<div class="card nota">Sin pagos cargados (Opps declara revenue y Pagos está en 0): ${sinPagos.map(([m, ids]) => `${esc(MESES[m - 1])} (${ids.map(i => esc(nombreCliente(i))).join(', ')})`).join('; ')}.
-        El Net cash flow de esos meses sale solo de Pagos, no de Opps.</div>` : ''}`;
+        El Net cash flow de esos meses sale solo de Pagos, no de Opps.</div>` : ''}
+      ${sinOpps.length ? `<div class="card nota">Opps sin cargar (revenue y gastos en 0, pero hay pagos): ${sinOpps.map(([m, ids]) => `${esc(MESES[m - 1])} (${ids.map(i => esc(nombreCliente(i))).join(', ')})`).join('; ')}.
+        El Net cash flow de esos meses está inflado: no descuenta gastos.</div>` : ''}`;
 
     el.querySelector('#f-mes').onchange = e => { periodo = { ...periodo, mes: Number(e.target.value) }; pintar(); };
     el.querySelector('#f-anio').onchange = e => { periodo = { ...periodo, anio: Number(e.target.value) }; pintar(); };

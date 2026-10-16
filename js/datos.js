@@ -257,6 +257,11 @@ export const CATEGORIAS = {
 export const netCashFlow = f => (Number(f.ingreso_real) || 0) - (Number(f.gastos_total) || 0);
 export const sinPagosCargados = f => f.fuente_ingreso === 'opps' && !(Number(f.ingreso_real) || 0) && (Number(f.revenue_declarado) || 0) !== 0;
 
+/* Mes con pagos pero con Opps vacío (revenue y gastos en 0): Opps todavía no se cargó, así que
+   el net cash flow (Pagos − 0 gastos) sale inflado. Se avisa, no se corrige. */
+export const oppsSinCargar = f => !f.vacio && (Number(f.ingreso_real) || 0) !== 0
+  && !(Number(f.revenue_declarado) || 0) && !(Number(f.gastos_total) || 0);
+
 /* ---------- Link a la celda de la planilla ---------- */
 
 export function columnaLetra(n) {
