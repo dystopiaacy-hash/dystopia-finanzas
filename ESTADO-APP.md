@@ -50,6 +50,7 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0000000000000000000000000000000. (16/10) MENÚ DE ÁREAS: el rol `producto` ahora ve "Marketing" en js/nav-areas.js (línea Marketing: roles + 'producto'; sin migración, sin commit). Mismo cambio en las 4 apps; la 152 ya habilitaba el acceso.
 0000000000000000000000000000. (16/10) IA: LECTURA MENSUAL DE NÚMEROS (número 148 asignado por el jefe), SIN correr, sin commit, sin deploy; `node --check` y `deno check` NO se pudieron correr:
    - migraciones/148_finanzas_ia_lectura_mensual.sql (idempotente, sin begin/commit): tabla `fin_lecturas_mes` (cliente, periodo YYYY-MM, texto,
      datos jsonb, modelo, origen cron/manual, generado_por, costo, generado_en; historial: regenerar agrega fila), RLS solo por
