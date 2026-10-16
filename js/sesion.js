@@ -8,7 +8,8 @@ import { sb } from './supabase.js';
 
 /* carga: filas de fin_clientes_carga() {cliente_id, habilitada, puede_anular, puede_extras}.
    areas: clientes con permisos por área (fin_clientes_por_areas, 075). */
-export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [] };
+/* comp: filas de fin_comp_clientes() {cliente_id, nombre, puede_confirmar} (143): clientes donde sube comprobantes. */
+export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [], comp: [] };
 
 const ROLES = ['fundador', 'cliente', 'closer', 'setter', 'finanzas', 'ventas'];
 /* Mismo orden que las cuentas en Dystopia. */
@@ -35,6 +36,13 @@ async function cargarAreas() {
   return (data || []).map(x => (typeof x === 'string' ? x : Object.values(x)[0]));
 }
 
+/* Clientes donde el usuario sube comprobantes de pago (143). Si la 143 no está corrida, ninguno. */
+async function cargarComp() {
+  const { data, error } = await sb.rpc('fin_comp_clientes');
+  if (error) { console.warn('fin_comp_clientes', error.message); return []; }
+  return data || [];
+}
+
 /* Devuelve true si el usuario puede usar la app. */
 export async function cargarSesion(user) {
   yo.userId = user.id;
@@ -45,7 +53,7 @@ export async function cargarSesion(user) {
   yo.rol = mem ? mem.rol : null;
   yo.nombre = (mem && mem.nombre) || yo.email;
   if (!ROLES.includes(yo.rol)) return false;
-  [yo.clientes, yo.carga, yo.areas] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas()]);
+  [yo.clientes, yo.carga, yo.areas, yo.comp] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas(), cargarComp()]);
   return true;
 }
 
@@ -71,6 +79,12 @@ export const puedeAnular = clienteId => yo.carga.some(c => c.cliente_id === clie
 /* Vincular alumnos con Producto (129): quien puede editar pagos (fundador, o cliente en clientes sin áreas). */
 export const clientesVinculables = () => yo.carga.filter(c => c.puede_anular).map(c => c.cliente_id);
 export const puedeVincular = () => clientesVinculables().length > 0;
+/* Comprobantes (143): sube quien tiene algún cliente en fin_comp_clientes(); confirma fundador y finanzas. */
+export const puedeSubirComprobante = () => yo.comp.length > 0;
+export const puedeConfirmarComprobante = () => yo.comp.some(c => c.puede_confirmar);
+export const confirmaComprobante = clienteId => yo.comp.some(c => c.cliente_id === clienteId && c.puede_confirmar);
+/* Pantalla mínima "Subir comprobante": quien sube pero no confirma (closer, setter, cliente). */
+export const soloSubeComprobante = () => puedeSubirComprobante() && !puedeConfirmarComprobante();
 /* Valores de las columnas nuevas: en un cliente por áreas solo fundador (075). */
 export const puedeExtras = clienteId => yo.carga.some(c => c.cliente_id === clienteId && c.puede_extras !== false);
 

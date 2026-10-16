@@ -6,7 +6,9 @@
    Las columnas nuevas visibles van al final, opcionales, y se guardan después del
    pago con fin_pago_extra_guardar y la clave que devuelve fin_pago_cargar. */
 import { esc, hoyAR } from '../ui.js';
-import { yo, nombreCliente } from '../sesion.js';
+import { yo, nombreCliente, puedeConfirmarComprobante } from '../sesion.js';
+import { tomarPrecarga } from '../comprobantes.js';
+import { cajaComprobante, enlazarComprobante } from './cargar-comprobante.js';
 import { cargaOpciones, pagoCargar, catalogoAgregar, usd } from '../datos.js';
 import { puedeAgregarCloser, cajaCloser, closerNuevoClick } from './closer-nuevo.js';
 import { columnasDe, armarColumnas, pagoExtraGuardar, errorColumnas } from '../columnas.js';
@@ -94,6 +96,7 @@ export async function vistaCargar(el, vigente) {
     ${habilitados.length ? '' : vacio('Todavía no se puede cargar', 'La planilla de tus clientes todavía no está cortada.')}
     <form id="form-cargar" class="card concepto-card" novalidate>
       ${fila('c-cliente', 'Cliente', `<select id="c-cliente">${opcionesCliente}</select>`)}
+      ${puedeConfirmarComprobante() ? cajaComprobante() : ''}
       <div class="form-grid2" id="c-campos"></div>
       <div class="form-error" id="c-error" role="alert"></div>
       <button type="submit" class="btn btn-accent" id="c-guardar" disabled>Guardar pago</button>
@@ -125,7 +128,12 @@ export async function vistaCargar(el, vigente) {
     for (const c of form.querySelectorAll('input,select,textarea')) c.disabled = true;
     return;
   }
-  selCliente.value = habilitados[0].cliente_id;
+  /* 143: comprobante elegido en la bandeja (se consume una vez); si su cliente no se puede cargar, se ignora la precarga. */
+  const pre = tomarPrecarga();
+  const preOk = pre && habilitados.some(c => c.cliente_id === pre.cliente_id);
+  selCliente.value = preOk ? pre.cliente_id : habilitados[0].cliente_id;
+  const comp = puedeConfirmarComprobante()
+    ? enlazarComprobante({ $, ids: CAMPOS, cliente: () => selCliente.value, vigente }) : null;
 
   /* Los campos y los desplegables son por cliente: se rearman con fin_columnas_de y fin_carga_opciones. */
   const cargarOpciones = async () => {
@@ -153,7 +161,7 @@ export async function vistaCargar(el, vigente) {
     guardar.disabled = false;
   };
 
-  selCliente.onchange = cargarOpciones;
+  selCliente.onchange = () => { if (comp) comp.limpiar(); cargarOpciones(); };
 
   /* Alta de una opción nueva del catálogo (concepto, método, quién recibe) y de un closer (116, closer-nuevo.js). */
   campos.onclick = async ev => {
@@ -200,6 +208,7 @@ export async function vistaCargar(el, vigente) {
     if (!selCliente.value) falta.unshift('Cliente');
     if (falta.length) { err.textContent = `Falta: ${falta.join(', ')}.`; return; }
     if (!(monto > 0)) { err.textContent = 'El monto tiene que ser mayor a 0.'; return; }
+    if (comp && comp.faltaRevisarDuplicado()) { err.textContent = 'Posible duplicado: marcá "Revisé: es otro pago" para guardar igual.'; return; }
 
     const cliente = selCliente.value, alumno = txt('alumno');
     const extras = nuevas.map(c => [c, valorExtra(c)]).filter(([, v]) => v != null);
@@ -224,6 +233,9 @@ export async function vistaCargar(el, vigente) {
       try { await pagoExtraGuardar(cliente, r.clave, c.k, v); }
       catch (e) { fallas.push(`${c.lab}: ${errorColumnas(e)}`); }
     }
+    /* 143: recién con el pago guardado se vincula el comprobante (confirmado por quien guarda). */
+    const falloComp = comp ? await comp.confirmar(r.clave) : '';
+    if (falloComp) fallas.push(`el comprobante no quedó vinculado: ${falloComp}`);
     if (!vigente()) return;
     guardar.disabled = false;
     $('c-listo-detalle').textContent = `${alumno} · ${usd(monto, { centavos: true })} · ${nombreCliente(cliente)}`;
@@ -241,10 +253,12 @@ export async function vistaCargar(el, vigente) {
       else c.value = '';
     }
     err.textContent = '';
+    if (comp) comp.limpiar();
     listo.hidden = true;
     form.hidden = false;
     $('c-alumno').focus();
   };
 
   await cargarOpciones();
+  if (preOk && comp && vigente()) comp.cargar(pre);
 }

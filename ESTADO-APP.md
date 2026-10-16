@@ -50,6 +50,25 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+00000000000000000000000000. (16/10) IA FASE 3: LECTURA DE COMPROBANTES DE PAGO (número 143 asignado por el jefe), SIN correr, sin commit, `node --check`, `deno check` y `npm test` NO se pudieron correr:
+   - migraciones/143_finanzas_comprobantes.sql: bucket privado `comprobantes` (10 MB, jpg/png/webp/pdf) con policies por cliente; tabla
+     `fin_comprobantes` (archivo, extraído, propuesta, duplicados, quién subió/confirmó, pago_clave); permisos fin_comp_puede_subir (fundador, o
+     finanzas/closer/setter/cliente con el cliente en crm_asignaciones vía fin_asignado) y fin_comp_puede_confirmar (fundador, finanzas asignado);
+     RPC de la app (fin_comp_clientes/registrar/mios/bandeja/obtener/confirmar/descartar) y de la función (fin_comp_tomar/buscar/guardar_lectura,
+     solo service_role). Humo que se revierte, controles C1 a C7 y vuelta atrás. No toca nada existente.
+   - supabase/functions/comprobante-leer/index.ts (nueva, --no-verify-jwt, auth propia: JWT + funciones de la 143 como el usuario): baja el
+     archivo, claude-sonnet-5-5 con visión vía _shared/ia.ts (sin editarlo; app 'finanzas', funcion 'leer_comprobante', effort low), extrae monto,
+     moneda, fecha, banco, pagador (nombre y CUIT/DNI/alias), destinatario y n° de operación; fin_comp_buscar propone alumno (fin_cs_alumnos +
+     fichas de Producto vinculadas por fin_cs_vinculo + pagadores ya confirmados) y cuota pendiente, y detecta duplicados (misma operación, o monto
+     + fecha ±1 día + pagador). Confianza alta/media/baja. Nunca crea un pago.
+   - Front: "Subir comprobante" dentro de Cargar pago (solo fundador y finanzas; js/views/cargar-comprobante.js) que precarga el formulario, avisa
+     duplicados (hay que tildar "Revisé: es otro pago") y, recién guardado el pago, vincula el comprobante (fin_comp_confirmar). Bandeja
+     #/comprobantes (fundador y finanzas): ver archivo, releer, "Cargar como pago", descartar con motivo. Pantalla mínima #/comprobante para
+     closer, setter y cliente (sube y ve solo lo suyo). datos en js/comprobantes.js; sesion.js (yo.comp), app.js, layout.js, css/vistas.css.
+     cargar.js: solo se sumaron los ganchos (el cambio sin commitear de antes ya no figuraba en git status: estaba commiteado).
+   - Qué ve cada rol hoy en Finanzas (leído del código): closer/setter: Mis números (+ Cobranzas el closer) y Cargar pago SOLO si están vinculados en
+     fin_personas y el cliente no es por áreas (en liam no); cliente: Resumen, P&L, Conciliación, Cobranzas, Mis números, Pagos y Cargar pago en
+     clientes sin áreas; en liam es "solo panel". Todos ellos reciben ahora "Subir comprobante" (cliente de solo panel incluido).
 0000000000000000000000000. (15/10) 129 CORREGIDA (humo) + 132 ESTADO DE PAGOS PARA PRODUCTO SIN MONTOS (número 132 asignado por el jefe), SIN correr, sin commit:
    - 129: el humo ahora elige una ficha con teléfono único y SIN alumno de Finanzas coincidente (pago_clave, teléfono, nombre/alias ni vínculo
      previo); antes elegía una con alumno real y daba nombres_finanzas = 2. Comentarios del cron corregidos a 3,18,33,48. Nada más cambió.
@@ -261,6 +280,15 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+00000000000000000000000000. IA Fase 3 (143): correr la 143 (no a :00/:15/:30/:45 ni a las 9:00; mirar el NOTICE "HUMO 143 OK") y controles C1 a C6 de a
+    uno; deploy `supabase functions deploy comprobante-leer --no-verify-jwt`; después push del front. Correr `node --check js/sesion.js
+    js/comprobantes.js js/app.js js/layout.js js/views/cargar.js js/views/cargar-comprobante.js js/views/comprobantes.js
+    js/views/comprobante-subir.js`, `deno check --node-modules-dir=none supabase/functions/comprobante-leer/index.ts` y `npm test`. Probar con
+    comprobantes reales (transferencia ARS, USD, PDF, captura borrosa) como fundador, finanzas@liam y un closer/setter/cliente. Decidir: (a) en
+    clientes SIN áreas (agus, teo) finanzas no puede cargar pagos (fin_puede_cargar de la 075 no lo incluye): ve la bandeja pero no confirma;
+    abrirlo necesita migración y número; (b) closer/setter ya pueden cargar pagos directo en clientes sin áreas (066), el flujo "pendiente" solo
+    gobierna los comprobantes; (c) el rol ventas no sube comprobantes (no estaba en la lista); (d) comprobantes en ARS: el pago se carga en USD a
+    mano (no hay tipo de cambio), el original queda en la nota; (e) la cuota propuesta es informativa: no existe vínculo cuota-pago todavía.
 0000000000000000000000000. Correr la 129 corregida y después la 132 (no a :00/:15/:30/:45 ni a las 9:00); mirar los NOTICE de los humos
     (si dicen "se omite la parte con datos" no hay ficha sin alumno coincidente) y controles C1 a C6 de la 132 de a uno; C5 con el uuid de un
     consultor real de Producto. Producto llama `cs_estado_pagos_alumno(array[<ficha>])` con la sesión del usuario (ficha y aviso diario; el

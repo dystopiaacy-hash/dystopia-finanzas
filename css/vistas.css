@@ -162,3 +162,16 @@
   .tabla-clientes .col-prog{min-width:104px;}
 }
 .dato-derivado{color:var(--text-dim);}
+
+/* Comprobantes de pago (143): caja en Cargar pago, bandeja y pantalla mínima. */
+.comp-caja{margin-bottom:var(--sp-3);}
+.comp-info{display:flex;flex-direction:column;gap:var(--sp-1);padding:var(--sp-3);margin-bottom:var(--sp-3);border:1px solid var(--border);border-radius:8px;}
+.comp-info[hidden]{display:none;}
+.comp-aviso{color:var(--danger);}
+.comp-dup{padding:var(--sp-2) var(--sp-3);border-left:3px solid var(--danger);background:color-mix(in srgb, var(--danger) 8%, white);font-size:var(--fs-meta);}
+.comp-dup label{display:block;margin-top:var(--sp-1);font-weight:600;}
+.comp-item{display:flex;flex-direction:column;gap:var(--sp-1);margin-bottom:var(--sp-3);}
+.comp-cab{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);}
+.comp-acciones,.comp-descartar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);margin-top:var(--sp-2);}
+.comp-descartar[hidden]{display:none;}
+.comp-descartar input{flex:1;min-width:200px;}

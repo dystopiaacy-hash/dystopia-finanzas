@@ -6,7 +6,7 @@ import { sb } from './supabase.js';
 import { precargarConciliacion } from './datos.js';
 import { esc } from './ui.js';
 import { ruta, rutaNoEncontrada, iniciarRouter, reemplazar } from './router.js';
-import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos, puedeVincular } from './sesion.js';
+import { yo, cargarSesion, rutaInicio, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, esFundador, esEquipo, clienteUnico, puedeCargar, vePagos, puedeVincular, puedeSubirComprobante, puedeConfirmarComprobante } from './sesion.js';
 import { renderLayout, renderNav, setHeader } from './layout.js';
 import { vistaResumen } from './views/resumen.js';
 import { vistaCliente } from './views/cliente.js';
@@ -19,6 +19,8 @@ import { vistaCargar } from './views/cargar.js';
 import { vistaSalud } from './views/salud.js';
 import { vistaAlertas } from './views/alertas.js';
 import { vistaVincular } from './views/vincular.js';
+import { vistaSubirComprobante } from './views/comprobante-subir.js';
+import { vistaComprobantes } from './views/comprobantes.js';
 
 const app = document.getElementById('app');
 let appIniciada = false;
@@ -136,6 +138,17 @@ function registrarRutas() {
     renderNav({ vista: 'cargar' });
     setHeader('Cargar pago', 'Alta de un pago desde la app');
     montar(vistaCargar);
+  }));
+  /* 143: comprobantes de pago. Sube cualquiera con clientes asignados; la bandeja es de fundador y finanzas. */
+  ruta('comprobante', guardia(puedeSubirComprobante, () => {
+    renderNav({ vista: 'comprobante' });
+    setHeader('Subir comprobante', 'Foto, captura o PDF de una transferencia');
+    montar(vistaSubirComprobante);
+  }));
+  ruta('comprobantes', guardia(puedeConfirmarComprobante, () => {
+    renderNav({ vista: 'comprobantes' });
+    setHeader('Comprobantes', 'Subidos por el equipo, pendientes de confirmar');
+    montar(vistaComprobantes);
   }));
   ruta('pagos', guardia(vePagos, () => {
     renderNav({ vista: 'pagos' });
