@@ -21,7 +21,7 @@
 @media(max-width:600px){
   /* Filtros: cada rótulo arriba de su control, uno debajo del otro. */
   .filter-row .flabel{flex:0 0 100%;margin:var(--sp-1) 0 0;}
-  .filter-row select{flex:0 0 100%;width:100%;max-width:100%;}
+  .filter-row select,.filter-row .search-input{flex:0 0 100%;width:100%;max-width:100%;}
   .filter-row .grow{flex-basis:100%;height:0;}
   /* Tablas `.tabla-tarjetas` (Dystopia, Gastos, Gasto de IA): cada fila es una tarjeta, el monto
      destacado (celda .clave) va justo debajo del título y no hay que deslizar de costado. */
@@ -38,8 +38,12 @@
     letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint);font-family:var(--font-body, inherit);}
   .tabla-tarjetas td:empty{display:none;}
   /* Primera celda = título de la tarjeta; su rótulo sobra. */
-  .tabla-tarjetas td:first-child{order:-2;display:block;text-align:left;font-weight:700;color:var(--ink);font-size:var(--fs-card);}
-  .tabla-tarjetas td:first-child::before{display:none;}
+  .tabla-tarjetas td:first-child,.tabla-tarjetas td.titulo{order:-2;display:block;text-align:left;font-weight:700;color:var(--ink);font-size:var(--fs-card);}
+  .tabla-tarjetas td:first-child::before,.tabla-tarjetas td.titulo::before{display:none;}
+  /* Si otra celda (`th.titulo`) es el título, la primera vuelve a ser una línea «RÓTULO: valor». */
+  .tabla-tarjetas tr:has(td.titulo) td:first-child:not(.titulo){order:0;display:flex;text-align:right;font-weight:inherit;font-size:inherit;color:inherit;}
+  .tabla-tarjetas tr:has(td.titulo) td:first-child:not(.titulo)::before{display:block;}
+  .tabla-tarjetas td.acciones{justify-content:flex-end;flex-wrap:wrap;}
   .tabla-tarjetas td.clave{order:-1;font-size:var(--fs-card);font-weight:800;color:var(--ink);}
   .tabla-tarjetas tbody tr:hover td{background:transparent;}
   .tabla-tarjetas tr.fila-alerta,.tabla-tarjetas tr.fila-activa{background:var(--surface);}

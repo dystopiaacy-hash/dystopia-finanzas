@@ -144,7 +144,9 @@ function lecturaExtra(col, v) {
 const esNum = col => (col.sistema ? NUMERICAS.includes(col.k) : col.tipo === 'numero');
 const clase = col => `pc-c-${col.sistema ? esc(col.k) : 'x pc-x-' + col.tipo}${esNum(col) ? ' num' : ''}`;
 
-export const thPago = col => `<th class="${clase(col)}">${esc(col.lab)}</th>`;
+/* Celular (tarjetas): Alumno es el título y Monto USD el dato destacado (ver etiquetarTablas). */
+const marcaTarjeta = col => (!col.sistema ? '' : col.k === 'alumno' ? ' titulo' : col.k === 'monto_usd' ? ' clave' : '');
+export const thPago = col => `<th class="${clase(col)}${marcaTarjeta(col)}">${esc(col.lab)}</th>`;
 
 /* ctx: { cat, mapaFuentes, opciones (fin_carga_opciones del cliente, null con "Todos"), extras (Map clave -> valores) } */
 export function tdPago(col, p, ctx) {

@@ -34,6 +34,17 @@ select.m-edit{cursor:pointer;padding-right:2px;}
 .pc-error{min-width:170px;padding:2px 6px 5px;font-size:var(--fs-micro);font-weight:600;line-height:1.3;color:var(--danger);
   white-space:normal;overflow-wrap:anywhere;text-align:left;}
 
+/* Celular: la grilla pasa a tarjetas (`.tabla-tarjetas`, gastos.css); las celdas editables ocupan la línea. */
+@media(max-width:600px){
+  table.tabla-pagos.tabla-tarjetas td[class]{min-width:0;padding:var(--sp-2) 0;}
+  table.tabla-pagos.tabla-tarjetas td.pc-edit{align-items:center;text-align:left;}
+  table.tabla-pagos.tabla-tarjetas td.pc-edit > *{flex:1 1 55%;min-width:0;}
+  table.tabla-pagos.tabla-tarjetas td.pc-edit.pc-x-casilla{justify-content:space-between;}
+  table.tabla-pagos.tabla-tarjetas td.pc-edit.pc-x-casilla > *{flex:none;}
+  table.tabla-pagos.tabla-tarjetas td.pc-edit > .pc-error{min-width:0;flex-basis:100%;}
+  .tabla-pagos .m-edit{height:36px;font-size:16px;border-color:var(--border);}
+}
+
 .pc-huerfanos{--badge-color:var(--sem-amarillo-text);cursor:help;}
 
 /* Cargar pago: campo que ocupa las dos columnas. */

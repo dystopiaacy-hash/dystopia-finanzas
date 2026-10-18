@@ -3,7 +3,7 @@
 import { esc, fmtFecha, semaforo } from '../ui.js';
 import { cobranzas, fuentePorCuota, fuentes, pagosParaCuotas, usd, numCelda } from '../datos.js';
 import { indexarPagos, derivarCuota } from '../cuotas-derivar.js';
-import { statCard, vacio, selectCliente, clienteChip, botonRecargar } from './comunes.js';
+import { statCard, vacio, selectCliente, clienteChip, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const n = v => Number(v) || 0;
 let filtro = { cliente: '', ver: 'todas', texto: '' };
@@ -66,9 +66,9 @@ export async function vistaCobranzas(el, vigente) {
         ${statCard(usd(suma(semana)), 'Vence en 7 días', { sub: `${semana.length} cuotas` })}
       </div>
       <div class="card table-card">
-        <table class="data-table">
-          <thead><tr><th>Cliente</th><th>Alumno</th><th>Programa</th><th>Cuota</th><th>Vence</th><th>Estado</th>
-            <th>Closer</th><th class="num">Monto</th><th class="num">Cobrado</th></tr></thead>
+        <table class="data-table tabla-tarjetas">
+          <thead><tr><th>Cliente</th><th class="titulo">Alumno</th><th>Programa</th><th>Cuota</th><th>Vence</th><th>Estado</th>
+            <th>Closer</th><th class="num clave">Monto</th><th class="num">Cobrado</th></tr></thead>
           <tbody>
             ${lista.map(c => {
               const f = mapaFuentes.get(cuotaFuente.get(c.id));
@@ -91,6 +91,7 @@ export async function vistaCobranzas(el, vigente) {
       <div class="table-foot">Pendiente = cuota sin estado o con estado distinto de pagado, churn, pausado o cancelado.
         Programa o Closer en gris y cursiva: la planilla de cuotas no lo trae y se tomó de los Pagos del mismo alumno.</div>`;
 
+    etiquetarTablas(el);
     el.querySelector('#f-cliente').onchange = e => { filtro.cliente = e.target.value; pintar(); };
     el.querySelector('#f-ver').onchange = e => { filtro.ver = e.target.value; pintar(); };
     const inp = el.querySelector('#f-texto');

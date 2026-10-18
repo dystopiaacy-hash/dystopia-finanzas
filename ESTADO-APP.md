@@ -50,6 +50,11 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0h. (18/10) CELULAR (≤600px) DE COBRANZAS Y PAGOS EN TARJETAS, solo presentación, sin SQL ni migración ni commit; NO probado en navegador ni con `node --check`:
+   - Mismo patrón `.tabla-tarjetas` + `etiquetarTablas()`. Cobranzas: título = Alumno (`th.titulo`), destacado = Monto (`th.clave`), Cliente pasa a línea «CLIENTE: chip». Pagos: título = Alumno, destacado = Monto USD (marcados en `thPago` solo para columnas de sistema `alumno`/`monto_usd`); celdas editables ocupan la línea; botones Devolver/Anular en la última línea (`th.acciones`).
+   - Archivos: js/views/comunes.js (etiquetarTablas copia también `titulo` y `acciones`), cobranzas.js, pagos.js, pagos-celdas.js, css/gastos.css, css/columnas.css (bloque @media 600px propio de la grilla de Pagos).
+   - COMPARTIDO (css/gastos.css): `td.titulo`/`td.acciones` son reglas nuevas que solo actúan con `.tabla-tarjetas` (Dystopia, Gastos, IA no cambian: no usan esas marcas). El input de búsqueda de `.filter-row` pasa a ancho completo en celular: afecta toda pantalla con `.search-input` en un filter-row.
+   - Pendientes de catálogo (Pagos) no se tocó: es una tabla de 5 columnas.
 0g. (17/10) CELULAR (≤600px) DE DYSTOPIA / GASTOS / GASTO DE IA, solo presentación, sin SQL ni migración ni commit; NO probado en navegador ni con `node --check`:
    - Tablas a tarjetas: clase `.tabla-tarjetas` (css/gastos.css, bloque @media 600px). Cada fila es una tarjeta: primera celda = título, celda `.clave` (Neto / Total / USD / Costo / Monto) justo debajo, resto como «RÓTULO: valor». Mismo patrón que `.tabla-clientes` (vistas.css). Escritorio sin cambios.
    - `etiquetarTablas(el)` en js/views/comunes.js copia el encabezado de cada columna a `data-label` y marca `.clave` (th.clave). Llamada al final del render en dystopia.js, gastos.js, ia-uso.js. Dados de baja (Gastos) ahora tiene encabezado (solo para los rótulos; se oculta en celular, en escritorio se ve una fila de títulos nueva).
@@ -380,6 +385,7 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+- (18/10) Probar en navegador a 390px (0h): Cobranzas y Pagos (con un cliente elegido y con «Todos», con y sin botones Devolver/Anular, celdas editables) y a 1280px+ que ambas quedan igual. Probar también el cambio compartido de gastos.css (campo de búsqueda de filtros a ancho completo).
 - (17/10) Probar en navegador a 390px (0g): Dystopia (2 tablas), Gastos (totales, Detalle, Dados de baja), Gasto de IA (2 tablas), menú de secciones y filtros; y revisar a 1280px+ que nada cambió. Mirar también que el menú en 2 columnas se vea bien en las demás pantallas (cambio compartido).
 - (17/10) Correr migración 179 (control A antes, bloque, controles B2-E después; fuera de :00/:15/:30/:45 y de las 9:00) y probar Gastos: filas de IA con hasta 4 decimales. Sin la migración el front no muestra más decimales (la vista los redondea). Sigue pendiente el texto «automatico desde ia_uso» de la vista (se tapa en el front con `descGasto()`).
 - (17/10) QA 174: probar en navegador los 6 arreglos (0e), incluido celular 390px y el formulario «Nuevo gasto». Opcional, con número del jefe: migración que cambie en `fin_v_gastos_mes` el texto «Uso de IA (automatico desde ia_uso)» por «Uso de IA (automático desde el uso de IA)» y que no redondee a 2 decimales las filas de IA (hoy el front lo tapa). Diagnóstico de la sync (Teo «Error», Liam y Agus «Revisar»): corre el jefe las queries del resumen de la sesión.

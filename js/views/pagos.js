@@ -14,7 +14,7 @@ import {
   pagoAnular, pagoDevolver, cargaOpciones
 } from '../datos.js';
 import { columnasDe, pagosExtra, extrasHuerfanos, armarColumnas } from '../columnas.js';
-import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar } from './comunes.js';
+import { statCard, vacio, selectAnio, selectMes, anios, clienteChip, botonRecargar, etiquetarTablas } from './comunes.js';
 import { BASE_PAGOS, thPago, tdPago, manejarCambio, manejarClick, manejarTecla } from './pagos-celdas.js';
 import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
 
@@ -115,6 +115,7 @@ export async function vistaPagos(el, vigente) {
       porId: new Map(r.filas.map(p => [String(p.id), p])), cols: new Map(cols.visibles.map(c => [c.k, c]))
     };
     grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !cliente, cols: cols.visibles, ctx });
+    etiquetarTablas(grilla);
     const ir = d => () => { pagina += d; cargar(); };
     const ant = grilla.querySelector('#pg-ant'), sig = grilla.querySelector('#pg-sig');
     if (ant) ant.onclick = ir(-1);
@@ -278,8 +279,8 @@ function tablaPagos({ filas, total }, { pagina, verCliente, cols, ctx }) {
   return `
     <div class="card table-card">
       <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}</span></div>
-      <table class="data-table data-table-dense tabla-pagos">
-        <thead><tr>${cols.map(c => conCliente(c, thPago(c), '<th>Cliente</th>')).join('')}${conAcciones ? '<th></th>' : ''}</tr></thead>
+      <table class="data-table data-table-dense tabla-pagos tabla-tarjetas">
+        <thead><tr>${cols.map(c => conCliente(c, thPago(c), '<th>Cliente</th>')).join('')}${conAcciones ? '<th class="acciones"></th>' : ''}</tr></thead>
         <tbody>${filas.map(p => `<tr>
           ${cols.map(c => conCliente(c, tdPago(c, p, ctx), `<td>${clienteChip(p.cliente_id)}</td>`)).join('')}
           ${conAcciones ? `<td>${celdaAcciones(p)}</td>` : ''}
