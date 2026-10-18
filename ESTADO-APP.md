@@ -50,6 +50,19 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0e. (17/10) QA DE DYSTOPIA / GASTOS / GASTO DE IA: 6 ARREGLOS DE FRONT (sin SQL, sin migración, sin commit; NO probado en navegador ni con `node --check`):
+   - Casilla «Recurrente» (gastos-form.js): la etiqueta usaba `.m-check` (16px de ancho, pensada para la casilla sola), por eso el texto se partía palabra por palabra. Ahora `.chk-linea` (flex, una línea).
+   - Dystopia, «Todos los meses»: columnas Ingreso Liam/Agus/Teo + Ingreso, Gastos, de los cuales IA, Neto; solo los meses del año del mes elegido y fila «Total <año>» (suma de valores sin redondear).
+   - `td.ajusta` (css/gastos.css): nombres de categoría, entidad, descripción y mes hacen salto de línea en vez de cortarse con «…».
+   - Textos: singular/plural de «llamada(s)» (`llamadas()` en gastos.js), «(automático desde el uso de IA)» (`descGasto()` reemplaza el texto de la vista, que sigue diciendo «automatico desde ia_uso»: ver Pendientes), sin nombres de tablas (ia_uso, fin_comision_agencia) en pantalla.
+   - Redondeo: la vista de Gastos redondea a 2 decimales en SQL (`round(sum(costo),2)`) y la de IA entrega 4; el front mostraba cada fila de IA a 2 y por eso 0,11 + 0,07 ≠ 0,17. Ahora los montos de IA menores a US$ 1 se muestran con hasta 4 decimales (`usdIa()`), los totales siguen sumando sin redondear.
+   - Celular: `.main-inner{min-width:0}`, avisos y pies con `overflow-wrap`, filtros que no desbordan, modal del gasto más angosto con letra de 16px (evita el zoom de iOS) y la lista de categorías con scroll propio. Las tablas ya tenían scroll dentro de su tarjeta (`.table-card`).
+   - Diagnóstico de los estados «Error» / «Revisar» de la sync: ver el resumen de la sesión (solo lectura; la sync no se tocó).
+0d. (17/10) IA: CLIENTE Y COSTO EN ia_uso (número 177 asignado por el jefe), SIN correr, sin commit, `deno check` NO corrido:
+   - Las 4 Edge Functions de IA de este repo (ventas-ia-leads calificacion_leads/haiku, ventas-ia-llamadas analisis_llamada y devolucion_semanal/sonnet, ia-lectura-mensual lectura_mensual/sonnet, comprobante-leer leer_comprobante/sonnet) llaman a Claude solo vía `_shared/ia.ts`; no hay Gemini en este repo. Ya pasaban el cliente de las tablas fin_* ('liam'/'agus'/'teo').
+   - `_shared/ia.ts`: nueva `clienteParaUso()` (minúsculas/trim; si no es liam/agus/teo → 'dystopia', incluido null) aplicada al insertar en ia_uso. Precios ya correctos y en un solo lugar (PRECIOS): haiku-5-5 0,10/0,50 (>100K: 0,50/2,50), sonnet-5-5 2/10, haiku-4-5 1/5.
+   - migraciones/177_ia_uso_cliente_y_costo.sql: respaldo ia_uso_bak_177 (exige columna id), normaliza cliente de nuestras 5 funciones, recalcula costo 0/null con tokens para modelos Claude (no Gemini). Controles C1-C6 y vuelta atrás.
+   - REDEPLOY: las 4 funciones (importan ../_shared/ia.ts).
 0c. (17/10) DYSTOPIA + GASTOS + GASTO DE IA POR CLIENTE (número 174 asignado por el jefe), SIN correr, sin commit; `node --check` y SQL NO probados (no hubo permiso para correr node, y no se ejecuta SQL):
    - migraciones/174_finanzas_dystopia_gastos_ia.sql (3 bloques por separado + humo que revierte + controles C1 a C9 + vuelta atrás): tablas `fin_dys_acceso` (quién más ve Dystopia/Gastos/edita; vacía),
      `fin_gasto_categorias` (6 predeterminadas, clave 'ia' = destino del gasto de IA automático), `fin_gastos` (baja lógica, USD/ARS con tipo de cambio por gasto, recurrente con fin, reparto
@@ -358,6 +371,8 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+- (17/10) QA 174: probar en navegador los 6 arreglos (0e), incluido celular 390px y el formulario «Nuevo gasto». Opcional, con número del jefe: migración que cambie en `fin_v_gastos_mes` el texto «Uso de IA (automatico desde ia_uso)» por «Uso de IA (automático desde el uso de IA)» y que no redondee a 2 decimales las filas de IA (hoy el front lo tapa). Diagnóstico de la sync (Teo «Error», Liam y Agus «Revisar»): corre el jefe las queries del resumen de la sesión.
+- (17/10) Correr migración 177 y redesplegar comprobante-leer, ia-lectura-mensual, ventas-ia-leads y ventas-ia-llamadas (con _shared/ia.ts). Sin esto el código nuevo no rige.
 0c. Dystopia/Gastos/IA (174): (1) correr los bloques 1, 2 y 3 (humo) de la 174 por separado, fuera de :00/:15/:30/:45 y las 9:00; si la guarda dice que ia_uso no tiene alguna columna, mirar `select * from ia_uso limit 1` y ajustar nombres;
     (2) controles C1 a C12 de a uno (C4/C5 muestran cuánta IA queda sin asignar y por qué; C7 compara la base con el P&L; C10 debe dar 0 filas); (3) `node --check` de los .js nuevos y probar en navegador (tema oscuro/claro, móvil);
     (4) decisiones tomadas el 17/10 (base cash, % desde 2026-01-01, IA sin asignar a Dystopia, TC fijo); pendiente opcional: TC por mes puntual en recurrentes en ARS (requiere tabla de excepciones);

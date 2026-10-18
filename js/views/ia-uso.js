@@ -2,7 +2,7 @@
    app y función. Lo que no se pudo asignar a un cliente aparece como «Sin asignar → Dystopia», se marca y suma en Dystopia. */
 import { esc, fmtNum } from '../ui.js';
 import { usd } from '../datos.js';
-import { iaUsoMes, nombreFila, sumar, claveMes, mesesDe, etiquetaMes, PROVEEDORES } from '../gastos.js';
+import { iaUsoMes, nombreFila, sumar, claveMes, mesesDe, etiquetaMes, PROVEEDORES, usdIa, llamadas } from '../gastos.js';
 import { vacio, botonRecargar } from './comunes.js';
 
 const ORDEN_ENT = ['liam', 'agus', 'teo', 'dystopia'];
@@ -12,7 +12,7 @@ const cmp = (a, b) => ORDEN_ENT.indexOf(a.entidad) - ORDEN_ENT.indexOf(b.entidad
 export async function vistaIaUso(el, vigente) {
   const filas = await iaUsoMes();
   if (!vigente()) return;
-  if (!filas.length) { el.innerHTML = vacio('Todavía no hay uso de IA registrado', 'Se llena solo con lo que escriben las apps en ia_uso.'); return; }
+  if (!filas.length) { el.innerHTML = vacio('Todavía no hay uso de IA registrado', 'Se llena solo con el uso de IA que registran las apps.'); return; }
   const meses = mesesDe(filas);
   let mes = meses[0];
 
@@ -31,10 +31,10 @@ export async function vistaIaUso(el, vigente) {
     const totalUsd = sumar(resumen, 'usd'), sinCosto = sumar(resumen, 'sin_costo'), llam = sumar(resumen, 'llamadas');
 
     const fila = r => `<tr class="${r.sin_asignar ? 'fila-alerta' : ''}">
-      <td>${esc(nombreFila(r))}</td><td>${esc(PROVEEDORES[r.proveedor] || r.proveedor)}</td>
+      <td class="ajusta">${esc(nombreFila(r))}</td><td>${esc(PROVEEDORES[r.proveedor] || r.proveedor)}</td>
       <td class="num">${fmtNum(r.llamadas)}</td>
       <td class="num">${r.sin_costo ? `<span class="txt-ambar">${fmtNum(r.sin_costo)}</span>` : '0'}</td>
-      <td class="num">${usd(r.usd, { centavos: true })}</td></tr>`;
+      <td class="num">${usdIa(r.usd)}</td></tr>`;
 
     const detalle = [...delMes].sort((a, b) => cmp(a, b) || a.proveedor.localeCompare(b.proveedor)
       || String(a.app).localeCompare(String(b.app)) || String(a.funcion).localeCompare(String(b.funcion)));
@@ -46,9 +46,9 @@ export async function vistaIaUso(el, vigente) {
         <span class="grow"></span>${botonRecargar()}
       </div>
       ${sinAsig.length ? `<div class="card nota aviso-ambar"><strong>Sin asignar: ${usd(sumar(sinAsig, 'usd'), { centavos: true })}</strong>
-        (${fmtNum(sumar(sinAsig, 'llamadas'))} llamadas) en ${esc(etiquetaMes(mes))}. El cliente de esas llamadas no es liam, agus, teo ni dystopia
+        (${llamadas(sumar(sinAsig, 'llamadas'))}) en ${esc(etiquetaMes(mes))}. El cliente de esas llamadas no es Liam, Agus, Teo ni Dystopia
         (vacío o un identificador que no es un cliente). Se carga 100% a Dystopia (categoría IA) y suma en sus gastos.</div>` : ''}
-      ${sinCosto ? `<div class="card nota aviso-ambar">${fmtNum(sinCosto)} de ${fmtNum(llam)} llamadas del mes figuran con costo 0 o vacío:
+      ${sinCosto ? `<div class="card nota aviso-ambar">${fmtNum(sinCosto)} de ${llamadas(llam)} del mes ${sinCosto === 1 ? 'figura' : 'figuran'} con costo 0 o vacío:
         el total puede estar subestimado.</div>` : ''}
       <div class="card-titulo">${esc(etiquetaMes(mes))}: cliente × proveedor · Total ${usd(totalUsd, { centavos: true })}</div>
       <div class="card table-card"><table class="data-table">
@@ -59,12 +59,13 @@ export async function vistaIaUso(el, vigente) {
         <thead><tr><th>Cliente</th><th>Proveedor</th><th>App</th><th>Función</th><th class="num">Llamadas</th><th class="num">Con error</th>
           <th class="num">Tokens (ent. / sal.)</th><th class="num">Costo (USD)</th></tr></thead>
         <tbody>${detalle.map(f => `<tr class="${f.sin_asignar ? 'fila-alerta' : ''}">
-          <td>${esc(nombreFila(f))}</td><td>${esc(PROVEEDORES[f.proveedor] || f.proveedor)}</td>
+          <td class="ajusta">${esc(nombreFila(f))}</td><td>${esc(PROVEEDORES[f.proveedor] || f.proveedor)}</td>
           <td>${esc(f.app)}</td><td>${esc(f.funcion)}</td><td class="num">${fmtNum(f.llamadas)}</td><td class="num">${fmtNum(f.con_error)}</td>
           <td class="num">${fmtNum(f.tokens_entrada)} / ${fmtNum(f.tokens_salida)}</td>
-          <td class="num">${usd(f.costo_usd, { centavos: true })}</td></tr>`).join('')}</tbody></table></div>
-      <div class="table-foot">Sale de ia_uso (hora de Argentina). Proveedor según el modelo: claude* = Claude, gemini* = Gemini. En Gastos, el costo asignado
-        aparece solo como categoría IA de cada cliente, con el reparto según comisión.</div>`;
+          <td class="num">${usdIa(f.costo_usd)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="table-foot">Sale del registro de uso de IA (hora de Argentina). El proveedor se deduce del modelo usado. Los totales suman los costos sin redondear y se
+        redondean solo al mostrarlos; los montos menores a US$ 1 se ven con hasta 4 decimales. En Gastos, el costo asignado aparece solo como categoría IA de cada cliente,
+        con el reparto según comisión.</div>`;
 
     el.querySelector('#ia-mes').onchange = e => { mes = e.target.value; pintar(); };
     el.querySelector('#btn-recargar').onclick = () => vistaIaUso(el, vigente);

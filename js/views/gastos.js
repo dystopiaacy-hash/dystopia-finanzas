@@ -5,7 +5,7 @@
 import { esc, fmtPct, confirmar, toast, fmtFecha } from '../ui.js';
 import { usd } from '../datos.js';
 import { gastosMes, gastosCargados, categorias, gastoBaja, editaGastos, nombreEntidad, nombreFila, nombreReparto, sumar, claveMes, mesesDe,
-  etiquetaMes, ENTIDADES } from '../gastos.js';
+  etiquetaMes, ENTIDADES, descGasto, llamadas } from '../gastos.js';
 import { vacio, botonRecargar } from './comunes.js';
 import { abrirFormGasto } from './gastos-form.js';
 import { abrirCategorias } from './gastos-categorias.js';
@@ -20,7 +20,7 @@ function totales(filas, clave, etiqueta) {
     a.total += Number(f.monto_usd) || 0; a.dys += Number(f.usd_dystopia) || 0; a.cli += Number(f.usd_cliente) || 0;
     m.set(k, a);
   }
-  return [...m.values()].map(a => `<tr><td>${esc(etiqueta(a.k))}</td><td class="num">${u(a.total)}</td><td class="num">${u(a.dys)}</td><td class="num">${u(a.cli)}</td></tr>`).join('');
+  return [...m.values()].map(a => `<tr><td class="ajusta">${esc(etiqueta(a.k))}</td><td class="num">${u(a.total)}</td><td class="num">${u(a.dys)}</td><td class="num">${u(a.cli)}</td></tr>`).join('');
 }
 const tablaTot = (titulo, cabecera, cuerpo) => `<div><div class="card-titulo">${esc(titulo)}</div><div class="card table-card"><table class="data-table">
   <thead><tr><th>${esc(cabecera)}</th><th class="num">Total</th><th class="num">Dystopia</th><th class="num">Cliente</th></tr></thead>
@@ -76,9 +76,9 @@ export async function vistaGastos(el, vigente) {
         <thead><tr><th>Mes</th><th>Entidad</th><th>Categoría</th><th>Descripción</th><th class="num">Monto</th><th class="num">USD</th>
           <th>Reparto</th><th class="num">Dystopia</th><th class="num">Cliente</th><th></th></tr></thead>
         <tbody>${f.map(x => `<tr class="${x.sin_asignar ? 'fila-alerta' : ''}">
-          <td>${esc(etiquetaMes(claveMes(x.mes)))}</td><td>${esc(nombreFila(x))}</td><td>${esc(x.categoria || '—')}</td>
-          <td>${esc(x.descripcion)}${x.recurrente ? ' <span class="badge">Mensual</span>' : ''}${x.origen === 'ia_auto' ? ' <span class="badge">Automático</span>' : ''}
-            ${x.llamadas_sin_costo > 0 ? `<div class="hint">${x.llamadas_sin_costo} llamadas sin costo registrado</div>` : ''}
+          <td>${esc(etiquetaMes(claveMes(x.mes)))}</td><td>${esc(nombreFila(x))}</td><td class="ajusta">${esc(x.categoria || '—')}</td>
+          <td class="ajusta">${esc(descGasto(x))}${x.recurrente ? ' <span class="badge">Mensual</span>' : ''}${x.origen === 'ia_auto' ? ' <span class="badge">Automático</span>' : ''}
+            ${x.llamadas_sin_costo > 0 ? `<div class="hint">${llamadas(x.llamadas_sin_costo)} sin costo registrado</div>` : ''}
             ${x.nota ? `<div class="hint">${esc(x.nota)}</div>` : ''}</td>
           <td class="num">${x.moneda === 'ARS' ? `ARS ${Number(x.monto_original).toLocaleString('es-AR')}<div class="hint">a ${Number(x.tipo_cambio).toLocaleString('es-AR')}</div>` : u(x.monto_original)}</td>
           <td class="num">${u(x.monto_usd)}</td>
@@ -90,7 +90,7 @@ export async function vistaGastos(el, vigente) {
       <div class="table-foot">Los gastos en pesos se pasan a USD con el tipo de cambio de cada gasto. Un gasto mensual se repite desde su fecha hasta su fecha de fin
         (o hasta el mes actual). «Compartido según comisión»: Dystopia paga el % de comisión vigente en cada mes y el cliente el resto.</div>
       ${bajas.length ? `<div class="card-titulo">Dados de baja</div><div class="card table-card"><table class="data-table"><tbody>
-        ${bajas.map(g => `<tr><td>${esc(fmtFecha(g.fecha))}</td><td>${esc(nombreEntidad(g.entidad))}</td><td>${esc(g.descripcion)}</td>
+        ${bajas.map(g => `<tr><td>${esc(fmtFecha(g.fecha))}</td><td>${esc(nombreEntidad(g.entidad))}</td><td class="ajusta">${esc(g.descripcion)}</td>
           <td class="num">${g.moneda} ${Number(g.monto).toLocaleString('es-AR')}</td>
           <td>${puede ? `<button type="button" class="btn btn-sm" data-reactivar="${g.id}">Reactivar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
 

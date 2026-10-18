@@ -27,7 +27,7 @@ export async function abrirFormGasto(g, cats, alGuardar) {
         tc0 != null && nuevo ? 'Pre-llenado con el último usado.' : '')}</div>
       ${fila('g-fecha', 'Fecha', `<input type="date" id="g-fecha" value="${esc(v.fecha || '')}">`)}
       <div class="form-row"><label>&nbsp;</label><div class="hint" id="g-eq"></div></div>
-      <div>${fila('g-rec', 'Recurrente', `<label class="m-check"><input type="checkbox" id="g-rec"${v.recurrente ? ' checked' : ''}> Se repite todos los meses</label>`)}</div>
+      <div>${fila('g-rec', 'Recurrente', `<label class="chk-linea"><input type="checkbox" id="g-rec"${v.recurrente ? ' checked' : ''}> Se repite todos los meses</label>`)}</div>
       <div id="g-hasta-wrap">${fila('g-hasta', 'Termina (opcional)', `<input type="date" id="g-hasta" value="${esc(v.recurrente_hasta || '')}">`, 'Si se deja vacío, sigue hasta que se dé de baja.')}</div>
       <div id="g-reparto-wrap" class="campo-ancho">${fila('g-reparto', 'Reparto', `<select id="g-reparto">${opt(REPARTOS, v.reparto)}</select>`,
         'Compartido: Dystopia paga su % de comisión de ese mes y el cliente el resto.')}</div>

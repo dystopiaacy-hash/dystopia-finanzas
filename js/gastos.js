@@ -76,6 +76,15 @@ export async function categoriaGuardar(id, campos) {
   if (error) throw error;
 }
 
+/* Montos de IA: son centavos de dólar, así que por debajo de US$ 1 se muestran hasta 4 decimales (así las filas suman
+   lo que dice el total). Las cuentas se hacen siempre con los valores sin redondear; se redondea solo al mostrar. */
+const fmtIa4 = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const fmtIa2 = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const usdIa = n => (n == null || isNaN(n) ? '—' : (Math.abs(Number(n)) < 1 ? fmtIa4 : fmtIa2).format(Number(n)));
+/* La descripción del gasto automático de IA viene de la base con el nombre de la tabla: se muestra en lenguaje normal. */
+export const descGasto = x => String(x.descripcion || '').replace(/\(autom[aá]tico desde ia_uso\)/i, '(automático desde el uso de IA)');
+export const llamadas = n => `${n} ${Number(n) === 1 ? 'llamada' : 'llamadas'}`;
+
 /* ---------- Cuentas ---------- */
 export const sumar = (filas, campo) => filas.reduce((a, f) => a + (Number(f[campo]) || 0), 0);
 export const claveMes = m => String(m).slice(0, 7);   // 'YYYY-MM-01' -> 'YYYY-MM'

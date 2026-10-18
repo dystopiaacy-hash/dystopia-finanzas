@@ -9,3 +9,21 @@
 .grid-2 > div{min-width:0;margin-bottom:var(--sp-2);}
 .data-table td .hint{font-size:var(--fs-micro);color:var(--text-faint);font-weight:500;font-family:var(--font-body, inherit);}
 .data-table td input[type=text]{width:100%;min-width:160px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:var(--control-h-sm);padding:0 var(--sp-2);color:var(--ink);}
+/* Texto que puede hacer salto de línea en tablas (nombres de categoría, descripciones, entidades). */
+.data-table td.ajusta{white-space:normal;max-width:none;overflow:visible;min-width:130px;overflow-wrap:anywhere;padding-top:var(--sp-2);padding-bottom:var(--sp-2);}
+/* Casilla con su texto en una línea (no hereda el ancho de 16px de .m-check). */
+.form-row label.chk-linea{display:flex;align-items:center;gap:var(--sp-2);margin:0;min-height:var(--control-h);font-size:var(--fs-body);font-weight:500;color:var(--ink);cursor:pointer;}
+.chk-linea input{flex:none;width:16px;height:16px;margin:0;accent-color:var(--accent);}
+#cat-lista{overflow-x:auto;}
+/* Celular: sin scroll horizontal de página; las tablas se desplazan dentro de su tarjeta. */
+.main-inner{min-width:0;}
+.card.nota,.card-titulo,.table-foot{overflow-wrap:anywhere;}
+@media(max-width:600px){
+  .filter-row select{max-width:100%;}
+  .filter-row .grow{flex-basis:100%;height:0;}
+  .modal-overlay:has(#g-form){padding:var(--sp-2);align-items:flex-end;}
+  .modal-box:has(#g-form){padding:var(--sp-4);max-height:94vh;}
+  .modal-foot:has(#g-guardar),.modal-foot:has(#g-cancelar){flex-wrap:wrap;}
+  #g-form input,#g-form select,#g-form textarea{font-size:16px;}
+  .data-table td input[type=text]{min-width:120px;}
+}
