@@ -50,6 +50,11 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0g. (17/10) CELULAR (≤600px) DE DYSTOPIA / GASTOS / GASTO DE IA, solo presentación, sin SQL ni migración ni commit; NO probado en navegador ni con `node --check`:
+   - Tablas a tarjetas: clase `.tabla-tarjetas` (css/gastos.css, bloque @media 600px). Cada fila es una tarjeta: primera celda = título, celda `.clave` (Neto / Total / USD / Costo / Monto) justo debajo, resto como «RÓTULO: valor». Mismo patrón que `.tabla-clientes` (vistas.css). Escritorio sin cambios.
+   - `etiquetarTablas(el)` en js/views/comunes.js copia el encabezado de cada columna a `data-label` y marca `.clave` (th.clave). Llamada al final del render en dystopia.js, gastos.js, ia-uso.js. Dados de baja (Gastos) ahora tiene encabezado (solo para los rótulos; se oculta en celular, en escritorio se ve una fila de títulos nueva).
+   - Menú de secciones (css/responsive.css, @media 600px, COMPARTIDO: afecta la barra de todas las pantallas en celular): sidebar con wrap, lista a ancho completo en 2 columnas con texto entero, sin subtítulos.
+   - Filtros (gastos.css): rótulo arriba de cada select, a ancho completo (afecta todo `.filter-row` en celular, incl. Dystopia y Gasto de IA).
 0e. (17/10) QA DE DYSTOPIA / GASTOS / GASTO DE IA: 6 ARREGLOS DE FRONT (sin SQL, sin migración, sin commit; NO probado en navegador ni con `node --check`):
    - Casilla «Recurrente» (gastos-form.js): la etiqueta usaba `.m-check` (16px de ancho, pensada para la casilla sola), por eso el texto se partía palabra por palabra. Ahora `.chk-linea` (flex, una línea).
    - Dystopia, «Todos los meses»: columnas Ingreso Liam/Agus/Teo + Ingreso, Gastos, de los cuales IA, Neto; solo los meses del año del mes elegido y fila «Total <año>» (suma de valores sin redondear).
@@ -375,6 +380,7 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+- (17/10) Probar en navegador a 390px (0g): Dystopia (2 tablas), Gastos (totales, Detalle, Dados de baja), Gasto de IA (2 tablas), menú de secciones y filtros; y revisar a 1280px+ que nada cambió. Mirar también que el menú en 2 columnas se vea bien en las demás pantallas (cambio compartido).
 - (17/10) Correr migración 179 (control A antes, bloque, controles B2-E después; fuera de :00/:15/:30/:45 y de las 9:00) y probar Gastos: filas de IA con hasta 4 decimales. Sin la migración el front no muestra más decimales (la vista los redondea). Sigue pendiente el texto «automatico desde ia_uso» de la vista (se tapa en el front con `descGasto()`).
 - (17/10) QA 174: probar en navegador los 6 arreglos (0e), incluido celular 390px y el formulario «Nuevo gasto». Opcional, con número del jefe: migración que cambie en `fin_v_gastos_mes` el texto «Uso de IA (automatico desde ia_uso)» por «Uso de IA (automático desde el uso de IA)» y que no redondee a 2 decimales las filas de IA (hoy el front lo tapa). Diagnóstico de la sync (Teo «Error», Liam y Agus «Revisar»): corre el jefe las queries del resumen de la sesión.
 - (17/10) Correr migración 177 y redesplegar comprobante-leer, ia-lectura-mensual, ventas-ia-leads y ventas-ia-llamadas (con _shared/ia.ts). Sin esto el código nuevo no rige.

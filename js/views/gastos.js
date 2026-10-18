@@ -6,7 +6,7 @@ import { esc, fmtPct, confirmar, toast, fmtFecha } from '../ui.js';
 import { usd } from '../datos.js';
 import { gastosMes, gastosCargados, categorias, gastoBaja, editaGastos, nombreEntidad, nombreFila, nombreReparto, sumar, claveMes, mesesDe,
   etiquetaMes, ENTIDADES, descGasto, llamadas } from '../gastos.js';
-import { vacio, botonRecargar } from './comunes.js';
+import { vacio, botonRecargar, etiquetarTablas } from './comunes.js';
 import { abrirFormGasto } from './gastos-form.js';
 import { abrirCategorias } from './gastos-categorias.js';
 
@@ -25,8 +25,8 @@ function totales(filas, clave, etiqueta) {
   }
   return [...m.values()].map(a => `<tr><td class="ajusta">${esc(etiqueta(a.k))}</td><td class="num">${u(a.total)}</td><td class="num">${u(a.dys)}</td><td class="num">${u(a.cli)}</td></tr>`).join('');
 }
-const tablaTot = (titulo, cabecera, cuerpo) => `<div><div class="card-titulo">${esc(titulo)}</div><div class="card table-card"><table class="data-table">
-  <thead><tr><th>${esc(cabecera)}</th><th class="num">Total</th><th class="num">Dystopia</th><th class="num">Cliente</th></tr></thead>
+const tablaTot = (titulo, cabecera, cuerpo) => `<div><div class="card-titulo">${esc(titulo)}</div><div class="card table-card"><table class="data-table tabla-tarjetas">
+  <thead><tr><th>${esc(cabecera)}</th><th class="num clave">Total</th><th class="num">Dystopia</th><th class="num">Cliente</th></tr></thead>
   <tbody>${cuerpo || '<tr><td colspan="4">Sin gastos</td></tr>'}</tbody></table></div></div>`;
 
 export async function vistaGastos(el, vigente) {
@@ -75,8 +75,8 @@ export async function vistaGastos(el, vigente) {
       </div>
       ${estado.mes ? '' : tablaTot('Por mes', 'Mes', totales(asignados, x => claveMes(x.mes), etiquetaMes))}
       <div class="card-titulo">Detalle</div>
-      ${f.length ? `<div class="card table-card"><table class="data-table">
-        <thead><tr><th>Mes</th><th>Entidad</th><th>Categoría</th><th>Descripción</th><th class="num">Monto</th><th class="num">USD</th>
+      ${f.length ? `<div class="card table-card"><table class="data-table tabla-tarjetas">
+        <thead><tr><th>Mes</th><th>Entidad</th><th>Categoría</th><th>Descripción</th><th class="num">Monto</th><th class="num clave">USD</th>
           <th>Reparto</th><th class="num">Dystopia</th><th class="num">Cliente</th><th></th></tr></thead>
         <tbody>${f.map(x => `<tr class="${x.sin_asignar ? 'fila-alerta' : ''}">
           <td>${esc(etiquetaMes(claveMes(x.mes)))}</td><td>${esc(nombreFila(x))}</td><td class="ajusta">${esc(x.categoria || '—')}</td>
@@ -92,11 +92,13 @@ export async function vistaGastos(el, vigente) {
       </table></div>` : vacio('No hay gastos con estos filtros', puede ? 'Cargá uno con «Nuevo gasto».' : '')}
       <div class="table-foot">Los gastos en pesos se pasan a USD con el tipo de cambio de cada gasto. Un gasto mensual se repite desde su fecha hasta su fecha de fin
         (o hasta el mes actual). «Compartido según comisión»: Dystopia paga el % de comisión vigente en cada mes y el cliente el resto.</div>
-      ${bajas.length ? `<div class="card-titulo">Dados de baja</div><div class="card table-card"><table class="data-table"><tbody>
+      ${bajas.length ? `<div class="card-titulo">Dados de baja</div><div class="card table-card"><table class="data-table tabla-tarjetas">
+        <thead><tr><th>Fecha</th><th>Entidad</th><th>Descripción</th><th class="num clave">Monto</th><th></th></tr></thead><tbody>
         ${bajas.map(g => `<tr><td>${esc(fmtFecha(g.fecha))}</td><td>${esc(nombreEntidad(g.entidad))}</td><td class="ajusta">${esc(g.descripcion)}</td>
           <td class="num">${g.moneda} ${Number(g.monto).toLocaleString('es-AR')}</td>
           <td>${puede ? `<button type="button" class="btn btn-sm" data-reactivar="${g.id}">Reactivar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
 
+    etiquetarTablas(el);
     el.querySelector('#f-mes').onchange = e => { estado.mes = e.target.value; pintar(); };
     el.querySelector('#f-ent').onchange = e => { estado.entidad = e.target.value; pintar(); };
     el.querySelector('#f-cat').onchange = e => { estado.cat = e.target.value; pintar(); };

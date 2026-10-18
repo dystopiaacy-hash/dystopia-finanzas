@@ -4,7 +4,7 @@
 import { esc, fmtPct } from '../ui.js';
 import { usd } from '../datos.js';
 import { dysMes, iaUsoMes, nombreEntidad, sumar, claveMes, mesesDe, etiquetaMes, veGastos, veIaUso, llamadas } from '../gastos.js';
-import { statCard, vacio, botonRecargar } from './comunes.js';
+import { statCard, vacio, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const ORDEN_CLI = ['liam', 'agus', 'teo'];
 const neto = n => `<span class="${n < 0 ? 'txt-rojo' : ''}">${usd(n, { centavos: true })}</span>`;
@@ -69,9 +69,9 @@ export async function vistaDystopia(el, vigente) {
         ${statCard(usd(ingreso - gastos, { centavos: true }), 'Ganancia neta', { alerta: ingreso - gastos < 0 })}
       </div>
       <div class="card-titulo">${esc(etiquetaMes(mes))} por cliente</div>
-      <div class="card table-card"><table class="data-table">
+      <div class="card table-card"><table class="data-table tabla-tarjetas">
         <thead><tr><th>Cliente</th><th class="num">Base (ingreso real)</th><th class="num">% Dystopia</th><th class="num">Ingreso</th>
-          <th class="num">Gastos Dystopia</th><th class="num">de los cuales IA</th><th class="num">Neto</th></tr></thead>
+          <th class="num">Gastos Dystopia</th><th class="num">de los cuales IA</th><th class="num clave">Neto</th></tr></thead>
         <tbody>${clientes.map(filaTabla).join('')}${propia ? filaTabla(propia) : ''}
           <tr class="pnl-fuerte"><td>Total</td><td></td><td></td><td class="num">${usd(ingreso, { centavos: true })}</td>
             <td class="num">${usd(gastos, { centavos: true })}</td><td class="num">${usd(sumar(delMes, 'gasto_ia_dystopia_usd'), { centavos: true })}</td>
@@ -81,10 +81,11 @@ export async function vistaDystopia(el, vigente) {
         Gastos Dystopia = gastos propios + el % de Dystopia de los gastos de cada cliente (reparto «compartido según comisión»: ese mismo %;
         «100% Dystopia»: todo; «100% cliente»: nada). El detalle está en Gastos.</div>
       <div class="card-titulo">Todos los meses de ${esc(anio)}</div>
-      <div class="card table-card"><table class="data-table">
+      <div class="card table-card"><table class="data-table tabla-tarjetas">
         <thead><tr><th>Mes</th>${cols.map(c => `<th class="num">Ingreso ${esc(nombreEntidad(c))}</th>`).join('')}<th class="num">Ingreso</th>
-          <th class="num">Gastos</th><th class="num">de los cuales IA</th><th class="num">Neto</th></tr></thead>
+          <th class="num">Gastos</th><th class="num">de los cuales IA</th><th class="num clave">Neto</th></tr></thead>
         <tbody>${hist}</tbody></table></div>`;
+    etiquetarTablas(el);
 
     el.querySelector('#dys-mes').onchange = e => { mes = e.target.value; pintar(); };
     el.querySelector('#btn-recargar').onclick = () => vistaDystopia(el, vigente);

@@ -19,8 +19,33 @@
 .main-inner{min-width:0;}
 .card.nota,.card-titulo,.table-foot{overflow-wrap:anywhere;}
 @media(max-width:600px){
-  .filter-row select{max-width:100%;}
+  /* Filtros: cada rótulo arriba de su control, uno debajo del otro. */
+  .filter-row .flabel{flex:0 0 100%;margin:var(--sp-1) 0 0;}
+  .filter-row select{flex:0 0 100%;width:100%;max-width:100%;}
   .filter-row .grow{flex-basis:100%;height:0;}
+  /* Tablas `.tabla-tarjetas` (Dystopia, Gastos, Gasto de IA): cada fila es una tarjeta, el monto
+     destacado (celda .clave) va justo debajo del título y no hay que deslizar de costado. */
+  .table-card:has(> .tabla-tarjetas){overflow:visible;background:transparent;border:none;box-shadow:none;}
+  .tabla-tarjetas,.tabla-tarjetas tbody{display:block;width:auto;}
+  .tabla-tarjetas thead{display:none;}
+  .tabla-tarjetas tr{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-bottom:var(--sp-3);padding:var(--sp-2) var(--sp-3);}
+  .tabla-tarjetas td{display:flex;justify-content:space-between;align-items:baseline;gap:var(--sp-3);height:auto;min-width:0;max-width:none;
+    white-space:normal;overflow:visible;overflow-wrap:anywhere;text-align:right;border-bottom:1px solid var(--border-soft);padding:var(--sp-2) 0;}
+  .tabla-tarjetas tbody tr:last-child td{border-bottom:1px solid var(--border-soft);}
+  .tabla-tarjetas tr td:last-child{border-bottom:none;}
+  .tabla-tarjetas td::before{content:attr(data-label);flex:0 0 auto;max-width:55%;text-align:left;font-size:var(--fs-micro);font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint);font-family:var(--font-body, inherit);}
+  .tabla-tarjetas td:empty{display:none;}
+  /* Primera celda = título de la tarjeta; su rótulo sobra. */
+  .tabla-tarjetas td:first-child{order:-2;display:block;text-align:left;font-weight:700;color:var(--ink);font-size:var(--fs-card);}
+  .tabla-tarjetas td:first-child::before{display:none;}
+  .tabla-tarjetas td.clave{order:-1;font-size:var(--fs-card);font-weight:800;color:var(--ink);}
+  .tabla-tarjetas tbody tr:hover td{background:transparent;}
+  .tabla-tarjetas tr.fila-alerta,.tabla-tarjetas tr.fila-activa{background:var(--surface);}
+  .tabla-tarjetas tr.fila-alerta td{background:var(--warning-soft);}
+  .tabla-tarjetas tr.fila-activa td{background:var(--accent-soft);}
+  .tabla-tarjetas td .hint{display:block;}
   .modal-overlay:has(#g-form){padding:var(--sp-2);align-items:flex-end;}
   .modal-box:has(#g-form){padding:var(--sp-4);max-height:94vh;}
   .modal-foot:has(#g-guardar),.modal-foot:has(#g-cancelar){flex-wrap:wrap;}

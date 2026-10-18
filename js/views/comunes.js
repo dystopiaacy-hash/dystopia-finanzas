@@ -90,6 +90,23 @@ export function badgeEstado(clave) {
   return semaforo(e.nivel, e.texto);
 }
 
+/* Celular: copia el encabezado de cada columna al data-label de sus celdas (las tablas
+   `.tabla-tarjetas` pasan a tarjetas en css/gastos.css). Una `th.clave` marca la celda
+   que se destaca arriba de la tarjeta. Las filas con colspan se dejan como están. */
+export function etiquetarTablas(el) {
+  for (const t of el.querySelectorAll('table.tabla-tarjetas')) {
+    const ths = [...t.querySelectorAll('thead th')];
+    for (const tr of t.querySelectorAll('tbody tr')) {
+      [...tr.children].forEach((td, i) => {
+        if (td.colSpan > 1 || !ths[i]) return;
+        const rotulo = ths[i].textContent.trim();
+        if (rotulo) td.dataset.label = rotulo;
+        if (ths[i].classList.contains('clave')) td.classList.add('clave');
+      });
+    }
+  }
+}
+
 export function botonRecargar(id = 'btn-recargar') {
   return `<button type="button" class="btn btn-sm" id="${id}">↻ Recargar</button>`;
 }

@@ -3,7 +3,7 @@
 import { esc, fmtNum } from '../ui.js';
 import { usd } from '../datos.js';
 import { iaUsoMes, nombreFila, sumar, claveMes, mesesDe, etiquetaMes, PROVEEDORES, usdIa, llamadas } from '../gastos.js';
-import { vacio, botonRecargar } from './comunes.js';
+import { vacio, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const ORDEN_ENT = ['liam', 'agus', 'teo', 'dystopia'];
 /* Dystopia propia primero, la IA sin asignar (también de Dystopia) justo después. */
@@ -51,13 +51,13 @@ export async function vistaIaUso(el, vigente) {
       ${sinCosto ? `<div class="card nota aviso-ambar">${fmtNum(sinCosto)} de ${llamadas(llam)} del mes ${sinCosto === 1 ? 'figura' : 'figuran'} con costo 0 o vacío:
         el total puede estar subestimado.</div>` : ''}
       <div class="card-titulo">${esc(etiquetaMes(mes))}: cliente × proveedor · Total ${usd(totalUsd, { centavos: true })}</div>
-      <div class="card table-card"><table class="data-table">
-        <thead><tr><th>Cliente</th><th>Proveedor</th><th class="num">Llamadas</th><th class="num">Sin costo</th><th class="num">Costo (USD)</th></tr></thead>
+      <div class="card table-card"><table class="data-table tabla-tarjetas">
+        <thead><tr><th>Cliente</th><th>Proveedor</th><th class="num">Llamadas</th><th class="num">Sin costo</th><th class="num clave">Costo (USD)</th></tr></thead>
         <tbody>${resumen.map(fila).join('')}</tbody></table></div>
       <div class="card-titulo">Detalle por app y función</div>
-      <div class="card table-card"><table class="data-table">
+      <div class="card table-card"><table class="data-table tabla-tarjetas">
         <thead><tr><th>Cliente</th><th>Proveedor</th><th>App</th><th>Función</th><th class="num">Llamadas</th><th class="num">Con error</th>
-          <th class="num">Tokens (ent. / sal.)</th><th class="num">Costo (USD)</th></tr></thead>
+          <th class="num">Tokens (ent. / sal.)</th><th class="num clave">Costo (USD)</th></tr></thead>
         <tbody>${detalle.map(f => `<tr class="${f.sin_asignar ? 'fila-alerta' : ''}">
           <td class="ajusta">${esc(nombreFila(f))}</td><td>${esc(PROVEEDORES[f.proveedor] || f.proveedor)}</td>
           <td>${esc(f.app)}</td><td>${esc(f.funcion)}</td><td class="num">${fmtNum(f.llamadas)}</td><td class="num">${fmtNum(f.con_error)}</td>
@@ -67,6 +67,7 @@ export async function vistaIaUso(el, vigente) {
         redondean solo al mostrarlos; los montos menores a US$ 1 se ven con hasta 4 decimales. En Gastos, el costo asignado aparece solo como categoría IA de cada cliente,
         con el reparto según comisión.</div>`;
 
+    etiquetarTablas(el);
     el.querySelector('#ia-mes').onchange = e => { mes = e.target.value; pintar(); };
     el.querySelector('#btn-recargar').onclick = () => vistaIaUso(el, vigente);
   };
