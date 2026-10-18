@@ -11,6 +11,9 @@ import { abrirFormGasto } from './gastos-form.js';
 import { abrirCategorias } from './gastos-categorias.js';
 
 const u = n => usd(n, { centavos: true });
+/* Filas de IA automática: hasta 4 decimales (US$ 0,0034), mínimo 2. El resto y los totales, 2 decimales. */
+const fmtIa = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const uf = (x, n) => (x.origen === 'ia_auto' && n != null && !isNaN(n) ? fmtIa.format(Number(n)) : u(n));
 
 function totales(filas, clave, etiqueta) {
   const m = new Map();
@@ -80,10 +83,10 @@ export async function vistaGastos(el, vigente) {
           <td class="ajusta">${esc(descGasto(x))}${x.recurrente ? ' <span class="badge">Mensual</span>' : ''}${x.origen === 'ia_auto' ? ' <span class="badge">Automático</span>' : ''}
             ${x.llamadas_sin_costo > 0 ? `<div class="hint">${llamadas(x.llamadas_sin_costo)} sin costo registrado</div>` : ''}
             ${x.nota ? `<div class="hint">${esc(x.nota)}</div>` : ''}</td>
-          <td class="num">${x.moneda === 'ARS' ? `ARS ${Number(x.monto_original).toLocaleString('es-AR')}<div class="hint">a ${Number(x.tipo_cambio).toLocaleString('es-AR')}</div>` : u(x.monto_original)}</td>
-          <td class="num">${u(x.monto_usd)}</td>
+          <td class="num">${x.moneda === 'ARS' ? `ARS ${Number(x.monto_original).toLocaleString('es-AR')}<div class="hint">a ${Number(x.tipo_cambio).toLocaleString('es-AR')}</div>` : uf(x, x.monto_original)}</td>
+          <td class="num">${uf(x, x.monto_usd)}</td>
           <td>${esc(nombreReparto(x.reparto))}${x.reparto === 'comision' ? `<div class="hint">${fmtPct(x.porcentaje_dystopia, 1)} Dystopia</div>` : ''}</td>
-          <td class="num">${u(x.usd_dystopia)}</td><td class="num">${u(x.usd_cliente)}</td>
+          <td class="num">${uf(x, x.usd_dystopia)}</td><td class="num">${uf(x, x.usd_cliente)}</td>
           <td>${puede && x.origen === 'manual' ? `<button type="button" class="btn btn-sm" data-editar="${x.gasto_id}">Editar</button>
             <button type="button" class="btn btn-sm btn-danger" data-baja="${x.gasto_id}">Dar de baja</button>` : ''}</td></tr>`).join('')}</tbody>
       </table></div>` : vacio('No hay gastos con estos filtros', puede ? 'Cargá uno con «Nuevo gasto».' : '')}

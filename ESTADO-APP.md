@@ -58,6 +58,10 @@
    - Redondeo: la vista de Gastos redondea a 2 decimales en SQL (`round(sum(costo),2)`) y la de IA entrega 4; el front mostraba cada fila de IA a 2 y por eso 0,11 + 0,07 ≠ 0,17. Ahora los montos de IA menores a US$ 1 se muestran con hasta 4 decimales (`usdIa()`), los totales siguen sumando sin redondear.
    - Celular: `.main-inner{min-width:0}`, avisos y pies con `overflow-wrap`, filtros que no desbordan, modal del gasto más angosto con letra de 16px (evita el zoom de iOS) y la lista de categorías con scroll propio. Las tablas ya tenían scroll dentro de su tarjeta (`.table-card`).
    - Diagnóstico de los estados «Error» / «Revisar» de la sync: ver el resumen de la sesión (solo lectura; la sync no se tocó).
+0f. (17/10) Gastos de IA con más decimales (número 179 asignado por el jefe), SIN correr, sin commit:
+   - Causa: la vista interna `fin_gastos_mes_base` (mig 174, líneas 260-261 y 281-285) redondeaba a 2 decimales `monto_original`, `monto_usd`, `usd_dystopia` y `usd_cliente` de las filas de IA, y `js/views/gastos.js` las mostraba con `usd(..., {centavos:true})`. Las columnas son numeric sin escala y la vista se calcula desde `ia_uso`: no hay montos redondeados guardados.
+   - `migraciones/179-gastos-ia-mas-decimales.sql`: `create or replace` de `fin_gastos_mes_base` (mismas columnas); filas `ia_auto` con 6 decimales, manuales siguen en 2. Controles A-E y vuelta atrás.
+   - `js/views/gastos.js`: `uf()` muestra las filas `ia_auto` (monto, USD, Dystopia, Cliente) con 2 a 4 decimales; totales y tarjetas siguen en 2 decimales, sumando valores sin redondear.
 0d. (17/10) IA: CLIENTE Y COSTO EN ia_uso (número 177 asignado por el jefe), SIN correr, sin commit, `deno check` NO corrido:
    - Las 4 Edge Functions de IA de este repo (ventas-ia-leads calificacion_leads/haiku, ventas-ia-llamadas analisis_llamada y devolucion_semanal/sonnet, ia-lectura-mensual lectura_mensual/sonnet, comprobante-leer leer_comprobante/sonnet) llaman a Claude solo vía `_shared/ia.ts`; no hay Gemini en este repo. Ya pasaban el cliente de las tablas fin_* ('liam'/'agus'/'teo').
    - `_shared/ia.ts`: nueva `clienteParaUso()` (minúsculas/trim; si no es liam/agus/teo → 'dystopia', incluido null) aplicada al insertar en ia_uso. Precios ya correctos y en un solo lugar (PRECIOS): haiku-5-5 0,10/0,50 (>100K: 0,50/2,50), sonnet-5-5 2/10, haiku-4-5 1/5.
@@ -371,6 +375,7 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+- (17/10) Correr migración 179 (control A antes, bloque, controles B2-E después; fuera de :00/:15/:30/:45 y de las 9:00) y probar Gastos: filas de IA con hasta 4 decimales. Sin la migración el front no muestra más decimales (la vista los redondea). Sigue pendiente el texto «automatico desde ia_uso» de la vista (se tapa en el front con `descGasto()`).
 - (17/10) QA 174: probar en navegador los 6 arreglos (0e), incluido celular 390px y el formulario «Nuevo gasto». Opcional, con número del jefe: migración que cambie en `fin_v_gastos_mes` el texto «Uso de IA (automatico desde ia_uso)» por «Uso de IA (automático desde el uso de IA)» y que no redondee a 2 decimales las filas de IA (hoy el front lo tapa). Diagnóstico de la sync (Teo «Error», Liam y Agus «Revisar»): corre el jefe las queries del resumen de la sesión.
 - (17/10) Correr migración 177 y redesplegar comprobante-leer, ia-lectura-mensual, ventas-ia-leads y ventas-ia-llamadas (con _shared/ia.ts). Sin esto el código nuevo no rige.
 0c. Dystopia/Gastos/IA (174): (1) correr los bloques 1, 2 y 3 (humo) de la 174 por separado, fuera de :00/:15/:30/:45 y las 9:00; si la guarda dice que ia_uso no tiene alguna columna, mirar `select * from ia_uso limit 1` y ajustar nombres;
