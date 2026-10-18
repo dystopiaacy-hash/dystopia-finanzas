@@ -3,6 +3,7 @@
 import { esc } from './ui.js';
 import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, puedeVincular, soloSubeComprobante, puedeConfirmarComprobante, puedeVerLectura, etiquetaRol } from './sesion.js';
 import { botonTemaHtml, activarBotonTema } from './tema.js';
+import { veDystopia, veGastos, veIaUso } from './gastos.js';
 
 /* Íconos lineales (24x24, trazo fino) de cada pantalla. */
 const ico = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -18,6 +19,9 @@ const ICONOS = {
   lectura: ico('<path d="M4 5h16v11H9l-5 4z"/>'),
   pagos: ico('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>'),
   vincular: ico('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+  dystopia: ico('<path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6"/>'),
+  gastos: ico('<path d="M4 7h16v12H4zM4 7l2-3h12l2 3M9 13h6"/>'),
+  'ia-uso': ico('<path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3"/>'),
   alertas: ico('<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/>'),
   salud: ico('<path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5"/>')
 };
@@ -34,6 +38,9 @@ const VISTAS = [
   ['comprobantes', 'Comprobantes', 'Pendientes de confirmar', puedeConfirmarComprobante],
   ['lectura', 'Lectura del mes', 'Resumen con IA', puedeVerLectura],
   ['pagos', 'Pagos', 'Grilla y catálogos', vePagos],
+  ['dystopia', 'Dystopia', 'Ingreso y ganancia de la agencia', veDystopia],
+  ['gastos', 'Gastos', 'Por entidad y categoría', veGastos],
+  ['ia-uso', 'Gasto de IA', 'Por cliente y proveedor', veIaUso],
   ['vincular', 'Vincular alumnos', 'Finanzas con Producto', puedeVincular],
   ['alertas', 'Alertas de cobros', 'Aviso diario a Discord', esFundador],
   ['salud', 'Salud de sincronización', 'Planillas y corridas', esFundador]

@@ -22,6 +22,10 @@ import { vistaVincular } from './views/vincular.js';
 import { vistaSubirComprobante } from './views/comprobante-subir.js';
 import { vistaComprobantes } from './views/comprobantes.js';
 import { vistaLectura } from './views/lectura.js';
+import { vistaDystopia } from './views/dystopia.js';
+import { vistaGastos } from './views/gastos.js';
+import { vistaIaUso } from './views/ia-uso.js';
+import { veDystopia, veGastos, veIaUso } from './gastos.js';
 import { montarDystopita, desmontarDystopita } from './dystopita.js';
 
 const app = document.getElementById('app');
@@ -162,6 +166,22 @@ function registrarRutas() {
     renderNav({ vista: 'pagos' });
     setHeader('Pagos', 'Todos los pagos cargados, con su valor de catálogo');
     montar(vistaPagos);
+  }));
+  /* 174: Dystopia, Gastos y Gasto de IA. Solo fundador (o quien figure en fin_dys_acceso); la base lo vuelve a exigir. */
+  ruta('dystopia', guardia(veDystopia, () => {
+    renderNav({ vista: 'dystopia' });
+    setHeader('Dystopia', 'Ingreso de la agencia (comisión por cliente), gastos y ganancia neta');
+    montar(vistaDystopia);
+  }));
+  ruta('gastos', guardia(veGastos, () => {
+    renderNav({ vista: 'gastos' });
+    setHeader('Gastos', 'Por entidad, categoría y mes, con el reparto Dystopia / cliente');
+    montar(vistaGastos);
+  }));
+  ruta('ia-uso', guardia(veIaUso, () => {
+    renderNav({ vista: 'ia-uso' });
+    setHeader('Gasto de IA', 'Uso de IA por mes, cliente y proveedor');
+    montar(vistaIaUso);
   }));
   ruta('salud', guardia(esFundador, () => {
     renderNav({ vista: 'salud' });

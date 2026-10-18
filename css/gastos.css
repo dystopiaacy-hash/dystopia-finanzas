@@ -1,0 +1,11 @@
+/* Dystopia, Gastos y Gasto de IA (migración 174). Solo tokens de tema.css. */
+.aviso-ambar{background:var(--warning-soft);color:var(--warning-text);border-color:transparent;}
+.aviso-ambar a{color:inherit;text-decoration:underline;}
+.txt-ambar{color:var(--warning-text);font-weight:700;}
+.fila-alerta td{background:var(--warning-soft);}
+.fila-activa td{background:var(--accent-soft);}
+.stat-grid{margin-bottom:var(--sp-4);}
+.card-titulo + .table-card,.card-titulo + .empty-state{margin-bottom:var(--sp-4);}
+.grid-2 > div{min-width:0;margin-bottom:var(--sp-2);}
+.data-table td .hint{font-size:var(--fs-micro);color:var(--text-faint);font-weight:500;font-family:var(--font-body, inherit);}
+.data-table td input[type=text]{width:100%;min-width:160px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:var(--control-h-sm);padding:0 var(--sp-2);color:var(--ink);}

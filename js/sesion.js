@@ -6,12 +6,13 @@
    entran a Finanzas. */
 import { sb } from './supabase.js';
 import { lecturaClientes } from './lectura.js';
+import { cargarAccesoDys } from './gastos.js';   // 174: Dystopia y Gastos (círculo con gastos.js: solo se usan dentro de funciones)
 
 /* carga: filas de fin_clientes_carga() {cliente_id, habilitada, puede_anular, puede_extras}.
    areas: clientes con permisos por área (fin_clientes_por_areas, 075). */
 /* comp: filas de fin_comp_clientes() {cliente_id, nombre, puede_confirmar} (143): clientes donde sube comprobantes.
    lectura: filas de fin_lectura_clientes() {cliente_id, nombre} (148): clientes con "Lectura del mes". */
-export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [], comp: [], lectura: [] };
+export const yo = { userId: null, email: '', rol: null, nombre: '', clientes: [], carga: [], areas: [], comp: [], lectura: [], dys: { dystopia: false, gastos: false, edita: false } };
 
 const ROLES = ['fundador', 'cliente', 'closer', 'setter', 'finanzas', 'ventas'];
 /* Mismo orden que las cuentas en Dystopia. */
@@ -55,7 +56,7 @@ export async function cargarSesion(user) {
   yo.rol = mem ? mem.rol : null;
   yo.nombre = (mem && mem.nombre) || yo.email;
   if (!ROLES.includes(yo.rol)) return false;
-  [yo.clientes, yo.carga, yo.areas, yo.comp, yo.lectura] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas(), cargarComp(), lecturaClientes()]);
+  [yo.clientes, yo.carga, yo.areas, yo.comp, yo.lectura, yo.dys] = await Promise.all([cargarClientes(), cargarCarga(), cargarAreas(), cargarComp(), lecturaClientes(), cargarAccesoDys()]);
   return true;
 }
 

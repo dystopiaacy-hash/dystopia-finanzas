@@ -50,6 +50,17 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0c. (17/10) DYSTOPIA + GASTOS + GASTO DE IA POR CLIENTE (número 174 asignado por el jefe), SIN correr, sin commit; `node --check` y SQL NO probados (no hubo permiso para correr node, y no se ejecuta SQL):
+   - migraciones/174_finanzas_dystopia_gastos_ia.sql (3 bloques por separado + humo que revierte + controles C1 a C9 + vuelta atrás): tablas `fin_dys_acceso` (quién más ve Dystopia/Gastos/edita; vacía),
+     `fin_gasto_categorias` (6 predeterminadas, clave 'ia' = destino del gasto de IA automático), `fin_gastos` (baja lógica, USD/ARS con tipo de cambio por gasto, recurrente con fin, reparto
+     comision/cliente/dystopia); funciones `fin_dys_puede_ver/fin_gastos_puede_ver/fin_gastos_puede_editar/fin_dys_mi_acceso`; vistas internas `fin_ia_uso_norm` y `fin_gastos_mes_base`
+     (sin grants) y públicas `fin_v_ia_uso_mes`, `fin_v_gastos_mes`, `fin_v_dys_mes` (filtran por permiso adentro; corren con permisos del dueño porque no se conoce la RLS de ia_uso).
+   - BASE de la comisión: `fin_v_pnl_mensual.ingreso_real` (063, pagos del mes). No existía otro cálculo de comisión de agencia (fin_reparto no se lee; fin_v_comisiones* son de closers/setters). Un solo lugar para cambiarla: CTE `ing` de fin_v_dys_mes.
+     Los % (liam 30, agus 25, teo 40, desde 2026-01-01) se siembran en `fin_comision_agencia` solo si el cliente no tenía filas; las vistas leen siempre esa tabla.
+   - IA (decidido por Joaquín 17/10): cliente_id liam/agus/teo (sin mayúsculas) va a ese cliente; 'dystopia' y todo lo demás (UUID, null, otros) va 100% a Dystopia, categoría IA. Lo no asignable lleva `sin_asignar = true` (columna nueva en fin_ia_uso_norm, fin_gastos_mes_base, fin_v_gastos_mes, fin_v_ia_uso_mes): las pantallas lo ven como «Sin asignar → Dystopia» (fila marcada) y suma en Dystopia. Ya no existe la entidad 'sin_asignar'. Proveedor por modelo (claude/gemini/otro). Llamadas con costo 0/null se cuentan aparte y se avisan.
+   - Decisiones 17/10: base del % = ingreso_real (cash), queda; % desde 2026-01-01, queda; TC de recurrentes en ARS = el mismo del gasto, queda (editar el TC de un mes puntual NO se hizo: el TC es un solo campo por gasto, hacerlo pide tabla de excepciones por mes; no es fácil).
+   - Revisión de seguridad 174: las 3 tablas y las 2 secuencias llevan `revoke all ... from public, anon, authenticated` antes de los grants; las 5 vistas, revoke all y solo select a authenticated en las 3 públicas (las 2 internas sin grants); las públicas filtran por fin_dys_puede_ver()/fin_gastos_puede_ver(). Controles nuevos C10 (anon/public sin permisos), C11 (authenticated), C12 (IA sin asignar en Dystopia).
+   - Front: js/gastos.js (datos), views/dystopia.js, views/gastos.js (+ gastos-form.js, gastos-categorias.js), views/ia-uso.js, css/gastos.css; cableado en index.html, sesion.js (`yo.dys`), layout.js (3 ítems, ocultos sin permiso), app.js (rutas #/dystopia, #/gastos, #/ia-uso).
 0b. (16/10) DYSTOPITA: MARKDOWN RENDERIZADO EN LAS RESPUESTAS (sin SQL, sin commit; SIN PROBAR, no pude correr node ni el navegador, solo revisé las regex leyendo):
    - `js/views/preguntar-ia.js`: nueva `export function dystopitaMd(texto)`: escapa todo con `esc` y recién después arma strong, em, code, ul/ol, h4 (por # a ######) y p/br. Sin links ni imágenes (quedan como texto). La respuesta de la IA se pinta con ella dentro de `.chat-ia-md`; el mensaje del usuario sigue con `esc`.
    - `css/dystopita.css`: estilos de `.chat-ia-md` con variables de tema (--ink, --surface-2, --border). `.chat-ia-msg-ia` pasa a `white-space:normal` (el pre-wrap duplicaba los saltos).
@@ -347,6 +358,10 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+0c. Dystopia/Gastos/IA (174): (1) correr los bloques 1, 2 y 3 (humo) de la 174 por separado, fuera de :00/:15/:30/:45 y las 9:00; si la guarda dice que ia_uso no tiene alguna columna, mirar `select * from ia_uso limit 1` y ajustar nombres;
+    (2) controles C1 a C12 de a uno (C4/C5 muestran cuánta IA queda sin asignar y por qué; C7 compara la base con el P&L; C10 debe dar 0 filas); (3) `node --check` de los .js nuevos y probar en navegador (tema oscuro/claro, móvil);
+    (4) decisiones tomadas el 17/10 (base cash, % desde 2026-01-01, IA sin asignar a Dystopia, TC fijo); pendiente opcional: TC por mes puntual en recurrentes en ARS (requiere tabla de excepciones);
+    (5) para sumar usuarios: insertar en `fin_dys_acceso` (dystopia/gastos/edita_gastos). Ojo: fin_v_dys_mes lee fin_v_pnl_mensual, que solo devuelve filas a fundador y rol cliente, así que un usuario no fundador vería ingreso 0 hasta cambiar esa base.
 0b. Dystopita markdown (16/10): probar en navegador (tema oscuro y claro) con una respuesta que tenga negrita, lista y título. Si las otras 3 apps reciben la misma tarea, mantener igual `dystopitaMd` y el bloque `.chat-ia-md` del CSS.
 0. Vínculos de renovaciones de liam (16/10): correr `migraciones/propuestas/vinculos-liam-renov.sql` (solo SELECT, una sentencia), pasar la salida, completar `vinculos-liam-renov.md`, poner `v_esperado` en `166_vinculos_liam_renov.sql` (nombres Alta) y correrla fuera de :00/:15/:30/:45 y :03/:18/:33/:48. Media/Baja las decide Joaquín (la 166 no las toca).
 1. Rediseño 16/10: probar en navegador los dos temas en todas las pantallas (lista arriba), correr `node --check js/layout.js js/tema.js`, y recién ahí commit y push. El color de cada cliente en el menú viene de `crm_clients.color` si existe (dato, no se tocó).
