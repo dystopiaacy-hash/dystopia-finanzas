@@ -10,7 +10,7 @@ import {
   pnlMensual, pnlItems, pagos, fuentes, usd, numCelda, MESES, MESES_CORTOS, CATEGORIAS, ultimoPeriodo,
   netCashFlow, sinPagosCargados
 } from '../datos.js';
-import { statCard, vacio, selectAnio, anios, botonRecargar } from './comunes.js';
+import { statCard, vacio, selectAnio, anios, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const n = v => Number(v) || 0;
 
@@ -112,6 +112,7 @@ export async function vistaCliente(el, clienteId, vigente) {
     const det = el.querySelector('#detalle');
     if (!det) return;
     det.innerHTML = `<div class="grid-2 detalle-grid">${tablaItems(items, mapaFuentes)}${tablaPagos(pagosMes, mapaFuentes)}</div>`;
+    etiquetarTablas(det);
   };
   await pintar();
 }
@@ -122,8 +123,8 @@ function tablaItems(items, mapaFuentes) {
   return `
     <div class="card table-card">
       <div class="card-titulo">Items de Opps <span class="txt-gris">· ${items.length}</span></div>
-      <table class="data-table data-table-dense">
-        <thead><tr><th>Categoría</th><th>Item</th><th class="num">Monto</th></tr></thead>
+      <table class="data-table data-table-dense tabla-tarjetas">
+        <thead><tr><th>Categoría</th><th class="titulo">Item</th><th class="num clave">Monto</th></tr></thead>
         <tbody>
           ${grupos.map(([cat, lista]) => `
             ${lista.map(i => `<tr>
@@ -131,7 +132,7 @@ function tablaItems(items, mapaFuentes) {
               <td title="${esc(i.item || '')}">${esc(i.item || '—')}</td>
               <td class="num">${numCelda(usd(i.monto_usd), mapaFuentes.get(i.fuente_id), i.fila_planilla, i.columna_planilla)}</td>
             </tr>`).join('')}
-            <tr class="total-row"><td colspan="2">Total ${esc(CATEGORIAS[cat])}</td><td class="num">${usd(lista.reduce((s, i) => s + n(i.monto_usd), 0))}</td></tr>`).join('')}
+            <tr class="total-row"><td>Total ${esc(CATEGORIAS[cat])}</td><td></td><td class="num">${usd(lista.reduce((s, i) => s + n(i.monto_usd), 0))}</td></tr>`).join('')}
         </tbody>
       </table>
     </div>`;
@@ -143,8 +144,8 @@ function tablaPagos(lista, mapaFuentes) {
   return `
     <div class="card table-card">
       <div class="card-titulo">Pagos <span class="txt-gris">· ${lista.length} · ${usd(total)}</span></div>
-      <table class="data-table data-table-dense">
-        <thead><tr><th>Fecha</th><th>Alumno</th><th>Concepto</th><th>Closer</th><th class="num">Monto</th></tr></thead>
+      <table class="data-table data-table-dense tabla-tarjetas">
+        <thead><tr><th>Fecha</th><th class="titulo">Alumno</th><th>Concepto</th><th>Closer</th><th class="num clave">Monto</th></tr></thead>
         <tbody>
           ${lista.map(p => `<tr>
             <td>${fmtFecha(p.fecha)}</td>

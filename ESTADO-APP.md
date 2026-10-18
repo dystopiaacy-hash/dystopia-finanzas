@@ -50,6 +50,11 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0i. (18/10) CELULAR (≤600px) DE ALERTAS, SALUD, VINCULAR, RESUMEN Y CLIENTE: botones sin cortes, solo presentación, sin SQL ni migración ni commit; NO probado en navegador:
+   - Mismo patrón `.tabla-tarjetas` + `etiquetarTablas()`. Alertas, Salud (tabla «Sin problemas» y 3 modales: prueba sin escribir, rechazadas, historial) y Vincular (lista y modal del buscador, con `thead hidden` solo para rótulos) usan además `.tabla-apilada`: la celda de acciones apila los botones a ancho completo. Resumen (tabla por cliente) y Cliente (Items de Opps y Pagos del mes; Item/Alumno = título, Monto destacado) pasan a tarjetas. Las matrices mes a mes / P&L siguen con scroll dentro de su tarjeta (12 columnas, sin botones cortados).
+   - Cliente: la fila «Total <categoría>» ya no usa colspan (ahora 3 celdas, la del medio vacía) para que los rótulos de tarjeta no se corran; en escritorio se ve igual salvo bordes de celda.
+   - css/finanzas.css (bloque @media 600px nuevo, clases propias: `.fr-apilar`, `.tabla-apilada`, `.tabs-vin`, `.salud-acciones` en columna, `pre` de modal con salto). No se tocó CSS compartido de Dystopia/Gastos/IA/Cobranzas/Pagos.
+   - Archivos: js/views/alertas.js, salud.js, vincular.js, resumen.js, cliente.js, css/finanzas.css.
 0h. (18/10) CELULAR (≤600px) DE COBRANZAS Y PAGOS EN TARJETAS, solo presentación, sin SQL ni migración ni commit; NO probado en navegador ni con `node --check`:
    - Mismo patrón `.tabla-tarjetas` + `etiquetarTablas()`. Cobranzas: título = Alumno (`th.titulo`), destacado = Monto (`th.clave`), Cliente pasa a línea «CLIENTE: chip». Pagos: título = Alumno, destacado = Monto USD (marcados en `thPago` solo para columnas de sistema `alumno`/`monto_usd`); celdas editables ocupan la línea; botones Devolver/Anular en la última línea (`th.acciones`).
    - Archivos: js/views/comunes.js (etiquetarTablas copia también `titulo` y `acciones`), cobranzas.js, pagos.js, pagos-celdas.js, css/gastos.css, css/columnas.css (bloque @media 600px propio de la grilla de Pagos).

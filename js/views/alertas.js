@@ -2,7 +2,7 @@
    "Vista previa" (arma el texto de hoy SIN enviarlo). El webhook vive en Vault, no se ve ni se edita acá. */
 import { esc, fmtFechaHora, toast, abrirModal } from '../ui.js';
 import { alertasCobrosEstado, alertasCobrosGuardar, alertasCobrosVistaPrevia } from '../datos.js';
-import { vacio, clienteChip, botonRecargar } from './comunes.js';
+import { vacio, clienteChip, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const HORAS = Array.from({ length: 17 }, (_, i) => i + 6);
 
@@ -29,9 +29,9 @@ export async function vistaAlertas(el, vigente) {
   el.innerHTML = `
     <div class="filter-row"><span class="grow"></span>${botonRecargar()}</div>
     <div class="card table-card">
-      <table class="data-table">
+      <table class="data-table tabla-tarjetas tabla-apilada">
         <thead><tr><th>Cliente</th><th>Activa</th><th>1.er aviso</th><th>2.º aviso</th><th>Montos</th><th>Webhook</th>
-          <th>Último envío</th><th>Resultado</th><th></th></tr></thead>
+          <th>Último envío</th><th>Resultado</th><th class="acciones"></th></tr></thead>
         <tbody>${filas.map(f => `<tr data-cliente="${esc(f.cliente_id)}">
           <td>${clienteChip(f.cliente_id)}</td>
           <td><input type="checkbox" data-campo="activo"${f.activo ? ' checked' : ''} aria-label="Alerta activa"></td>
@@ -51,6 +51,7 @@ export async function vistaAlertas(el, vigente) {
       Sin montos ni teléfonos salvo que se active "Montos". Si no hay nada para avisar no se manda nada.
       El webhook se carga en Vault: fin_discord_webhook_cobros_&lt;cliente&gt; (o fin_discord_webhook_cobros para un canal general).</div>`;
 
+  etiquetarTablas(el);
   el.querySelector('#btn-recargar').onclick = () => vistaAlertas(el, vigente);
 
   for (const tr of el.querySelectorAll('tr[data-cliente]')) {

@@ -4,7 +4,7 @@
 import { esc, fmtFecha, toast, abrirModal } from '../ui.js';
 import { clientesVinculables, nombreCliente } from '../sesion.js';
 import { vinculosResumen, vinculosLista, vinculosBuscar, vinculosMarcar, vinculosAuto } from '../datos.js';
-import { vacio, botonRecargar } from './comunes.js';
+import { vacio, botonRecargar, etiquetarTablas } from './comunes.js';
 
 const FILTROS = [['pendientes', 'Pendientes'], ['vinculados', 'Vinculados'], ['no_producto', 'No está en Producto']];
 const ORIGEN = { auto_pago_clave: 'auto (pago)', auto_telefono: 'auto (teléfono)', auto_nombre: 'auto (nombre)', manual: 'manual' };
@@ -43,6 +43,14 @@ function fila(f, filtro) {
     <td>${f.ultimo_pago ? esc(fmtFecha(f.ultimo_pago)) : '—'}</td><td>${acciones}</td></tr>`;
 }
 
+/* Modal del buscador: la fila lleva un encabezado oculto solo para los rótulos de la tarjeta (celular). */
+function filaFicha(c) {
+  return `<tr>
+    <td>${esc(c.nombre)}</td><td>${esc(c.telefono || '')}</td><td>${esc(c.email || '')}</td>
+    <td>${esc(c.estado || '')}${c.vinculos ? ` · ya vinculada a ${c.vinculos} nombre${c.vinculos === 1 ? '' : 's'}` : ''}</td>
+    <td><button type="button" class="btn btn-sm btn-accent" data-id="${esc(c.id)}">Vincular</button></td></tr>`;
+}
+
 export async function vistaVincular(el, vigente) {
   const clientes = clientesVinculables();
   if (!clientes.length) {
@@ -65,7 +73,7 @@ export async function vistaVincular(el, vigente) {
   const opcionesCliente = clientes.map(c =>
     `<option value="${esc(c)}"${c === est.cliente ? ' selected' : ''}>${esc(nombreCliente(c))}</option>`).join('');
   el.innerHTML = `
-    <div class="filter-row">
+    <div class="filter-row fr-apilar">
       <span class="flabel">Cliente</span><select id="vin-cliente">${opcionesCliente}</select>
       <span class="grow"></span>
       <button type="button" class="btn btn-sm" id="vin-auto">Vincular automáticamente ahora</button>
@@ -75,11 +83,11 @@ export async function vistaVincular(el, vigente) {
       (${r.vinculados_auto ?? 0} automáticos, ${r.vinculados_manual ?? 0} a mano) · ${r.pendientes ?? 0} pendientes
       (${r.ambiguos ?? 0} ambiguos${r.con_parecidos !== undefined ? `, ${r.con_parecidos} con candidato parecido` : ''}, ${r.sin_candidato ?? 0} sin candidato) · ${r.no_producto ?? 0} fuera de Producto
       · ${r.fichas_producto ?? 0} fichas en Producto</p>
-    <div class="tabs tabs-inline">${FILTROS.map(([k, t]) =>
+    <div class="tabs tabs-inline tabs-vin">${FILTROS.map(([k, t]) =>
       `<button type="button" class="tab-btn${k === est.filtro ? ' active' : ''}" data-filtro="${k}">${t}</button>`).join('')}</div>
-    ${filas.length ? `<div class="card table-card"><table class="data-table">
+    ${filas.length ? `<div class="card table-card"><table class="data-table tabla-tarjetas tabla-apilada">
         <thead><tr><th>Alumno en Finanzas</th><th>Teléfono</th><th>Movimientos</th><th>Último pago</th>
-          <th>${est.filtro === 'pendientes' ? 'Vincular con' : est.filtro === 'vinculados' ? 'Ficha en Producto' : ''}</th></tr></thead>
+          <th class="acciones">${est.filtro === 'pendientes' ? 'Vincular con' : est.filtro === 'vinculados' ? 'Ficha en Producto' : ''}</th></tr></thead>
         <tbody>${filas.map(f => fila(f, est.filtro)).join('')}</tbody></table></div>`
       : vacio(est.filtro === 'pendientes' ? 'No quedan alumnos pendientes' : 'No hay alumnos en esta lista')}
     <div class="table-foot">El vínculo es por cliente y nombre del alumno (sin acentos ni mayúsculas): no se pierde cuando la
@@ -87,6 +95,7 @@ export async function vistaVincular(el, vigente) {
       ficha posible por pago de origen, teléfono (últimos 8 dígitos) o nombre. Lo que vincules, desvincules o marques a mano
       no lo toca la automática. Esta pantalla no muestra montos.</div>`;
 
+  etiquetarTablas(el);
   const recargar = () => vistaVincular(el, vigente);
   el.querySelector('#btn-recargar').onclick = recargar;
   el.querySelector('#vin-cliente').onchange = e => { est.cliente = e.target.value; recargar(); };
@@ -145,12 +154,11 @@ function buscador(tr, alElegir) {
         const lista = await vinculosBuscar(est.cliente, q.value);
         if (mi !== n) return;
         res.innerHTML = lista.length
-          ? `<table class="data-table"><tbody>${lista.map(c => `<tr>
-              <td>${esc(c.nombre)}</td><td>${esc(c.telefono || '')}</td><td>${esc(c.email || '')}</td>
-              <td>${esc(c.estado || '')}${c.vinculos ? ` · ya vinculada a ${c.vinculos} nombre${c.vinculos === 1 ? '' : 's'}` : ''}</td>
-              <td><button type="button" class="btn btn-sm btn-accent" data-id="${esc(c.id)}">Vincular</button></td></tr>`).join('')}
-            </tbody></table>`
+          ? `<table class="data-table tabla-tarjetas tabla-apilada">
+              <thead hidden><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Estado</th><th class="acciones"></th></tr></thead>
+              <tbody>${lista.map(filaFicha).join('')}</tbody></table>`
           : '<p class="aviso-texto">Sin resultados en este cliente.</p>';
+        etiquetarTablas(res);
         for (const b of res.querySelectorAll('[data-id]')) b.onclick = () => { m.cerrar(); alElegir(b.dataset.id); };
       } catch (err) {
         if (mi === n) res.innerHTML = `<p class="aviso-texto txt-rojo">${esc(err.message)}</p>`;

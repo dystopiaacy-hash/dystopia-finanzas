@@ -7,7 +7,7 @@ import { yo, esFundador, clienteUnico, nombreCliente } from '../sesion.js';
 import { pnlMensual, salud, usd, MESES, MESES_CORTOS, ultimoPeriodo, netCashFlow, sinPagosCargados, oppsSinCargar } from '../datos.js';
 import {
   statCard, vacio, selectAnio, selectMes, anios, clienteChip, estadoFuente, peorEstado,
-  requiereAccion, badgeEstado, botonRecargar
+  requiereAccion, badgeEstado, botonRecargar, etiquetarTablas
 } from './comunes.js';
 import { columnasReporte, armarColumnas } from '../columnas.js';
 import { abrirPanelColumnas, botonColumnas } from './columnas-panel.js';
@@ -90,7 +90,7 @@ export async function vistaResumen(el, vigente) {
 
       <div class="section-title">${esc(MESES[mes - 1])} ${anio}${unico ? '' : ' por cliente'}<span class="line"></span></div>
       <div class="card table-card">
-        <table class="data-table">
+        <table class="data-table tabla-tarjetas">
           <thead><tr>
             ${unico ? '' : '<th>Cliente</th>'}${cols.map(c => `<th${c.k === 'sincronizacion' ? '' : ' class="num"'}>${esc(c.lab)}</th>`).join('')}
           </tr></thead>
@@ -123,6 +123,7 @@ export async function vistaResumen(el, vigente) {
 
     el.querySelector('#f-mes').onchange = e => { periodo = { ...periodo, mes: Number(e.target.value) }; pintar(); };
     el.querySelector('#f-anio').onchange = e => { periodo = { ...periodo, anio: Number(e.target.value) }; pintar(); };
+    etiquetarTablas(el);
     el.querySelector('#btn-recargar').onclick = () => vistaResumen(el, vigente);
     const btnColumnas = el.querySelector('#btn-columnas');
     if (btnColumnas) btnColumnas.onclick = () => abrirPanelColumnas({
