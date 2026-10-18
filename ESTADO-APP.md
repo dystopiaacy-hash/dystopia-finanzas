@@ -50,6 +50,7 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0k. (18/10) ESCRITORIO (>600px), retoque tras la 2da pasada de celular: solo CSS + 1 clase, sin SQL/migración/commit; NO probado en navegador. (1) Salud «Ver rechazadas»: la tabla lleva clase `tabla-rech` (salud.js) y el modal sube a max-width 960px solo si la contiene (`.modal-box.wide:has(.tabla-rech)`), celdas con salto de línea y Comprobante sin corte (finanzas.css, bloque `@media(min-width:601px)`). (2) P&L de Cliente: `.pnl-tabla .marca-opps{display:block}` pone «(sin pagos)» en su propia línea para no ensanchar Ene/Feb. Celular sin cambios (todo dentro de min-width:601px, salvo la clase en el HTML que allá no tiene reglas).
 0j. (18/10) CELULAR (≤600px), SEGUNDA PASADA tras QA a 375px: solo presentación, sin SQL ni migración (no se usó el 183) ni commit; NO probado en navegador ni con `node --check`:
    - Menú: botón ☰ (`#btn-menu`, js/layout.js) en la barra; el menú (pestañas de áreas Marketing/Ventas/Producto/Finanzas + secciones) arranca plegado y se cierra al elegir una pantalla o cambiar el hash. En la barra quedan marca, tema/Salir y ☰. Clase `.menu-abierto` en `.sidebar` (css/responsive.css). Escritorio y tablet (>600px) sin cambios.
    - Botón flotante del chat (css/dystopita.css, no tocado): `.main .main-inner{padding-bottom:112px}` en celular (responsive.css). Ojo: es padding solo del final; con el scroll a mitad de página el botón sigue pasando por encima de lo que haya a la derecha.
@@ -398,6 +399,7 @@
 8. 062: clave estable de pagos (huella md5 + ocurrencia; '#a'+n para filas app).
 
 ## Pendientes (en orden)
+- (18/10) Medir en navegador (0k): modal «Ver rechazadas» de Agus a 1920 y 1280 sin scroll horizontal; columnas Ene/Feb del P&L de Teo North ≈ al resto; celular 375px igual.
 - (18/10) Probar en navegador a 390px (0h): Cobranzas y Pagos (con un cliente elegido y con «Todos», con y sin botones Devolver/Anular, celdas editables) y a 1280px+ que ambas quedan igual. Probar también el cambio compartido de gastos.css (campo de búsqueda de filtros a ancho completo).
 - (17/10) Probar en navegador a 390px (0g): Dystopia (2 tablas), Gastos (totales, Detalle, Dados de baja), Gasto de IA (2 tablas), menú de secciones y filtros; y revisar a 1280px+ que nada cambió. Mirar también que el menú en 2 columnas se vea bien en las demás pantallas (cambio compartido).
 - (17/10) Correr migración 179 (control A antes, bloque, controles B2-E después; fuera de :00/:15/:30/:45 y de las 9:00) y probar Gastos: filas de IA con hasta 4 decimales. Sin la migración el front no muestra más decimales (la vista los redondea). Sigue pendiente el texto «automatico desde ia_uso» de la vista (se tapa en el front con `descGasto()`).

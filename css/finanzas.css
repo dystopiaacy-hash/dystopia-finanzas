@@ -77,6 +77,14 @@
   .concepto-legend{min-width:0;}
   .concepto-legend-item{grid-template-columns:10px minmax(0,1fr) auto 32px 48px;gap:var(--sp-2);}
 }
+/* Escritorio (>600px): modal "Ver rechazadas" más ancho para que entre Comprobante sin scroll horizontal;
+   y "(sin pagos)" del P&L en su propia línea para no ensanchar la columna. */
+@media(min-width:601px){
+  .modal-box.wide:has(.tabla-rech){max-width:960px;}
+  .tabla-rech td{white-space:normal;overflow-wrap:anywhere;}
+  .tabla-rech td:last-child,.tabla-rech th:last-child{white-space:nowrap;width:1%;}
+  .pnl-tabla .marca-opps{display:block;line-height:1.2;}
+}
 /* Celular: Alertas, Salud, Vincular, Resumen y Cliente. Botones apilados a ancho completo, sin cortes. */
 @media(max-width:600px){
   .filter-row.fr-apilar .btn{flex:0 0 100%;justify-content:center;white-space:normal;text-align:center;}

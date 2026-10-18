@@ -213,7 +213,7 @@ async function verRechazadas(corridaId, fuente) {
   try {
     const filas = await rechazadas(corridaId);
     m.el.querySelector('.modal-body').innerHTML = `
-      <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Fila</th><th class="largo">Motivo</th><th class="largo">Valor</th><th>Comprobante</th></tr></thead>
+      <table class="data-table data-table-dense tabla-tarjetas tabla-rech"><thead><tr><th>Fila</th><th class="largo">Motivo</th><th class="largo">Valor</th><th>Comprobante</th></tr></thead>
       <tbody>${filas.map(r => `<tr><td>${numCelda(`fila ${r.fila_planilla}`, fuente, r.fila_planilla)}</td><td>${esc(r.motivo)}</td>
         <td title="${esc(r.valor_crudo || '')}">${valorRechazo(r.valor_crudo)}</td><td>${comprobanteRechazo(r.comprobante)}</td></tr>`).join('')}</tbody></table>
       ${filas.length === 500 ? '<div class="table-foot">Se muestran las primeras 500.</div>' : ''}`;
