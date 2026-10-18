@@ -37,7 +37,8 @@ export const MODELOS = {
 } as const;
 
 // --- Precios (USD por millón de tokens) -----------------------------------------
-// Fuente: documentación oficial de Anthropic (cacheada 06/10/2026).
+// Fuente: documentación oficial de Anthropic (cacheada 06/10/2026); Haiku 5.5 y Sonnet 5.5 verificados 17/10/2026.
+// Los tokens de thinking vienen dentro de output_tokens, así que ya están cobrados como salida.
 // Haiku 5.5: 0,10 / 0,50 con prompts de hasta 100K tokens; por encima, 0,50 / 2,50 (todo el pedido).
 // Un modelo que no está en la tabla se registra con costo_usd = null (no se inventa).
 type Precio = { entrada: number; salida: number; sobre100k?: { entrada: number; salida: number } };
@@ -112,12 +113,20 @@ function clienteServicio(): SupabaseClient | null {
   return createClient(url, clave, { auth: { persistSession: false } });
 }
 
+// ia_uso.cliente_id guarda SIEMPRE el cliente de la agencia ('liam'|'agus'|'teo') o 'dystopia' (uso interno
+// o cualquier id que no sea un cliente: UUID de alumno, ficha, null). Un solo lugar para esa regla.
+const CLIENTES_AGENCIA = ['liam', 'agus', 'teo'];
+export function clienteParaUso(id: string | null | undefined): string {
+  const c = String(id ?? '').trim().toLowerCase();
+  return CLIENTES_AGENCIA.includes(c) ? c : 'dystopia';
+}
+
 async function registrar(o: OpcionesClaude, r: ResultadoClaude): Promise<void> {
   try {
     const sb = o.supabase ?? clienteServicio();
     if (!sb) { console.error('[ia] no hay cliente de Supabase para registrar el uso'); return; }
     const { error } = await sb.from('ia_uso').insert({
-      app: o.app, funcion: o.funcion, user_id: o.user_id ?? null, cliente_id: o.cliente_id ?? null,
+      app: o.app, funcion: o.funcion, user_id: o.user_id ?? null, cliente_id: clienteParaUso(o.cliente_id),
       modelo: r.modelo, tokens_entrada: r.tokens_entrada, tokens_salida: r.tokens_salida,
       costo_usd: r.costo_usd, ok: r.ok, error: r.error ? r.error.slice(0, 300) : null, ms: r.ms,
     });
