@@ -175,7 +175,7 @@ async function correr(boton, cuerpo, el, vigente) {
       const mp = abrirModal({
         titulo: 'Prueba sin escribir', ancho: true,
         cuerpo: `<p class="aviso-texto">Se leyeron las planillas y se parsearon; no se escribió nada. ${r.segundos} s.</p>
-          <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Cliente</th><th>Tipo</th><th>Estado</th><th class="num">Payload</th><th>Detalle</th></tr></thead>
+          <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Cliente</th><th>Tipo</th><th>Estado</th><th class="num">Payload</th><th class="largo">Detalle</th></tr></thead>
           <tbody>${(r.resultados || []).map(x => `<tr><td>${clienteChip(x.cliente_id)}</td><td>${esc(x.tipo)}</td>
             <td>${badgeEstado(ESTADOS[x.estado] ? x.estado : 'error')}</td><td class="num">${MB(x.payload_bytes)}</td>
             <td title="${esc(x.mensaje || '')}">${esc(x.escrito ? `cargaría ${x.escrito.cargadas}, rechazaría ${x.escrito.rechazadas}` : '')} ${esc(x.mensaje || '')}</td></tr>`).join('')}</tbody></table>`
@@ -193,14 +193,29 @@ async function correr(boton, cuerpo, el, vigente) {
   }
 }
 
+/* Valor de una fila rechazada. El parser guarda el monto ambiguo como «monto ambiguo con formato de
+   fecha: <lo que se ve> (valor <n>, fecha <iso>)»: el prefijo es el mismo texto del Motivo, por eso
+   Valor parecía repetirlo (escritorio y celular). Se muestra solo lo que se ve y la fecha de la celda. */
+function valorRechazo(crudo) {
+  if (crudo == null || crudo === '') return '—';
+  const m = String(crudo).match(RE_MARCA);
+  return m ? `se ve «${esc(m[1])}» (la celda tiene la fecha ${esc(m[3])})` : esc(crudo);
+}
+
+function comprobanteRechazo(c) {
+  if (!c) return '—';
+  const url = urlSegura(c);
+  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="${esc(c)}">Abrir ↗</a>` : esc(c);
+}
+
 async function verRechazadas(corridaId, fuente) {
   const m = abrirModal({ titulo: 'Filas rechazadas', ancho: true, cuerpo: '<div class="loading-inline">Cargando…</div>' });
   try {
     const filas = await rechazadas(corridaId);
     m.el.querySelector('.modal-body').innerHTML = `
-      <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Fila</th><th>Motivo</th><th>Valor</th><th>Comprobante</th></tr></thead>
+      <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Fila</th><th class="largo">Motivo</th><th class="largo">Valor</th><th>Comprobante</th></tr></thead>
       <tbody>${filas.map(r => `<tr><td>${numCelda(`fila ${r.fila_planilla}`, fuente, r.fila_planilla)}</td><td>${esc(r.motivo)}</td>
-        <td title="${esc(r.valor_crudo || '')}">${esc(r.valor_crudo || '—')}</td><td>${esc(r.comprobante || '—')}</td></tr>`).join('')}</tbody></table>
+        <td title="${esc(r.valor_crudo || '')}">${valorRechazo(r.valor_crudo)}</td><td>${comprobanteRechazo(r.comprobante)}</td></tr>`).join('')}</tbody></table>
       ${filas.length === 500 ? '<div class="table-foot">Se muestran las primeras 500.</div>' : ''}`;
     etiquetarTablas(m.el);
   } catch (e) {
@@ -214,7 +229,7 @@ async function verHistorial(fuenteId) {
     const filas = await corridas(fuenteId);
     m.el.querySelector('.modal-body').innerHTML = `
       <table class="data-table data-table-dense tabla-tarjetas"><thead><tr><th>Inicio</th><th>Estado</th><th class="num">Leídas</th>
-        <th class="num">Cargadas</th><th class="num">Rechazadas</th><th class="num">Payload</th><th>Mensaje</th></tr></thead>
+        <th class="num">Cargadas</th><th class="num">Rechazadas</th><th class="num">Payload</th><th class="largo">Mensaje</th></tr></thead>
       <tbody>${filas.map(c => `<tr><td>${fmtFechaHora(c.inicio)}</td><td>${badgeEstado(ESTADOS[c.estado] ? c.estado : 'error')}</td>
         <td class="num">${num(c.filas_leidas)}</td><td class="num">${num(c.filas_cargadas)}</td><td class="num">${num(c.filas_rechazadas)}</td><td class="num">${MB(c.payload_bytes)}</td>
         <td title="${esc(c.mensaje || '')}">${c.corte ? `<strong>Corte: ${esc(motivoCorte(c.corte))}.</strong> ` : ''}${esc(c.mensaje || '')}</td></tr>`).join('')}</tbody></table>`;

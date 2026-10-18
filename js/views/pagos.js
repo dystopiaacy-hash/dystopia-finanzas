@@ -128,8 +128,10 @@ export async function vistaPagos(el, vigente) {
   };
 
   const pintarPendientes = () => {
-    el.querySelector('#pendientes').innerHTML = fundador
+    const pend = el.querySelector('#pendientes');
+    pend.innerHTML = fundador
       ? tablaPendientes(pendientes.filter(p => !f.cliente || p.cliente_id === f.cliente)) : '';
+    etiquetarTablas(pend);
   };
   const filtrar = () => { pagina = 0; cargar(); };
 
@@ -300,8 +302,8 @@ function tablaPendientes(lista) {
   return `${titulo}
     <div class="card table-card">
       <div class="card-titulo">Textos sin valor de catálogo <span class="txt-gris">· ${lista.length}</span></div>
-      <table class="data-table data-table-dense">
-        <thead><tr><th>Cliente</th><th>Columna</th><th>Texto en el Sheet</th><th class="num">Pagos</th><th class="num">USD</th></tr></thead>
+      <table class="data-table data-table-dense tabla-tarjetas">
+        <thead><tr><th>Cliente</th><th>Columna</th><th class="titulo">Texto en el Sheet</th><th class="num">Pagos</th><th class="num clave">USD</th></tr></thead>
         <tbody>${lista.map(p => `<tr>
           <td>${clienteChip(p.cliente_id)}</td><td>${esc(COLUMNAS[p.columna] || p.columna)}</td><td>${esc(p.crudo)}</td>
           <td class="num">${fmtNum(Number(p.pagos))}</td><td class="num">${usd(p.usd, { centavos: true })}</td>

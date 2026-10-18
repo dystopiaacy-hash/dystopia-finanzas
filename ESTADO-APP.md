@@ -50,6 +50,14 @@
   ESQUEMA-FINANZAS.md, LISTAS-AGENCIA.md (catálogos a aprobar), FASE0-COLUMNAS-FINANZAS.md.
 
 ## Qué hicimos últimamente
+0j. (18/10) CELULAR (≤600px), SEGUNDA PASADA tras QA a 375px: solo presentación, sin SQL ni migración (no se usó el 183) ni commit; NO probado en navegador ni con `node --check`:
+   - Menú: botón ☰ (`#btn-menu`, js/layout.js) en la barra; el menú (pestañas de áreas Marketing/Ventas/Producto/Finanzas + secciones) arranca plegado y se cierra al elegir una pantalla o cambiar el hash. En la barra quedan marca, tema/Salir y ☰. Clase `.menu-abierto` en `.sidebar` (css/responsive.css). Escritorio y tablet (>600px) sin cambios.
+   - Botón flotante del chat (css/dystopita.css, no tocado): `.main .main-inner{padding-bottom:112px}` en celular (responsive.css). Ojo: es padding solo del final; con el scroll a mitad de página el botón sigue pasando por encima de lo que haya a la derecha.
+   - Matrices (P&L de Cliente, mes a mes de Resumen): clase `.matriz`; primera columna sticky con fondo, rótulos con salto de línea, montos sin corte (finanzas.css).
+   - Salud: BUG DE DATOS en «Ver rechazadas» (escritorio y celular): para «monto ambiguo con formato de fecha» el parser guarda `valor_crudo` = «monto ambiguo con formato de fecha: <se ve> (valor n, fecha iso)», o sea el mismo texto del Motivo. salud.js `valorRechazo()` ahora muestra «se ve «X» (la celda tiene la fecha Y)». Comprobante = link «Abrir ↗» (`urlSegura`). No se tocó el parser ni la base.
+   - Texto largo en tarjetas: `th.largo` (comunes.js `etiquetarTablas`) → rótulo arriba y valor a todo el ancho. Usado en Salud: Detalle (prueba sin escribir), Motivo/Valor (rechazadas), Mensaje (historial); la lista de controles de las tarjetas (Agus «Opps (P&L)») con menos sangría y salto de línea.
+   - Pagos: «Textos sin valor de catálogo» pasa a `.tabla-tarjetas` (título = Texto en el Sheet, destacado = USD) y se llama `etiquetarTablas`.
+   - Archivos: js/layout.js, js/views/{comunes,salud,pagos,cliente,resumen}.js, css/{responsive,finanzas}.css.
 0i. (18/10) CELULAR (≤600px) DE ALERTAS, SALUD, VINCULAR, RESUMEN Y CLIENTE: botones sin cortes, solo presentación, sin SQL ni migración ni commit; NO probado en navegador:
    - Mismo patrón `.tabla-tarjetas` + `etiquetarTablas()`. Alertas, Salud (tabla «Sin problemas» y 3 modales: prueba sin escribir, rechazadas, historial) y Vincular (lista y modal del buscador, con `thead hidden` solo para rótulos) usan además `.tabla-apilada`: la celda de acciones apila los botones a ancho completo. Resumen (tabla por cliente) y Cliente (Items de Opps y Pagos del mes; Item/Alumno = título, Monto destacado) pasan a tarjetas. Las matrices mes a mes / P&L siguen con scroll dentro de su tarjeta (12 columnas, sin botones cortados).
    - Cliente: la fila «Total <categoría>» ya no usa colspan (ahora 3 celdas, la del medio vacía) para que los rótulos de tarjeta no se corran; en escritorio se ve igual salvo bordes de celda.

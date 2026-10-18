@@ -88,4 +88,20 @@
   .tabla-tarjetas.tabla-apilada td.acciones{flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:left;}
   .tabla-tarjetas.tabla-apilada td.acciones .btn{width:100%;justify-content:center;white-space:normal;text-align:center;padding-top:var(--sp-2);padding-bottom:var(--sp-2);}
   .tabla-tarjetas.tabla-apilada td.acciones .muted-empty{white-space:normal;}
+  /* Texto largo (Detalle, Motivo, Valor, Mensaje): rótulo arriba y el valor a todo el ancho. */
+  .tabla-tarjetas td.largo{flex-direction:column;align-items:stretch;gap:2px;text-align:left;}
+  .tabla-tarjetas td.largo::before{max-width:none;}
+  .salud-controles{padding-left:var(--sp-4);}
+  .salud-controles li{overflow-wrap:anywhere;}
+  .ctl-ambiguo{display:flex;min-width:0;}
+  /* Matrices (P&L del cliente, mes a mes del Resumen): primera columna fija con fondo, rótulos con salto
+     de línea; los montos nunca se cortan (la tabla se desliza dentro de su tarjeta). */
+  .matriz th:first-child,.matriz td:first-child{position:sticky;left:0;z-index:1;background:var(--surface);min-width:112px;max-width:132px;
+    white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;line-height:1.25;padding-top:var(--sp-2);padding-bottom:var(--sp-2);
+    box-shadow:1px 0 0 var(--border-soft);}
+  .matriz th:first-child{background:var(--thead-bg);}
+  .matriz tr.total-row td:first-child{background:var(--tfoot-bg);}
+  .matriz td.num,.matriz th.num{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
+  .matriz.pnl-tabla tr.pnl-sub td:first-child{padding-left:var(--sp-4);}
+  .matriz tbody tr:hover td:first-child{background:var(--surface);}
 }

@@ -93,9 +93,9 @@ export function badgeEstado(clave) {
 /* Celular: copia el encabezado de cada columna al data-label de sus celdas (las tablas
    `.tabla-tarjetas` pasan a tarjetas en css/gastos.css). Una `th.clave` marca la celda
    que se destaca arriba de la tarjeta; `th.titulo` marca la que hace de título cuando no es la
-   primera (si no hay, el título es la primera) y `th.acciones` la de botones. Las filas con
-   colspan se dejan como están. */
-const MARCAS_TARJETA = ['clave', 'titulo', 'acciones'];
+   primera (si no hay, el título es la primera) y `th.acciones` la de botones y `th.largo` las de
+   texto largo (rótulo arriba, valor a todo el ancho). Las filas con colspan se dejan como están. */
+const MARCAS_TARJETA = ['clave', 'titulo', 'acciones', 'largo'];
 export function etiquetarTablas(el) {
   for (const t of el.querySelectorAll('table.tabla-tarjetas')) {
     const ths = [...t.querySelectorAll('thead th')];

@@ -37,8 +37,16 @@
   .upcoming-row{grid-template-columns:56px 8px minmax(0,1fr) auto;}
   .upcoming-client{display:none;}
 }
-/* Celular: el menú de secciones ocupa el ancho completo (en 2 columnas, texto entero) bajo la marca. */
+.menu-toggle{display:none;}
+/* Celular: la barra es marca + tema/Salir + ☰. El menú (áreas y secciones, en 2 columnas con texto entero)
+   arranca plegado y se despliega con ☰. */
 @media(max-width:600px){
+  .menu-toggle{display:inline-flex;align-items:center;justify-content:center;order:1;flex-shrink:0;width:44px;height:44px;margin:0 var(--sp-2);
+    background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--ink);font-size:20px;line-height:1;cursor:pointer;}
+  .menu-toggle:hover{background:var(--surface-2);}
+  .sidebar:not(.menu-abierto) .nav-list,.sidebar:not(.menu-abierto) .nav-areas{display:none;}
+  /* Aire abajo para que el botón flotante del chat no tape el último contenido ni los montos de la derecha. */
+  .main .main-inner{padding-bottom:112px;}
   .sidebar{flex-wrap:wrap;overflow:visible;}
   .brand{flex:1;min-width:0;border-right:none;}
   .nav-list{order:50;flex:0 0 100%;display:grid;grid-template-columns:1fr 1fr;gap:2px var(--sp-2);overflow:visible;

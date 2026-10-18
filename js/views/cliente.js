@@ -78,7 +78,7 @@ export async function vistaCliente(el, clienteId, vigente) {
 
       <div class="section-title">P&amp;L ${anio}<span class="line"></span></div>
       <div class="card table-card">
-        <table class="data-table data-table-dense pnl-tabla">
+        <table class="data-table data-table-dense pnl-tabla matriz">
           <thead><tr><th></th>${meses.map(m => `<th class="num"><button type="button" class="mes-btn${m === mes ? ' activo' : ''}" data-mes="${m}">${MESES_CORTOS[m - 1]}</button></th>`).join('')}</tr></thead>
           <tbody>
             ${filasPnl.map(({ k, lab, estilo }) => `<tr class="pnl-${estilo || 'normal'}"><td>${esc(lab)}</td>${meses.map(m => {

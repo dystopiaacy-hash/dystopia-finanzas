@@ -105,7 +105,7 @@ export async function vistaResumen(el, vigente) {
 
       <div class="section-title">${anio} mes a mes${unico ? '' :', todos los clientes'}<span class="line"></span></div>
       <div class="card table-card">
-        <table class="data-table data-table-dense">
+        <table class="data-table data-table-dense matriz">
           <thead><tr><th></th>${meses.map(m => `<th class="num">${MESES_CORTOS[m - 1]}</th>`).join('')}</tr></thead>
           <tbody>
             ${[['ingreso_real', 'Ingreso real (Pagos)'], ['revenue_declarado', 'Revenue Opps'], ['gastos_total', 'Gastos'], ['net_cash_flow', 'Net cash flow (Pagos − Gastos)']]

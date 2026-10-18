@@ -57,6 +57,7 @@ export function renderLayout(app, onSalir) {
           <div class="brand-sub">Finanzas</div>
         </div>
       </div>
+      <button type="button" class="menu-toggle" id="btn-menu" aria-label="Menú" aria-expanded="false" aria-controls="nav">☰</button>
       <nav id="nav-areas"></nav>
       <div class="perfil" title="${esc(yo.email)}">
         <div class="perfil-avatar" aria-hidden="true">${inicial}</div>
@@ -89,6 +90,16 @@ export function renderLayout(app, onSalir) {
     </main>`;
   document.getElementById('btn-logout').onclick = onSalir;
   activarBotonTema();
+  /* Celular: el menú arranca plegado (☰) y se cierra al elegir una pantalla. */
+  const aside = app.querySelector('.sidebar');
+  const btnMenu = document.getElementById('btn-menu');
+  const fijarMenu = abierto => {
+    aside.classList.toggle('menu-abierto', abierto);
+    btnMenu.setAttribute('aria-expanded', String(abierto));
+  };
+  btnMenu.onclick = () => fijarMenu(!aside.classList.contains('menu-abierto'));
+  aside.addEventListener('click', e => { if (e.target.closest('a[href]')) fijarMenu(false); });
+  window.addEventListener('hashchange', () => fijarMenu(false));
 }
 
 export function setHeader(titulo, sub = '') {
