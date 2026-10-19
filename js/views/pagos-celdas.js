@@ -71,7 +71,7 @@ const CONTROL = {
     return `<select class="m-edit" ${attrs(col, p, 'opcion', v)}${x}>${opciones(ops, v)}</select>`;
   },
   link: (col, p, v, x) => `<span class="m-link"><input type="url" class="m-edit" maxlength="2000" autocomplete="off"
-    value="${esc(v)}" title="${esc(v)}" placeholder="https://…" ${attrs(col, p, 'link', v)}${x}>${abrir(v, col.lab)}</span>`
+    value="${esc(v)}" title="${esc(v)}" placeholder="https://…" ${attrs(col, p, 'link', v)}${x}>${abrir(v, col.lab)}${col.k === 'comprobante' ? enlacesExtra(p) : ''}</span>`
 };
 
 /* Catálogo: el valor es el id. Sin id y con texto del Sheet, ese texto queda como "fuera de lista". */
@@ -117,10 +117,26 @@ function celdaLink(v) {
   return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">abrir ↗</a>` : esc(v);
 }
 
+/* 196: comprobantes adicionales del pago (el comprobante de la columna es el 1): «2 ↗ 3 ↗…». */
+function enlacesExtra(p) {
+  const lista = Array.isArray(p.comprobantes_extra) ? p.comprobantes_extra : [];
+  return lista.map((u, i) => {
+    const href = urlSegura(u);
+    const n = i + 2;
+    return href ? `<a class="m-abrir" href="${esc(href)}" target="_blank" rel="noopener noreferrer"
+      title="Comprobante ${n}" aria-label="Abrir comprobante ${n}">${n} ↗</a>` : `<span title="${esc(u)}">${n}</span>`;
+  }).join(' ');
+}
+
+function celdaComprobante(p) {
+  const extra = enlacesExtra(p);
+  return extra ? `${celdaLink(p.comprobante)} ${extra}` : celdaLink(p.comprobante);
+}
+
 const LECTURA = {
   fecha: p => fmtFecha(p.fecha),
   monto_usd: p => usd(p.monto_usd, { centavos: true }),
-  comprobante: p => celdaLink(p.comprobante),
+  comprobante: p => celdaComprobante(p),
   origen: p => (p.origen === 'app' ? 'App' : 'Sheet'),
   fila_planilla: (p, ctx) => (p.fila_planilla == null ? '—'
     : numCelda(String(p.fila_planilla), ctx.mapaFuentes.get(p.fuente_id), p.fila_planilla)),

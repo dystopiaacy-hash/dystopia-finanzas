@@ -119,6 +119,15 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
       controles.push(c);
     }
     if (aRevisar.length) estado = 'revisar';
+    if (fuente.tipo === 'pagos') {
+      const adj = r.descartadas.filter((d) => d.motivo === 'comprobante_extra').length;
+      if (adj) avisos.push(`${adj} comprobantes extra adjuntados a su pago`);
+      // Comprobante extra que no encontro pago al que adjuntarse.
+      if ((r.revisar || []).length) {
+        controles.push(...r.revisar);
+        estado = 'revisar';
+      }
+    }
   }
 
   // Hoja que viene sin ninguna fila valida cuando antes tenia datos: casi
