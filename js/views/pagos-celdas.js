@@ -18,7 +18,11 @@ export const BASE_PAGOS = [
   { k: 'programa', lab: 'Programa' }, { k: 'concepto', lab: 'Concepto' }, { k: 'monto_usd', lab: 'Monto USD' },
   { k: 'metodo_pago', lab: 'Método' }, { k: 'quien_recibe', lab: 'Quién recibe' }, { k: 'closer', lab: 'Closer' },
   { k: 'setter', lab: 'Setter' }, { k: 'comprobante', lab: 'Comprobante' }, { k: 'nota', lab: 'Nota', oculta: true },
-  { k: 'origen', lab: 'Origen' }, { k: 'fila_planilla', lab: 'Fila' }
+  { k: 'origen', lab: 'Origen' }, { k: 'fila_planilla', lab: 'Fila' },
+  /* 23/10 (DCAC): vienen de la planilla (MAIL, FUENTE DEL MAIL, columna L = Fuente) o de Cargar pago (211); ocultas salvo
+     donde la migración las muestra (Agus, para todos los roles que ven Pagos). Solo lectura. */
+  { k: 'email', lab: 'Mail', oculta: true }, { k: 'fuente_email', lab: 'Fuente del mail', oculta: true },
+  { k: 'fuente_lead', lab: 'Fuente', oculta: true }
 ];
 
 /* Control de edición de cada columna del sistema, y de dónde salen sus opciones en fin_carga_opciones. */

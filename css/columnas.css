@@ -26,6 +26,9 @@ select.m-edit{cursor:pointer;padding-right:2px;}
 .tabla-pagos th.pc-x-casilla{text-align:center;}
 .tabla-pagos .pc-c-comprobante.pc-edit,.tabla-pagos .pc-x-link.pc-edit{min-width:170px;}
 .tabla-pagos .pc-c-nota.pc-edit,.tabla-pagos .pc-x-texto.pc-edit{min-width:160px;}
+/* 23/10: Nota / Mail / Fuente del mail / Fuente de la planilla (solo lectura): texto largo con salto de línea. */
+.tabla-pagos td.pc-c-nota,.tabla-pagos td.pc-c-email,.tabla-pagos td.pc-c-fuente_email{min-width:200px;max-width:340px;white-space:normal;overflow-wrap:anywhere;}
+.tabla-pagos td.pc-c-fuente_lead{min-width:90px;max-width:200px;white-space:normal;overflow-wrap:anywhere;}
 
 /* Estado del guardado por celda. El error queda escrito adentro. */
 .tabla-pagos td.m-guardando{background:var(--accent-soft);}

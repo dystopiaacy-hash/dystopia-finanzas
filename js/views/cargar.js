@@ -30,7 +30,11 @@ const CAMPOS = {
   closer: { id: 'c-closer', sel: ['closers', 'nombre'] },
   setter: { id: 'c-setter', sel: ['setters', 'nombre'] },
   comprobante: { id: 'c-comprobante', lab: 'Comprobante (link)', tipo: 'url' },
-  nota: { id: 'c-nota', tipo: 'textarea' }
+  nota: { id: 'c-nota', tipo: 'textarea' },
+  /* 211 (DCAC): opcionales; solo se muestran si la columna está visible en la config de Pagos del cliente (Agus). */
+  email: { id: 'c-email', lab: 'Mail', tipo: 'email', soloVisible: true },
+  fuente_email: { id: 'c-fuente-email', tipo: 'text', soloVisible: true },
+  fuente_lead: { id: 'c-fuente', tipo: 'text', soloVisible: true }
 };
 
 const fila = (id, label, control, { hint = '', ancho = false } = {}) =>
@@ -60,7 +64,7 @@ function campoSistema(c, hoy) {
   if (d.tipo === 'textarea') return fila(d.id, label, `<textarea id="${d.id}" rows="2"></textarea>`, { hint, ancho: true });
   const extra = d.tipo === 'date' ? ` value="${hoy}" max="${hoy}"`
     : d.tipo === 'number' ? ' min="0.01" step="0.01" inputmode="decimal"'
-    : d.tipo === 'url' ? ' placeholder="https://…" autocomplete="off"' : ' autocomplete="off"';
+    : d.tipo === 'url' ? ' placeholder="https://…" autocomplete="off"' : d.soloVisible ? ' maxlength="200" autocomplete="off"' : ' autocomplete="off"';
   return fila(d.id, label, `<input type="${d.tipo}" id="${d.id}"${extra}>`, { hint });
 }
 
@@ -116,7 +120,7 @@ export async function vistaCargar(el, vigente) {
   const pintarCampos = config => {
     const fecha = $('c-fecha') ? $('c-fecha').value : hoy;
     const cols = armarColumnas(BASE_PAGOS, config).todas;
-    sistema = cols.filter(c => c.sistema && CAMPOS[c.k]);
+    sistema = cols.filter(c => c.sistema && CAMPOS[c.k] && (!CAMPOS[c.k].soloVisible || c.visible));
     nuevas = cols.filter(c => !c.sistema && c.visible);
     campos.innerHTML = sistema.map(c => campoSistema(c, hoy)).join('') + nuevas.map(campoExtra).join('');
     $('c-fecha').value = fecha;
@@ -193,6 +197,8 @@ export async function vistaCargar(el, vigente) {
   const ctl = k => $(CAMPOS[k].id);
   const num = k => (ctl(k).value ? Number(ctl(k).value) : null);
   const txt = k => ctl(k).value.trim();
+  /* 211: campo opcional que puede no estar en pantalla (columna oculta del cliente): null si no está o está vacío. */
+  const opc = k => (ctl(k) ? txt(k) : '') || null;
   const valorExtra = c => {
     const x = $(idExtra(c));
     if (c.tipo === 'casilla') return x.checked || null;
@@ -219,7 +225,8 @@ export async function vistaCargar(el, vigente) {
         cliente_id: cliente, fecha: txt('fecha'), alumno, telefono: txt('telefono') || null,
         monto_usd: monto, programa_id: num('programa'), concepto_id: num('concepto'), metodo_pago_id: num('metodo_pago'),
         quien_recibe_id: num('quien_recibe'), closer_id: num('closer'), setter_id: num('setter'),
-        comprobante: txt('comprobante') || null, nota: txt('nota') || null
+        comprobante: txt('comprobante') || null, nota: txt('nota') || null,
+        email: opc('email'), fuente_email: opc('fuente_email'), fuente_lead: opc('fuente_lead')
       });
     } catch (e) {
       if (!vigente()) return;

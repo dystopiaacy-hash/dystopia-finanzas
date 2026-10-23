@@ -6,7 +6,7 @@
     "xlsx": "node pruebas/xlsx-leer.mjs",
     "liam:generar": "node pruebas/liam-generar-076.mjs",
     "liam:ventas": "node scripts/carga-liam.mjs \"C:\\Users\\Admin\\Downloads\\jefe\\insumos\\liam-septiembre\\CRM VENTAS - BPF.xlsx\"",
-    "test": "node pruebas/correr.mjs && node pruebas/formato.mjs && node pruebas/data.mjs && node pruebas/conceptos.mjs && node pruebas/opps-meses.mjs && node pruebas/cierres.mjs && node pruebas/comprobantes-extra.mjs",
+    "test": "node pruebas/correr.mjs && node pruebas/formato.mjs && node pruebas/data.mjs && node pruebas/conceptos.mjs && node pruebas/opps-meses.mjs && node pruebas/cierres.mjs && node pruebas/comprobantes-extra.mjs && node pruebas/pagos-columnas-nuevas.mjs",
     "check:fn": "deno check --node-modules-dir=none supabase/functions/sincronizar/index.ts",
     "test:fn": "deno test --node-modules-dir=none --allow-read pruebas/corte.test.ts"
   }

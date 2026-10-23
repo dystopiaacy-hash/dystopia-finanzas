@@ -8,7 +8,7 @@
 // adjunto_a = fila del pago); revisar lista los que no encontraron pago.
 //
 // config = {
-//   alias: [{ campo, alias, obligatorio }],   // fin_alias_columnas de la fuente
+//   alias: [{ campo, alias, obligatorio, posicion }],   // fin_alias_columnas de la fuente (posicion: solo con alias en blanco)
 //   fila_encabezado: 1,                       // 1-based
 //   tope_monto: 10000 | null,                 // null = sin control
 //   fecha_min, fecha_max                      // opcional, default 2024..2027
@@ -82,6 +82,9 @@ function coincideNombre(nombre, alumno) {
 
 // Primera columna del encabezado que coincide con algun alias del campo.
 // Si el encabezado tiene una columna duplicada, gana la primera aparicion.
+// Un alias en blanco con `posicion` es para una columna SIN titulo (Agus, L = Fuente):
+// vale solo si esa columna sigue sin titulo; si la planilla le pone titulo, lo toma el
+// alias por nombre y este se ignora (no es error). Un alias en blanco sin posicion no matchea nada.
 function mapearColumnas(encabezado, alias) {
   const norm = encabezado.map(normalizar);
   const col = {};
@@ -91,7 +94,11 @@ function mapearColumnas(encabezado, alias) {
     const del = alias.filter((a) => a.campo === campo);
     let idx = -1;
     for (const a of del) {
-      const k = norm.indexOf(normalizar(a.alias));
+      let k = -1;
+      if (normalizar(a.alias) === '') {
+        const p = a.posicion === null || a.posicion === undefined ? -1 : Number(a.posicion) - 1;
+        if (p >= 0 && p < norm.length && norm[p] === '') k = p;
+      } else k = norm.indexOf(normalizar(a.alias));
       if (k > -1 && (idx === -1 || k < idx)) idx = k;
     }
     if (idx > -1) col[campo] = idx;
@@ -239,6 +246,11 @@ export function parsePagos(matriz, config = {}) {
       metodo_pago: metodo,
       monto_restante: parseMonto(celda(fila, 'monto_restante')),
       estado: texto(celda(fila, 'estado')),
+      // DCAC 23/10: columnas opcionales (NOTA, MAIL, FUENTE DEL MAIL, FUENTE = origen del lead). Solo si la fuente tiene el alias; si no, null.
+      nota: texto(celda(fila, 'nota')),
+      email: texto(celda(fila, 'email')),
+      fuente_email: texto(celda(fila, 'fuente_email')),
+      fuente_lead: texto(celda(fila, 'fuente_lead')),
     });
   }
 
