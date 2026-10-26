@@ -13,7 +13,7 @@ import { cargaOpciones, pagoCargar, catalogoAgregar, usd } from '../datos.js';
 import { puedeAgregarCloser, cajaCloser, closerNuevoClick } from './closer-nuevo.js';
 import { columnasDe, armarColumnas, pagoExtraGuardar, errorColumnas } from '../columnas.js';
 import { vacio } from './comunes.js';
-import { BASE_PAGOS } from './pagos-celdas.js';
+import { BASE_PAGOS, FUENTES_INGRESO } from './pagos-celdas.js';
 
 /* Campo del formulario por columna del sistema. lab: nombre en el formulario
    mientras la columna no esté renombrada. sel: [clave en fin_carga_opciones, campo a mostrar].
@@ -34,7 +34,9 @@ const CAMPOS = {
   /* 211 (DCAC): opcionales; solo se muestran si la columna está visible en la config de Pagos del cliente (Agus). */
   email: { id: 'c-email', lab: 'Mail', tipo: 'email', soloVisible: true },
   fuente_email: { id: 'c-fuente-email', tipo: 'text', soloVisible: true },
-  fuente_lead: { id: 'c-fuente', tipo: 'text', soloVisible: true }
+  fuente_lead: { id: 'c-fuente', tipo: 'text', soloVisible: true },
+  /* 228: fuente de ingreso, lista fija y opcional, para los 3 clientes (distinta de fuente_lead, texto libre de Agus). */
+  fuente_ingreso: { id: 'c-fuente-ingreso', lab: 'Fuente de ingreso', fija: FUENTES_INGRESO }
 };
 
 const fila = (id, label, control, { hint = '', ancho = false } = {}) =>
@@ -59,6 +61,9 @@ function campoSistema(c, hoy) {
     const nuevo = `<div class="opcion-nueva"><button type="button" class="btn-link" data-closer-nuevo>+ Agregar closer</button>
       ${cajaCloser(d.id)}</div>`;
     return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>${nuevo}`, { hint });
+  }
+  if (d.fija) {
+    return fila(d.id, label, `<select id="${d.id}"><option value="">Sin asignar</option>${d.fija.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>`, { hint });
   }
   if (d.sel) return fila(d.id, label, `<select id="${d.id}" disabled><option value="">—</option></select>`, { hint });
   if (d.tipo === 'textarea') return fila(d.id, label, `<textarea id="${d.id}" rows="2"></textarea>`, { hint, ancho: true });
@@ -226,7 +231,8 @@ export async function vistaCargar(el, vigente) {
         monto_usd: monto, programa_id: num('programa'), concepto_id: num('concepto'), metodo_pago_id: num('metodo_pago'),
         quien_recibe_id: num('quien_recibe'), closer_id: num('closer'), setter_id: num('setter'),
         comprobante: txt('comprobante') || null, nota: txt('nota') || null,
-        email: opc('email'), fuente_email: opc('fuente_email'), fuente_lead: opc('fuente_lead')
+        email: opc('email'), fuente_email: opc('fuente_email'), fuente_lead: opc('fuente_lead'),
+        fuente_ingreso: opc('fuente_ingreso')
       });
     } catch (e) {
       if (!vigente()) return;

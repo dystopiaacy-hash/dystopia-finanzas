@@ -134,7 +134,7 @@ export const rankingClosers = () =>
 
 /* ---------- Grilla de Pagos (fase 5, solo lectura) ---------- */
 
-const COLS_PAGO_GRILLA = 'id,cliente_id,fuente_id,fila_planilla,clave,origen,fecha,alumno,telefono,monto_usd,closer,setter,comprobante,comprobantes_extra,nota,email,fuente_email,fuente_lead,pago_original_clave,'
+const COLS_PAGO_GRILLA = 'id,cliente_id,fuente_id,fila_planilla,clave,origen,fecha,alumno,telefono,monto_usd,closer,setter,comprobante,comprobantes_extra,nota,email,fuente_email,fuente_lead,fuente_ingreso,pago_original_clave,'
   + 'programa,programa_id,concepto,concepto_id,metodo_pago,metodo_pago_id,quien_recibe,quien_recibe_id';
 
 /* Algún *_id sin resolver con texto crudo en la columna (lo mismo que cuenta fin_v_alias_pendientes). */
@@ -144,12 +144,13 @@ const PENDIENTE_CATALOGO = ['programa', 'concepto', 'metodo_pago', 'quien_recibe
 /* Una página de pagos con el total exacto. Los filtros van en la query: hay
    más de 1000 filas y PostgREST corta ahí. mes null = todo el año.
    conceptoIds: ids de fin_catalogos (dimensión concepto), null = sin filtro. */
-export async function pagosGrilla({ clienteId = null, anio, mes = null, conceptoIds = null, soloPendientes = false, pagina = 0, porPagina = 50 }) {
+export async function pagosGrilla({ clienteId = null, anio, mes = null, conceptoIds = null, fuenteIngreso = null, soloPendientes = false, pagina = 0, porPagina = 50 }) {
   const desde = `${anio}-${String(mes || 1).padStart(2, '0')}-01`;
   const hasta = mes ? finDeMes(anio, mes) : `${anio}-12-31`;
   let x = sb.from('fin_pagos').select(COLS_PAGO_GRILLA, { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta);
   if (clienteId) x = x.eq('cliente_id', clienteId);
   if (conceptoIds) x = x.in('concepto_id', conceptoIds);
+  if (fuenteIngreso) x = fuenteIngreso === '__sin' ? x.is('fuente_ingreso', null) : x.eq('fuente_ingreso', fuenteIngreso);
   if (soloPendientes) x = x.or(PENDIENTE_CATALOGO);
   const { data, error, count } = await x
     .order('fecha', { ascending: false }).order('fila_planilla', { ascending: false }).order('id')

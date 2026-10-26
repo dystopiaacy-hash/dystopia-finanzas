@@ -22,8 +22,13 @@ export const BASE_PAGOS = [
   /* 23/10 (DCAC): vienen de la planilla (MAIL, FUENTE DEL MAIL, columna L = Fuente) o de Cargar pago (211); ocultas salvo
      donde la migración las muestra (Agus, para todos los roles que ven Pagos). Solo lectura. */
   { k: 'email', lab: 'Mail', oculta: true }, { k: 'fuente_email', lab: 'Fuente del mail', oculta: true },
-  { k: 'fuente_lead', lab: 'Fuente', oculta: true }
+  { k: 'fuente_lead', lab: 'Fuente', oculta: true },
+  /* 228: fuente de ingreso (lista fija, se carga en Cargar pago); visible, solo lectura en la grilla. */
+  { k: 'fuente_ingreso', lab: 'Fuente de ingreso' }
 ];
+
+/* 228: opciones de fuente de ingreso (las mismas que valida fin_pago_cargar y el CHECK de fin_pagos). */
+export const FUENTES_INGRESO = ['Webinar', 'Lead magnet funnel', 'Llamada / venta', 'Otro'];
 
 /* Control de edición de cada columna del sistema, y de dónde salen sus opciones en fin_carga_opciones. */
 const EDITOR = {
