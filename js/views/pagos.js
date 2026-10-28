@@ -10,7 +10,7 @@
 import { esc, fmtFecha, fmtNum, hoyAR, diasEntre, plural, abrirModal, toast } from '../ui.js';
 import { yo, esFundador, puedeAnular, nombreCliente } from '../sesion.js';
 import {
-  pagosGrilla, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd,
+  pagosGrilla, pagosTotalUsd, catalogos, aliasPendientes, ultimoPagoPorCliente, pnlMensual, fuentes, usd,
   pagoAnular, pagoDevolver, cargaOpciones
 } from '../datos.js';
 import { columnasDe, pagosExtra, extrasHuerfanos, armarColumnas } from '../columnas.js';
@@ -33,11 +33,12 @@ export async function vistaPagos(el, vigente) {
   if (!vigente()) return;
   const cat = new Map(cats.map(c => [c.id, c.valor]));
   const conceptos = cats.filter(c => c.dimension === 'concepto');
+  const recibidores = cats.filter(c => c.dimension === 'quien_recibe');
   const hoy = hoyAR();
   const anioHoy = Number(hoy.slice(0, 4));
 
   /* Sin "Todos" fuera del fundador: la grilla siempre queda en un cliente propio. */
-  const f = { cliente: fundador ? '' : (clientes[0] ? clientes[0].id : ''), anio: anioHoy, mes: null, concepto: '', fuenteIngreso: '', pendientes: false };
+  const f = { cliente: fundador ? '' : (clientes[0] ? clientes[0].id : ''), anio: anioHoy, mes: null, concepto: '', quien: '', fuenteIngreso: '', pendientes: false };
   const selCliente = `<select id="f-cliente">${fundador ? '<option value="">Todos los clientes</option>' : ''}${clientes.map(c =>
     `<option value="${esc(c.id)}"${c.id === f.cliente ? ' selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select>`;
   let pagina = 0;
@@ -68,6 +69,15 @@ export async function vistaPagos(el, vigente) {
       `<option value="${esc(v)}"${v === f.concepto ? ' selected' : ''}>${esc(v)}</option>`).join('')}`;
   };
 
+  /* 236: filtro «Quién recibe» (por nombre, igual que Concepto). Con un recibidor elegido la grilla suma el total en USD. */
+  const recibidoresVisibles = () => recibidores.filter(c => !f.cliente || c.cliente_id === f.cliente);
+  const opcionesQuien = () => {
+    const nombres = [...new Set(recibidoresVisibles().map(c => c.valor))].sort((a, b) => a.localeCompare(b, 'es'));
+    if (!nombres.includes(f.quien)) f.quien = '';
+    return `<option value="">Todos</option>${nombres.map(v =>
+      `<option value="${esc(v)}"${v === f.quien ? ' selected' : ''}>${esc(v)}</option>`).join('')}`;
+  };
+
   el.innerHTML = `
     <div class="section-title">Último pago cargado<span class="line"></span></div>
     <div class="stat-row stat-row-6">${clientes.map(c => tarjetaUltimo(c, ultimos.get(c.id), hoy)).join('')}</div>
@@ -76,6 +86,7 @@ export async function vistaPagos(el, vigente) {
       <span class="flabel">Año</span>${selectAnio('f-anio', anios(pnl, anioHoy), f.anio)}
       <span class="flabel">Mes</span>${selectMes('f-mes', f.mes, { todos: true })}
       <span class="flabel">Concepto</span><select id="f-concepto">${opcionesConcepto()}</select>
+      <span class="flabel">Quién recibe</span><select id="f-quien">${opcionesQuien()}</select>
       <span class="flabel">Fuente de ingreso</span><select id="f-fing"><option value="">Todas</option>${FUENTES_INGRESO.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}<option value="__sin">Sin fuente</option></select>
       ${fundador ? '<label class="flabel"><input type="checkbox" id="f-pend"> Solo pendientes de catálogo</label>' : ''}
       <span class="grow"></span>${fundador ? `<span id="huerfanos"></span>${botonColumnas('btn-columnas', !f.cliente)}` : ''}${botonRecargar()}
@@ -89,15 +100,18 @@ export async function vistaPagos(el, vigente) {
     const mio = ++turno;
     grilla.innerHTML = '<div class="loading-inline">Cargando pagos…</div>';
     const cliente = f.cliente;
-    let r, config, opciones, extras = new Map();
+    let r, config, opciones, totalUsd = null, extras = new Map();
     try {
-      [r, config, opciones] = await Promise.all([
-        pagosGrilla({
-          clienteId: cliente || null, anio: f.anio, mes: f.mes,
-          conceptoIds: f.concepto ? conceptosVisibles().filter(c => c.valor === f.concepto).map(c => c.id) : null,
-          fuenteIngreso: f.fuenteIngreso || null, soloPendientes: f.pendientes, pagina, porPagina: POR_PAGINA
-        }),
-        cliente ? traerConfig(cliente) : null, cliente ? traerOpciones(cliente) : null
+      const filtros = {
+        clienteId: cliente || null, anio: f.anio, mes: f.mes,
+        conceptoIds: f.concepto ? conceptosVisibles().filter(c => c.valor === f.concepto).map(c => c.id) : null,
+        quienIds: f.quien ? recibidoresVisibles().filter(c => c.valor === f.quien).map(c => c.id) : null,
+        fuenteIngreso: f.fuenteIngreso || null, soloPendientes: f.pendientes
+      };
+      [r, config, opciones, totalUsd] = await Promise.all([
+        pagosGrilla({ ...filtros, pagina, porPagina: POR_PAGINA }),
+        cliente ? traerConfig(cliente) : null, cliente ? traerOpciones(cliente) : null,
+        f.quien ? pagosTotalUsd(filtros) : null
       ]);
       /* Valores de las columnas nuevas: solo los de las claves de esta página. */
       if (cliente && r.filas.length && config.some(c => !c.sistema && !c.archivada && c.visible !== false)) {
@@ -115,7 +129,7 @@ export async function vistaPagos(el, vigente) {
       cat, mapaFuentes, opciones, extras, recargar: cargar,
       porId: new Map(r.filas.map(p => [String(p.id), p])), cols: new Map(cols.visibles.map(c => [c.k, c]))
     };
-    grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !cliente, cols: cols.visibles, ctx });
+    grilla.innerHTML = tablaPagos(r, { pagina, verCliente: !cliente, cols: cols.visibles, ctx, totalUsd });
     etiquetarTablas(grilla);
     const ir = d => () => { pagina += d; cargar(); };
     const ant = grilla.querySelector('#pg-ant'), sig = grilla.querySelector('#pg-sig');
@@ -163,6 +177,7 @@ export async function vistaPagos(el, vigente) {
   el.querySelector('#f-cliente').onchange = e => {
     f.cliente = e.target.value;
     el.querySelector('#f-concepto').innerHTML = opcionesConcepto();
+    el.querySelector('#f-quien').innerHTML = opcionesQuien();
     if (btnColumnas) btnColumnas.hidden = !f.cliente;
     pintarHuerfanos();
     pintarPendientes();
@@ -171,6 +186,7 @@ export async function vistaPagos(el, vigente) {
   el.querySelector('#f-anio').onchange = e => { f.anio = Number(e.target.value); filtrar(); };
   el.querySelector('#f-mes').onchange = e => { f.mes = Number(e.target.value) || null; filtrar(); };
   el.querySelector('#f-concepto').onchange = e => { f.concepto = e.target.value; filtrar(); };
+  el.querySelector('#f-quien').onchange = e => { f.quien = e.target.value; filtrar(); };
   el.querySelector('#f-fing').onchange = e => { f.fuenteIngreso = e.target.value; filtrar(); };
   const pend = el.querySelector('#f-pend');
   if (pend) pend.onchange = e => { f.pendientes = e.target.checked; filtrar(); };
@@ -274,7 +290,7 @@ function modalDevolver(p, cat, alListo) {
   });
 }
 
-function tablaPagos({ filas, total }, { pagina, verCliente, cols, ctx }) {
+function tablaPagos({ filas, total }, { pagina, verCliente, cols, ctx, totalUsd }) {
   if (!total) return vacio('Sin pagos con estos filtros');
   const desde = pagina * POR_PAGINA;
   const conAcciones = yo.carga.some(c => c.habilitada && c.puede_anular);
@@ -282,7 +298,7 @@ function tablaPagos({ filas, total }, { pagina, verCliente, cols, ctx }) {
   const conCliente = (col, html, extra) => html + (verCliente && col.k === 'fecha' ? extra : '');
   return `
     <div class="card table-card">
-      <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}</span></div>
+      <div class="card-titulo">Pagos <span class="txt-gris">· ${fmtNum(total)}${totalUsd === null ? '' : ` · Total ${usd(totalUsd, { centavos: true })}`}</span></div>
       <table class="data-table data-table-dense tabla-pagos tabla-tarjetas">
         <thead><tr>${cols.map(c => conCliente(c, thPago(c), '<th>Cliente</th>')).join('')}${conAcciones ? '<th class="acciones"></th>' : ''}</tr></thead>
         <tbody>${filas.map(p => `<tr>

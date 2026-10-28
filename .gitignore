@@ -12,3 +12,6 @@ supabase/.temp/
 
 .vercel
 .env*
+
+# Sheets de Finanzas convertidos: tienen datos de personas, no se commitean.
+insumos/

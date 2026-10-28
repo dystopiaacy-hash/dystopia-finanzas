@@ -144,15 +144,28 @@ const PENDIENTE_CATALOGO = ['programa', 'concepto', 'metodo_pago', 'quien_recibe
 /* Una página de pagos con el total exacto. Los filtros van en la query: hay
    más de 1000 filas y PostgREST corta ahí. mes null = todo el año.
    conceptoIds: ids de fin_catalogos (dimensión concepto), null = sin filtro. */
-export async function pagosGrilla({ clienteId = null, anio, mes = null, conceptoIds = null, fuenteIngreso = null, soloPendientes = false, pagina = 0, porPagina = 50 }) {
+function filtrarPagos(x, { clienteId, anio, mes, conceptoIds, quienIds, fuenteIngreso, soloPendientes }) {
   const desde = `${anio}-${String(mes || 1).padStart(2, '0')}-01`;
   const hasta = mes ? finDeMes(anio, mes) : `${anio}-12-31`;
-  let x = sb.from('fin_pagos').select(COLS_PAGO_GRILLA, { count: 'exact' }).gte('fecha', desde).lte('fecha', hasta);
+  x = x.gte('fecha', desde).lte('fecha', hasta);
   if (clienteId) x = x.eq('cliente_id', clienteId);
   if (conceptoIds) x = x.in('concepto_id', conceptoIds);
+  /* 236: «Quién recibe» (la pestaña Pagos Lucas de Agus es este filtro con el mes elegido). */
+  if (quienIds) x = x.in('quien_recibe_id', quienIds);
   if (fuenteIngreso) x = fuenteIngreso === '__sin' ? x.is('fuente_ingreso', null) : x.eq('fuente_ingreso', fuenteIngreso);
   if (soloPendientes) x = x.or(PENDIENTE_CATALOGO);
-  const { data, error, count } = await x
+  return x;
+}
+
+/* Suma de USD de todo lo que cumple los filtros (no solo la página). */
+export async function pagosTotalUsd(filtros) {
+  const filas = await todas(() => filtrarPagos(sb.from('fin_pagos').select('monto_usd'), filtros).order('id'));
+  return filas.reduce((a, p) => a + (Number(p.monto_usd) || 0), 0);
+}
+
+export async function pagosGrilla({ clienteId = null, anio, mes = null, conceptoIds = null, quienIds = null, fuenteIngreso = null, soloPendientes = false, pagina = 0, porPagina = 50 }) {
+  const { data, error, count } = await filtrarPagos(sb.from('fin_pagos').select(COLS_PAGO_GRILLA, { count: 'exact' }),
+    { clienteId, anio, mes, conceptoIds, quienIds, fuenteIngreso, soloPendientes })
     .order('fecha', { ascending: false }).order('fila_planilla', { ascending: false }).order('id')
     .range(pagina * porPagina, pagina * porPagina + porPagina - 1);
   if (error) throw error;
