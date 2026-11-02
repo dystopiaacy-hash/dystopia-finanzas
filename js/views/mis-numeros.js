@@ -4,7 +4,7 @@
    - setter: sus pagos (la RLS de fin_pagos deja solo donde figura como setter).
    - fundador y cliente: el ranking de closers y de setters del mes.
    El vínculo usuario -> nombre en la planilla es fin_personas. */
-import { esc, fmtFecha, hoyAR } from '../ui.js';
+import { esc, fmtFecha, hoyAR, esSinAlumno } from '../ui.js';
 import { yo, esEquipo } from '../sesion.js';
 import { rankingClosers, pagosVisibles, pagos, fuentes, usd, numCelda, MESES, MESES_CORTOS } from '../datos.js';
 import { statCard, vacio, selectCliente, selectMes, selectAnio, anios, clienteChip, botonRecargar } from './comunes.js';
@@ -32,7 +32,8 @@ async function vistaPropia(el, vigente) {
   for (const p of lista) {
     const k = p.fecha.slice(0, 7);
     const m = porMes.get(k) || { pagos: 0, monto: 0, alumnos: new Set(), cierres: null };
-    m.pagos++; m.monto += n(p.monto_usd); m.alumnos.add(String(p.alumno).trim().toLowerCase());
+    m.pagos++; m.monto += n(p.monto_usd);
+    if (!esSinAlumno(p.alumno)) m.alumnos.add(String(p.alumno).trim().toLowerCase());
     porMes.set(k, m);
   }
   for (const r of ranking) {

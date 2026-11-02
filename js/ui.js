@@ -85,6 +85,12 @@ export function plural(n, uno, varios) {
   return `${n} ${n === 1 ? uno : (varios || uno + 's')}`;
 }
 
+/* Mismo criterio que fin_es_sin_alumno (276): vacío, "-" o que empiece con "SIN IDENTIFICAR" (sin mayúsculas, tildes ni signos). */
+export function esSinAlumno(v) {
+  const k = String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return k === '' || k.startsWith('sin identificar');
+}
+
 /* ---------- Badges ---------- */
 /* color: cualquier valor CSS (hex o var(--x)). variante: '' | 'status' | 'outline' | 'solid'. */
 export function badge(texto, color, variante = '') {
