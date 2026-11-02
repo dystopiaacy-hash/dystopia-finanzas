@@ -25,7 +25,8 @@ import { vistaLectura } from './views/lectura.js';
 import { vistaDystopia } from './views/dystopia.js';
 import { vistaGastos } from './views/gastos.js';
 import { vistaIaUso } from './views/ia-uso.js';
-import { veDystopia, veGastos, veIaUso } from './gastos.js';
+import { vistaWebinars } from './views/webinars.js';
+import { veDystopia, veGastos, veIaUso, veWebinars } from './gastos.js';
 import { montarDystopita, desmontarDystopita } from './dystopita.js';
 
 const app = document.getElementById('app');
@@ -177,6 +178,11 @@ function registrarRutas() {
     renderNav({ vista: 'gastos' });
     setHeader('Gastos', 'Por entidad, categoría y mes, con el reparto Dystopia / cliente');
     montar(vistaGastos);
+  }));
+  ruta('webinars', guardia(veWebinars, () => {
+    renderNav({ vista: 'webinars' });
+    setHeader('Webinars', 'Ingresos, gastos por concepto y resultado de cada webinar');
+    montar(vistaWebinars);
   }));
   ruta('ia-uso', guardia(veIaUso, () => {
     renderNav({ vista: 'ia-uso' });

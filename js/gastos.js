@@ -34,10 +34,40 @@ export const veGastos = () => !!(yo.dys && yo.dys.gastos);
 export const editaGastos = () => !!(yo.dys && yo.dys.edita);
 /* La pantalla de IA la ve quien ve Dystopia o Gastos. */
 export const veIaUso = () => veDystopia() || veGastos();
+/* Webinars (267): lo mismo, quien ve Dystopia o Gastos. */
+export const veWebinars = () => veDystopia() || veGastos();
 
 /* ---------- Lecturas ---------- */
 export const dysMes = () =>
   todas(() => sb.from('fin_v_dys_mes').select('*').order('mes', { ascending: false }).order('entidad'));
+
+/* 267: el % de Dystopia es sobre la GANANCIA del cliente. Por mes y cliente (más la fila 'dystopia' con sus gastos propios). */
+export const dysGananciaMes = () =>
+  todas(() => sb.from('fin_v_dys_ganancia_mes').select('*').order('mes', { ascending: false }).order('entidad'));
+
+/* Porcentajes con vigencia (fin_comision_agencia, solo fundador) y gastos fijos de Dystopia (sueldo). */
+export const comisiones = () =>
+  todas(() => sb.from('fin_comision_agencia').select('*').order('cliente_id').order('desde', { ascending: false }));
+export const gastosFijosDys = () =>
+  todas(() => sb.from('fin_dys_gastos_fijos').select('*').order('desde', { ascending: false }));
+
+/* Un porcentaje nuevo cierra (hasta = desde - 1) el vigente abierto del mismo cliente que arrancó antes. */
+export async function comisionGuardar(id, campos) {
+  if (!id) {
+    const d = new Date(campos.desde + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 1);
+    const { error: e1 } = await sb.from('fin_comision_agencia').update({ hasta: d.toISOString().slice(0, 10) })
+      .eq('cliente_id', campos.cliente_id).is('hasta', null).lt('desde', campos.desde);
+    if (e1) throw e1;
+  }
+  const q = id ? sb.from('fin_comision_agencia').update(campos).eq('id', id) : sb.from('fin_comision_agencia').insert(campos);
+  const { error } = await q;
+  if (error) throw error;
+}
+export async function gastoFijoGuardar(id, campos) {
+  const q = id ? sb.from('fin_dys_gastos_fijos').update(campos).eq('id', id) : sb.from('fin_dys_gastos_fijos').insert(campos);
+  const { error } = await q;
+  if (error) throw error;
+}
 
 export const gastosMes = () =>
   todas(() => sb.from('fin_v_gastos_mes').select('*').order('mes', { ascending: false }).order('entidad').order('categoria'));
