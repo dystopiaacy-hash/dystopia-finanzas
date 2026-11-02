@@ -3,7 +3,7 @@
 import { esc, abrirModal, toast, fmtFecha, hoyAR, urlSegura, confirmar } from '../ui.js';
 import { usd } from '../datos.js';
 import { ENTIDADES, nombreEntidad } from '../gastos.js';
-import { PAGADORES, TIPOS, TIPOS_MANUALES, transferenciaGuardar } from '../cierre.js';
+import { PAGADORES, TIPOS, TIPOS_MANUALES, transferenciaGuardar, generar } from '../cierre.js';
 
 const u = n => usd(n, { centavos: true });
 const nombrePagador = t => (t.pagador_tipo === 'otro' ? (t.pagador_texto || 'Otro') : (PAGADORES.find(p => p[0] === t.pagador_tipo) || [0, t.pagador_tipo])[1]);
@@ -72,7 +72,12 @@ export function abrirTransferencia(t, ym, alGuardar, { hecha = false } = {}) {
   q('t-cancelar').onclick = () => m.cerrar();
   const ejecutar = async (campos, aviso) => {
     q('t-guardar').disabled = true;
-    try { await transferenciaGuardar(t ? t.id : null, campos); m.cerrar(); toast(aviso); alGuardar(); } catch (e) {
+    try {
+      await transferenciaGuardar(t ? t.id : null, campos);
+      /* Cambiar quién pagó una comisión mueve la neta, los socios y lo que debe el cliente: se recalculan las pendientes. */
+      if (t && t.tipo === 'comision' && campos.pagador_tipo && campos.pagador_tipo !== t.pagador_tipo) await generar(ym).catch(() => {});
+      m.cerrar(); toast(aviso); alGuardar();
+    } catch (e) {
       q('t-error').textContent = `No se pudo guardar: ${e.message}`; q('t-guardar').disabled = false;
     }
   };

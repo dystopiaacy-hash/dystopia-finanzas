@@ -38,7 +38,7 @@ export async function vistaDystopia(el, vigente) {
     const sinPct = clientes.filter(f => f.falta_porcentaje && Number(f.facturacion_usd));
 
     const filaCli = f => `<tr>
-      <td class="ajusta">${esc(nombreEntidad(f.entidad))}${f.sin_gastos ? ' <span class="badge" title="Sin gastos cargados: la ganancia está sobreestimada">⚠ sin gastos</span>' : ''}</td>
+      <td class="ajusta">${esc(nombreEntidad(f.entidad))}${f.sin_gastos ? ' <span class="badge" title="Sin gastos cargados: la ganancia está sobreestimada">⚠ sin gastos</span>' : ''}${f.comision_modo === 'opps' && Number(f.comision_opps_vigente_usd) ? ' <span class="badge" title="Este mes no tiene comisiones calculadas en el Cierre de mes: las comisiones salen de las líneas de Opps">comisiones de Opps</span>' : ''}</td>
       <td class="num">${u(f.facturacion_usd)}</td>
       <td class="num">${u(f.gastos_cliente_usd)}</td>
       <td class="num">${neto(Number(f.ganancia_cliente_usd))}</td>

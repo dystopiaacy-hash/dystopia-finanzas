@@ -21,6 +21,7 @@ export const TIPOS = { sueldo: 'Sueldo', comision: 'Comisión', editor: 'Editor'
 export const AVISOS = {
   pago_sin_fuente: 'Pagos sin fuente', sin_closer: 'Ventas sin closer', sin_setter: 'Ventas sin setter',
   sin_gastos: 'Clientes sin gastos cargados', sin_porcentaje: 'Clientes sin % de Dystopia',
+  comision_desde_opps: 'Comisiones tomadas de Opps (el mes no tiene comisiones calculadas: tocá «Calcular transferencias»)',
   transferencia_pendiente: 'Transferencias pendientes', diferencia_con_calculo: 'Transferencias hechas con otro monto que el calculado'
 };
 

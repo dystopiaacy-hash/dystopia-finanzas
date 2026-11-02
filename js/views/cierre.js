@@ -51,7 +51,7 @@ export async function vistaCierre(el, vigente) {
     const sueldo = !snap && propia ? Number(propia.sueldo_usd) : 0;
     const netaDys = bruta - gastoPropio;
     const activas = trans.filter(t => t.activo);
-    const dysPaga = activas.filter(t => t.pagador_tipo === 'dystopia' && ['comision', 'editor', 'equipo'].includes(t.tipo)).reduce((a, t) => a + Number(t.monto_usd), 0);
+    const dysPaga = activas.filter(t => t.pagador_tipo === 'dystopia' && ['editor', 'equipo'].includes(t.tipo)).reduce((a, t) => a + Number(t.monto_usd), 0);
     const sociosMes = socios.filter(s => s.activo && claveMes(s.desde) <= ym && (!s.hasta || claveMes(s.hasta) >= ym));
     const sumaSocios = sociosMes.reduce((a, s) => a + Number(s.porcentaje), 0);
     const personas = [...new Map(ventas.filter(v => v.persona).map(v => [v.persona_norm, { persona: v.persona, persona_norm: v.persona_norm }])).values()];
@@ -61,6 +61,7 @@ export async function vistaCierre(el, vigente) {
       for (const a of avisos) {
         const cli = a.cliente_id ? ` ${nombreEntidad(a.cliente_id)}` : '';
         if (a.tipo === 'sin_gastos' || a.tipo === 'sin_porcentaje') lineasAviso.push(`${AVISOS[a.tipo]}:${cli}`);
+        else if (a.tipo === 'comision_desde_opps') lineasAviso.push(`${AVISOS[a.tipo]}:${cli} (${u(a.monto_usd)})`);
         else if (a.tipo === 'diferencia_con_calculo') lineasAviso.push(`${AVISOS[a.tipo]}${cli} (${a.cantidad}, diferencia ${u(a.monto_usd)})`);
         else lineasAviso.push(`${AVISOS[a.tipo]}${cli}: ${a.cantidad} (${u(a.monto_usd)})`);
       }
@@ -69,7 +70,7 @@ export async function vistaCierre(el, vigente) {
       if (!sociosMes.length) lineasAviso.push('No hay socios activos para repartir la ganancia neta');
     }
 
-    const filaCli = f => `<tr><td class="ajusta">${esc(nombreEntidad(f.entidad))}${f.sin_gastos && !snap ? ' <span class="badge" title="Sin gastos cargados: ganancia sobreestimada">⚠ sin gastos</span>' : ''}</td>
+    const filaCli = f => `<tr><td class="ajusta">${esc(nombreEntidad(f.entidad))}${f.sin_gastos && !snap ? ' <span class="badge" title="Sin gastos cargados: ganancia sobreestimada">⚠ sin gastos</span>' : ''}${f.comision_modo === 'opps' && Number(f.comision_opps_vigente_usd) && !snap ? ' <span class="badge" title="El mes no tiene comisiones calculadas: las comisiones salen de las líneas de Opps. Calculá las transferencias para usar las del cierre.">comisiones de Opps</span>' : ''}</td>
       <td class="num">${u(f.facturacion_usd)}</td><td class="num">${u(f.gastos_cliente_usd)}</td><td class="num">${neto(Number(f.ganancia_cliente_usd))}</td>
       <td class="num">${f.porcentaje == null ? '—' : fmtPct(f.porcentaje, 1)}</td><td class="num">${u(f.ganancia_dystopia_usd)}</td></tr>`;
     const filaSocio = s => `<tr><td class="ajusta">${esc(s.nombre)}</td><td class="num">${fmtPct(s.porcentaje, 2)}</td>
@@ -93,7 +94,7 @@ export async function vistaCierre(el, vigente) {
       <div class="grid-3 stat-grid">
         ${statCard(u(bruta), 'Ganancia bruta de Dystopia', { sub: 'Suma de lo que le toca de cada cliente' })}
         ${statCard(u(gastoPropio), 'Gastos propios de Dystopia', { sub: sueldo ? `Incluye sueldo de Joaquín ${u(sueldo)}` : 'Incluye el sueldo si está cargado' })}
-        ${statCard(u(netaDys), 'Ganancia neta a repartir', { alerta: netaDys < 0, sub: dysPaga ? `Aparte, Dystopia paga ${u(dysPaga)} en comisiones/equipo (no descontado)` : '' })}
+        ${statCard(u(netaDys), 'Ganancia neta a repartir', { alerta: netaDys < 0, sub: dysPaga ? `Aparte, Dystopia paga ${u(dysPaga)} en editor/equipo (no descontado)` : '' })}
       </div>
       <div class="card-titulo">${esc(etiquetaMes(ym))} por cliente</div>
       <div class="card table-card"><table class="data-table tabla-tarjetas">
