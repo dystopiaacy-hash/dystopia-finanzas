@@ -31,11 +31,13 @@ export const webinarAjustes = id =>
 export const webinarReglas = () =>
   todas(() => sb.from('fin_webinar_reglas').select('*').order('cliente_id').order('concepto'));
 
-/* Pagos de la ventana que todavía no tienen fuente (candidatos a asignar a mano). */
+/* Pagos de la ventana que no tienen fuente FINAL (regla de la 271/273: fin_v_pago_fuente), candidatos a asignar a mano.
+   fuente_planilla = lo que trae la hoja, para auditar cuando la marca no valió. */
 export async function pagosSinFuente(cliente, desde, hasta) {
-  return todas(() => sb.from('fin_pagos').select('clave, fecha, alumno, concepto, monto_usd')
-    .eq('cliente_id', cliente).gte('fecha', desde).lte('fecha', hasta).is('fuente_ingreso', null)
-    .or('fuente_lead.is.null,fuente_lead.eq.').not('clave', 'is', null).order('fecha').order('id'));
+  const filas = await todas(() => sb.from('fin_v_pago_fuente').select('pago_id, pago_clave, fecha, alumno, concepto, monto_usd, fuente_planilla')
+    .eq('cliente_id', cliente).gte('fecha', desde).lte('fecha', hasta).is('fuente_final', null)
+    .not('pago_clave', 'is', null).order('fecha').order('pago_id'));
+  return filas.map(f => ({ ...f, clave: f.pago_clave }));
 }
 
 export async function webinarGuardar(id, campos) {

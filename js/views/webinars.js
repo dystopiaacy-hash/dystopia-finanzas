@@ -147,9 +147,9 @@ async function pagosCandidatos(w, ajustes, caja, recargar) {
     const pagos = (await pagosSinFuente(w.cliente_id, w.ventana_desde, w.ventana_hasta)).filter(p => !ya.has(p.clave));
     if (!pagos.length) { caja.innerHTML = '<div class="table-foot">No hay pagos sin fuente en la ventana.</div>'; return; }
     caja.innerHTML = `<div class="card-titulo">Pagos sin fuente en la ventana (${pagos.length}, ${u(pagos.reduce((a, p) => a + Number(p.monto_usd), 0))})</div>
-      <div class="card table-card"><table class="data-table tabla-tarjetas"><thead><tr><th class="titulo">Alumno</th><th>Fecha</th><th>Concepto</th><th class="num clave">Monto</th><th class="acciones"></th></tr></thead>
+      <div class="card table-card"><table class="data-table tabla-tarjetas"><thead><tr><th class="titulo">Alumno</th><th>Fecha</th><th>Concepto</th><th>Planilla dice</th><th class="num clave">Monto</th><th class="acciones"></th></tr></thead>
       <tbody>${pagos.map((p, i) => `<tr><td class="ajusta">${esc(p.alumno)}</td><td>${fmtFecha(p.fecha)}</td><td>${esc(p.concepto || '—')}</td>
-        <td class="num">${u(p.monto_usd)}</td><td class="acciones"><button class="btn btn-sm" data-asig="${i}">Asignar al webinar</button></td></tr>`).join('')}</tbody></table></div>`;
+        <td>${esc(p.fuente_planilla || '—')}</td><td class="num">${u(p.monto_usd)}</td><td class="acciones"><button class="btn btn-sm" data-asig="${i}">Asignar al webinar</button></td></tr>`).join('')}</tbody></table></div>`;
     etiquetarTablas(caja);
     for (const b of caja.querySelectorAll('[data-asig]')) b.onclick = async () => {
       const p = pagos[Number(b.dataset.asig)];
