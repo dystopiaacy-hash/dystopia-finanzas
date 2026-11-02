@@ -26,6 +26,8 @@ import { vistaDystopia } from './views/dystopia.js';
 import { vistaGastos } from './views/gastos.js';
 import { vistaIaUso } from './views/ia-uso.js';
 import { vistaWebinars } from './views/webinars.js';
+import { vistaCierre } from './views/cierre.js';
+import { veCierre } from './cierre.js';
 import { veDystopia, veGastos, veIaUso, veWebinars } from './gastos.js';
 import { montarDystopita, desmontarDystopita } from './dystopita.js';
 
@@ -183,6 +185,11 @@ function registrarRutas() {
     renderNav({ vista: 'webinars' });
     setHeader('Webinars', 'Ingresos, gastos por concepto y resultado de cada webinar');
     montar(vistaWebinars);
+  }));
+  ruta('cierre', guardia(veCierre, () => {
+    renderNav({ vista: 'cierre' });
+    setHeader('Cierre de mes', 'A quién transferirle y cuánto, mes por mes');
+    montar(vistaCierre);
   }));
   ruta('ia-uso', guardia(veIaUso, () => {
     renderNav({ vista: 'ia-uso' });
