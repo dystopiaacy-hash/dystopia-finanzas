@@ -32,10 +32,17 @@ async function sha256(texto) {
 
 // Hash de la estructura: encabezado del parser sin celdas vacias al final
 // (FORMATTED_VALUE recorta las columnas vacias del final; asi no cambia el hash).
-export async function hashEncabezado(tipo, encabezado) {
+// Pagos mapea las columnas por NOMBRE (alias), asi que mover columnas de lugar (Teo 20/10: PAGO antes de
+// CONCEPTO) no cambia nada de lo que se lee: su hash no depende del orden. Cuentan los nombres (ordenados) y la
+// posicion de las columnas SIN titulo, porque un alias en blanco se resuelve por posicion (fuente de Agus, col L).
+// enOrden = true da el hash viejo (por posicion), que sigue valiendo contra la ultima corrida buena guardada.
+export async function hashEncabezado(tipo, encabezado, enOrden = tipo !== 'pagos') {
   const e = (encabezado || []).map((v) => String(v ?? '').trim());
   while (e.length && e[e.length - 1] === '') e.pop();
-  return sha256(`${tipo}|${JSON.stringify(e)}`);
+  if (enOrden) return sha256(`${tipo}|${JSON.stringify(e)}`);
+  const nombres = e.filter((v) => v !== '').sort();
+  const blancos = e.map((v, k) => (v === '' ? k : -1)).filter((k) => k >= 0);
+  return sha256(`${tipo}|sin-orden|${JSON.stringify(nombres)}|${JSON.stringify(blancos)}`);
 }
 
 function parsear(fuente, matriz) {
@@ -72,7 +79,9 @@ export async function procesarFuente(fuente, matriz, previo, { aceptarEncabezado
   if (r.error) return { ...base, estado: 'error', mensaje: r.error };
 
   const hash = await hashEncabezado(fuente.tipo, r.encabezado);
-  if (previo && previo.hash && previo.hash !== hash && !aceptarEncabezado) {
+  // Pagos: la ultima corrida buena puede tener el hash viejo (por posicion): vale igual, y esta corrida guarda el nuevo.
+  const hashViejo = fuente.tipo === 'pagos' ? await hashEncabezado(fuente.tipo, r.encabezado, true) : hash;
+  if (previo && previo.hash && previo.hash !== hash && previo.hash !== hashViejo && !aceptarEncabezado) {
     return {
       ...base, hash, estado: 'error',
       mensaje: 'cambio el encabezado de la hoja respecto de la ultima corrida buena. No se toco ningun dato. '

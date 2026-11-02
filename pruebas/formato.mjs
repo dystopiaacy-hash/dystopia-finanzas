@@ -154,8 +154,25 @@ console.log('\nCeldas con formato de fecha en columnas de monto:');
 const REALES_FORMATO_FECHA = [
   { id: 'agus f5', cuenta: 'agus', col: 6, fila: 5, fecha: '1324-07-01', patron: 'yyyy.mm', texto: '1324.07' },
   { id: 'agus f37', cuenta: 'agus', col: 6, fila: 37, fecha: '1328-04-01', patron: 'yyyy.m', texto: '1328.4' },
-  { id: 'teo f178', cuenta: 'teo', col: 5, fila: 178, fecha: '1254-11-01', patron: 'yyyy.m', texto: '1254.11' },
 ];
+// teo f178 (1254.11, yyyy.m): mes de dos cifras, lo que se ve es lo que se tipeo -> se carga como monto 1254,11.
+{
+  const grid = aGrid(leer('teo', 'pagos'), LOCALES.es_AR);
+  grid.rowData[177].values[4] = celdaFecha(isoASerial('1254-11-01'), 'yyyy.m', '1254.11');
+  const res = await procesarFuente(fuenteDe('teo', 'pagos'), matrizDesdeGrid(grid, 'es_AR'), null);
+  const pago = res.datos && res.datos.pagos.find((p) => p.fila_planilla === 178);
+  const rech = res.datos && res.datos.rechazadas.find((r) => r.fila_planilla === 178 && r.motivo === MOTIVO_MONTO_AMBIGUO);
+  if (!pago || pago.monto_usd !== 1254.11 || rech) falla('[formato fecha teo f178] 1254.11 (yyyy.m) tiene que cargarse como monto 1254,11');
+  console.log(`  teo f178  1254-11-01 se ve 1254.11  ${pago && pago.monto_usd === 1254.11 && !rech ? 'cargada como 1254,11' : 'MAL'}`);
+  // El mismo valor con mes de una cifra o patron yyyy.mm sigue ambiguo.
+  for (const [iso, patron, texto] of [['1254-01-01', 'yyyy.m', '1254.1'], ['1254-11-01', 'yyyy.mm', '1254.11']]) {
+    const g2 = aGrid(leer('teo', 'pagos'), LOCALES.es_AR);
+    g2.rowData[177].values[4] = celdaFecha(isoASerial(iso), patron, texto);
+    const r2 = await procesarFuente(fuenteDe('teo', 'pagos'), matrizDesdeGrid(g2, 'es_AR'), null);
+    const amb = r2.datos && r2.datos.rechazadas.find((r) => r.fila_planilla === 178 && r.motivo === MOTIVO_MONTO_AMBIGUO);
+    if (!amb) falla(`[formato fecha teo f178] ${texto} (${patron}) tiene que seguir ambiguo`);
+  }
+}
 for (const c of REALES_FORMATO_FECHA) {
   const crudo = leer(c.cuenta, 'pagos');
   const grid = aGrid(crudo, LOCALES.es_AR);

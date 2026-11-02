@@ -57,6 +57,18 @@ export function isoASerial(iso) {
   return Math.round((Date.UTC(a, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000);
 }
 
+// Monto tipeado en una celda con formato de fecha anterior a 1900 (teo f178: 1254.11 -> noviembre de 1254,
+// se ve "1254.11" con el patron yyyy.m). Se recupera SOLO si el texto mostrado es exactamente anio.mes con el mes de
+// dos cifras (10, 11, 12) y el patron es de mes sin cero a la izquierda: ahi lo que se ve es lo que se tipeo
+// (1254.1 se veria "1254.1"). Con mes de una cifra o patron yyyy.mm ("1324.07", "1328.4") el texto pierde o agrega
+// un cero y no se sabe si era 1324,07 o 1324,70: eso sigue ambiguo.
+function montoTipeadoComoFecha(texto, patron, iso) {
+  if (patron !== 'yyyy.m') return null;
+  const m = String(texto ?? '').trim().match(/^(\d{4})\.(1[0-2])$/);
+  if (!m || Number(iso.slice(0, 4)) >= 1900) return null;
+  return Number(iso.slice(0, 4)) === Number(m[1]) && Number(iso.slice(5, 7)) === Number(m[2]) ? Number(`${m[1]}.${m[2]}`) : null;
+}
+
 // Una celda del grid -> valor para el parser.
 export function valorDeCelda(c, opciones) {
   if (!c) return '';
@@ -70,6 +82,8 @@ export function valorDeCelda(c, opciones) {
       const { montoMaximoReal, serialMin, serialMax } = RANGO_FECHA_EN_MONTO;
       if (v >= serialMin && v <= serialMax) return serialAIso(v);
       if (Math.abs(v) <= montoMaximoReal) return v;
+      const tipeado = montoTipeadoComoFecha(texto, c.effectiveFormat?.numberFormat?.pattern, serialAIso(v));
+      if (tipeado !== null) return tipeado;
       return marcarAmbiguo(texto, v, serialAIso(v));
     }
     if (TIPOS_TEXTO.has(tipo)) return texto;
