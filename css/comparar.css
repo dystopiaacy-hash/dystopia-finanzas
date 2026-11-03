@@ -1,0 +1,35 @@
+/* Comparar mes a mes (js/views/comparar.js). Solo tokens de tema.css: sirve igual en claro y oscuro. */
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:22px;}
+.cmp-grid-barras{grid-template-columns:repeat(auto-fit,minmax(340px,1fr));}
+.cmp-filtros select{max-width:100%;}
+
+.cmp-kpi{background:var(--surface);border-radius:var(--r-card);padding:26px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.cmp-kpi-t{font-size:14px;color:var(--text-3);font-weight:500;}
+.cmp-kpi-par{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.cmp-kpi-par > div{min-width:0;}
+.cmp-kpi-m{font-size:13px;color:var(--text-3);}
+.cmp-kpi-n{font-size:clamp(22px,2.4vw,32px);font-weight:800;letter-spacing:-.03em;line-height:1.15;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.cmp-kpi-b{color:var(--accent-text);}
+.cmp-kpi-pie{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.cmp-kpi-sub{font-size:13px;color:var(--text-3);}
+.cmp-chip{display:inline-block;padding:4px 10px;border-radius:var(--r-pill);font-size:13px;font-weight:600;background:var(--accent-bg);color:var(--accent-text);}
+.cmp-chip-ok{background:var(--ok-bg);color:var(--ok-text);}
+.cmp-chip-mal{background:var(--danger-bg);color:var(--danger-text);}
+
+.cmp-barras{display:flex;flex-direction:column;gap:12px;}
+.cmp-card-t{font-size:18px;font-weight:700;color:var(--text);}
+.cmp-leyenda{display:flex;gap:16px;font-size:13px;color:var(--text-3);}
+.cmp-leyenda i{display:inline-block;width:10px;height:10px;border-radius:var(--r-pill);margin-right:6px;}
+.cmp-fila{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center;}
+.cmp-etq{font-size:13px;color:var(--text-3);}
+.cmp-pistas{display:flex;flex-direction:column;gap:6px;}
+.cmp-pista{position:relative;height:22px;background:var(--surface-inset);border-radius:var(--r-pill);overflow:hidden;}
+.cmp-relleno{height:100%;border-radius:var(--r-pill);}
+.cmp-a{background:var(--accent-soft-fill);}
+.cmp-b{background:var(--accent);}
+.cmp-neg{background:var(--danger);}
+.cmp-val{position:absolute;right:10px;top:0;line-height:22px;font-size:12px;font-weight:700;color:var(--text);}
+@media(max-width:600px){
+  .cmp-grid,.cmp-grid-barras{grid-template-columns:1fr;}
+  .cmp-fila{grid-template-columns:1fr;gap:4px;}
+}

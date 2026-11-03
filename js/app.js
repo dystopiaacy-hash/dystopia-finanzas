@@ -27,6 +27,7 @@ import { vistaGastos } from './views/gastos.js';
 import { vistaIaUso } from './views/ia-uso.js';
 import { vistaWebinars } from './views/webinars.js';
 import { vistaCierre } from './views/cierre.js';
+import { vistaComparar } from './views/comparar.js';
 import { veCierre } from './cierre.js';
 import { veDystopia, veGastos, veIaUso, veWebinars } from './gastos.js';
 import { montarDystopita, desmontarDystopita } from './dystopita.js';
@@ -190,6 +191,11 @@ function registrarRutas() {
     renderNav({ vista: 'cierre' });
     setHeader('Cierre de mes', 'A quién transferirle y cuánto, mes por mes');
     montar(vistaCierre);
+  }));
+  ruta('comparar', guardia(veCierre, () => {
+    renderNav({ vista: 'comparar' });
+    setHeader('Comparar', 'Dos meses lado a lado, por cliente o todos');
+    montar(vistaComparar);
   }));
   ruta('ia-uso', guardia(veIaUso, () => {
     renderNav({ vista: 'ia-uso' });
