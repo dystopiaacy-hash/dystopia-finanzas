@@ -1,4 +1,0 @@
-/* tema-local.css — tokens que usa SOLO Finanzas y que css/tema.css (idéntico al de
-   Ventas) no define. Cargarlo justo después de tema.css. No redefinir acá nada
-   que ya esté en tema.css. */
-:root{--accent-soft-fill:var(--accent-light);}

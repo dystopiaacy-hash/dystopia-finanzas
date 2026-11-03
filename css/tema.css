@@ -1,21 +1,18 @@
 /* =====================================================================
-   tema.css — tokens de diseño de Dystopia: "E · Pastel suave" (claro y oscuro).
-   Fuente de los valores: reuniones/2026-11-02-setting-dcac-y-diseno.md, sección B.
-   Cargarlo PRIMERO, antes que cualquier otra hoja. Junto con js/tema-init.js
-   (en el <head>, antes del CSS) y js/tema.js (botón sol/luna).
+   tema.css — tokens de diseño "E · Pastel suave" (claro y oscuro).
+   Fuente: reuniones/2026-11-02-setting-dcac-y-diseno.md, sección B.
+   Los tokens nuevos (--surface-inset, --accent-bg, --ok-bg, --nav-active-bg,
+   --r-card ...) son los del diseño; los nombres viejos (--ink, --text-dim,
+   --text-faint, --accent-soft, --success, --radius ...) siguen existiendo como
+   alias para que el resto de las hojas no cambie de nombres.
+   Cargarlo PRIMERO. Junto con js/tema-init.js (en el <head>, antes del CSS,
+   sin parpadeo) y js/tema.js (botón sol/luna).
 
    Cómo se elige el tema:
    - <html data-theme="light|dark"> lo fuerza (lo pone tema-init.js a partir
-     de lo guardado por la persona; si no hay nada, sigue al sistema).
+     de lo guardado por el usuario; si no hay nada, sigue al sistema).
    - Sin data-theme (si el JS no corrió): prefers-color-scheme.
-
-   Estilo plano: sin sombras ni bordes en tarjetas; la profundidad sale de la
-   superficie blanca sobre el fondo lila. Radios: tarjetas 26, mosaicos 18, pills 999.
-
-   Nombres: los del diseño (--text-2, --accent-bg, --ok-bg...) más los que ya
-   usaba el código (--ink, --text-dim, --surface-2, --danger-soft...), que son
-   alias de los nuevos para no tocar cada pantalla. Todos los pares texto/fondo
-   dan >= 4.5:1 en los dos modos (se verificaron con WCAG).
+   Si se cambia un valor oscuro, repetirlo en el bloque @media de abajo.
    ===================================================================== */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -24,45 +21,43 @@
   color-scheme:light;
   /* Superficies */
   --bg:#F4F1FA; --surface:#FFFFFF; --surface-inset:#F4F1FA;
-  /* Texto */
+  --bg-alt:var(--bg);
+  --surface-2:var(--surface-inset);
+  --thead-bg:var(--surface-inset); --tfoot-bg:var(--surface-inset);
+  --border:#E3DDF2; --border-soft:#EEEAF7;
+  --overlay:rgba(34,28,51,.45);
+  /* Texto (todos >= 4.5:1 sobre --surface y sobre --bg) */
   --text:#221C33; --text-2:#4E4766; --text-3:#5E5775;
-  /* Acento (--accent-light es el "accent-soft" del diseño: barras de valores muy bajos) */
-  --accent:#6A4AD6; --accent-light:#B9A8F0; --accent-bg:#EDE8FB; --accent-text:#4A33A0;
+  --ink:var(--text); --text-dim:var(--text-2); --text-faint:var(--text-3);
+  /* Acento */
+  --accent:#6A4AD6; --accent-soft-fill:#B9A8F0; --accent-bg:#EDE8FB; --accent-text:#4A33A0;
   --on-accent:#FFFFFF; --link:#5B3FB8; --link-hover:#432C8C;
+  --accent-hover:#5A3BC4; --accent-soft:var(--accent-bg); --accent-line:#B9A8F0;
   --nav-active-bg:#221C33; --nav-active-text:#FFFFFF;
   /* Estados */
   --danger-bg:#FDE2E2; --danger-text:#9B1C1C;
   --warn-bg:#FFF0C7;   --warn-text:#6B4A00;
   --ok-bg:#D9F2E5;     --ok-text:#14532D;
-  /* Plataformas / fuentes */
+  --success:#1B7A48; --success-soft:var(--ok-bg);
+  --warning:#8F5600; --warning-text:var(--warn-text); --warning-soft:var(--warn-bg);
+  --danger:#B42318;  --danger-soft:var(--danger-bg);
+  --pink:#B8286E;    --pink-soft:#FBE3EE;
+  --cyan:#0F766E;
+  /* Plataformas */
   --tiktok-bg:#1F1F24; --tiktok-text:#FFFFFF; --tiktok-track:#3A3A42; --tiktok-fill:#FFFFFF;
   --ig-bg:#FFE3D3; --ig-text:#6B3416; --ig-track:#FFC9AB; --ig-fill:#B4501C;
   --yt-bg:#DCEBFF; --yt-text:#1C3F73; --yt-track:#BBD6FB; --yt-fill:#2B5FB4;
-  /* Forma */
-  --r-card:26px; --r-tile:18px; --r-pill:999px;
-  --font:'Plus Jakarta Sans',system-ui,sans-serif;
-
-  /* ----- Alias que ya usaba el código ----- */
-  --bg-alt:var(--bg);
-  --surface-2:var(--surface-inset);
-  --thead-bg:var(--surface-inset); --tfoot-bg:var(--accent-bg);
-  --border:#DDD5F0; --border-soft:#ECE7F7;
-  --overlay:rgba(34,28,51,.45);
-  --ink:var(--text); --text-dim:var(--text-2); --text-faint:var(--text-3);
-  --accent-hover:#6A4AD0;
-  --accent-soft:var(--accent-bg); --accent-line:#B9A8F0;
-  --success:var(--ok-text); --success-soft:var(--ok-bg);
-  --warning:#8A5300; --warning-text:var(--warn-text); --warning-soft:var(--warn-bg);
-  --danger:var(--danger-text); --danger-soft:var(--danger-bg);
-  --pink:#B02A6E; --pink-soft:#FBE3EF;
-  --cyan:#0B6B63;
   /* Series de gráficos (en este orden) */
-  --chart-1:#7B5CE0; --chart-2:#0F8B80; --chart-3:#C13584; --chart-4:#C77C0A;
-  --chart-5:#3F6FD0; --chart-6:#5E9B1D; --chart-7:#2B5FB4; --chart-8:#D1495B;
-  --chart-grid:#E7E1F4;
+  --chart-1:#7B5CE0; --chart-2:#0D9488; --chart-3:#DB2777; --chart-4:#D97706;
+  --chart-5:#2B5FB4; --chart-6:#65A30D; --chart-7:#B4501C; --chart-8:#E11D48;
+  --chart-grid:#E3DDF2;
+  /* Forma: estilo plano, la profundidad sale de blanco sobre lila */
+  --r-card:26px; --r-tile:18px; --r-pill:999px;
   --radius-lg:var(--r-card); --radius:var(--r-tile); --radius-sm:12px;
-  --shadow:none; --shadow-md:none;
-  --scroll-thumb:#CFC5EA;
+  --shadow:none; --shadow-md:0 12px 32px rgba(34,28,51,.18);
+  --scroll-thumb:#CFC6E8;
+  /* Tipografía */
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
   --font-sans:var(--font); --font-mono:var(--font);
 }
 
@@ -70,26 +65,26 @@
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#14111F; --surface:#1F1A2E; --surface-inset:#2A2440;
+  --border:#352E50; --border-soft:#2A2440;
+  --overlay:rgba(0,0,0,.62);
   --text:#F1EEFA; --text-2:#C4BCDB; --text-3:#A59DBF;
-  --accent:#9B82F0; --accent-light:#5B4A9E; --accent-bg:#2E2650; --accent-text:#CDBFFF;
+  --accent:#9B82F0; --accent-soft-fill:#5B4A9E; --accent-bg:#2E2650; --accent-text:#CDBFFF;
   --on-accent:#14111F; --link:#B7A4FF; --link-hover:#D3C6FF;
+  --accent-hover:#B09BF5; --accent-line:#5B4A9E;
   --nav-active-bg:#F1EEFA; --nav-active-text:#14111F;
   --danger-bg:#4A1D24; --danger-text:#FFB4B4;
-  --warn-bg:#4A3A12; --warn-text:#FFE08A;
-  --ok-bg:#16382B; --ok-text:#8FE3B8;
+  --warn-bg:#4A3A12;   --warn-text:#FFE08A;
+  --ok-bg:#16382B;     --ok-text:#8FE3B8;
+  --success:#8FE3B8; --warning:#FFE08A; --danger:#FFB4B4;
+  --pink:#FF9CC8; --pink-soft:#4A1E36; --cyan:#5EEAD4;
   --tiktok-bg:#0B0B0E; --tiktok-text:#FFFFFF; --tiktok-track:#2E2E36; --tiktok-fill:#FFFFFF;
   --ig-bg:#4A2A1A; --ig-text:#FFD2B8; --ig-track:#6B3A22; --ig-fill:#FF9A66;
   --yt-bg:#1B2E4D; --yt-text:#BBD6FB; --yt-track:#284468; --yt-fill:#6FA3F0;
-  --border:#3A3258; --border-soft:#2F2848;
-  --overlay:rgba(5,3,12,.66);
-  --accent-hover:#B09CF5; --accent-line:#5B4A9E;
-  --warning:#FFE08A;
-  --pink:#F28BB8; --pink-soft:#4A2238;
-  --cyan:#6FE0CF;
-  --chart-1:#9B82F0; --chart-2:#4FD1C0; --chart-3:#F07AB8; --chart-4:#F2B24A;
-  --chart-5:#7FA6FF; --chart-6:#A3D85A; --chart-7:#6FA3F0; --chart-8:#FF8A99;
-  --chart-grid:#2F2848;
-  --scroll-thumb:#4A4070;
+  --chart-1:#9B82F0; --chart-2:#2DD4BF; --chart-3:#F472B6; --chart-4:#FBBF24;
+  --chart-5:#6FA3F0; --chart-6:#A3E635; --chart-7:#FF9A66; --chart-8:#FB7185;
+  --chart-grid:#352E50;
+  --shadow-md:0 12px 32px rgba(0,0,0,.55);
+  --scroll-thumb:#463E69;
 }
 
 /* Sin data-theme (el JS no corrió): sigue al sistema. Mismos valores que arriba. */
@@ -97,34 +92,34 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]){
     color-scheme:dark;
     --bg:#14111F; --surface:#1F1A2E; --surface-inset:#2A2440;
+    --border:#352E50; --border-soft:#2A2440;
+    --overlay:rgba(0,0,0,.62);
     --text:#F1EEFA; --text-2:#C4BCDB; --text-3:#A59DBF;
-    --accent:#9B82F0; --accent-light:#5B4A9E; --accent-bg:#2E2650; --accent-text:#CDBFFF;
+    --accent:#9B82F0; --accent-soft-fill:#5B4A9E; --accent-bg:#2E2650; --accent-text:#CDBFFF;
     --on-accent:#14111F; --link:#B7A4FF; --link-hover:#D3C6FF;
+    --accent-hover:#B09BF5; --accent-line:#5B4A9E;
     --nav-active-bg:#F1EEFA; --nav-active-text:#14111F;
     --danger-bg:#4A1D24; --danger-text:#FFB4B4;
-    --warn-bg:#4A3A12; --warn-text:#FFE08A;
-    --ok-bg:#16382B; --ok-text:#8FE3B8;
+    --warn-bg:#4A3A12;   --warn-text:#FFE08A;
+    --ok-bg:#16382B;     --ok-text:#8FE3B8;
+    --success:#8FE3B8; --warning:#FFE08A; --danger:#FFB4B4;
+    --pink:#FF9CC8; --pink-soft:#4A1E36; --cyan:#5EEAD4;
     --tiktok-bg:#0B0B0E; --tiktok-text:#FFFFFF; --tiktok-track:#2E2E36; --tiktok-fill:#FFFFFF;
     --ig-bg:#4A2A1A; --ig-text:#FFD2B8; --ig-track:#6B3A22; --ig-fill:#FF9A66;
     --yt-bg:#1B2E4D; --yt-text:#BBD6FB; --yt-track:#284468; --yt-fill:#6FA3F0;
-    --border:#3A3258; --border-soft:#2F2848;
-    --overlay:rgba(5,3,12,.66);
-    --accent-hover:#B09CF5; --accent-line:#5B4A9E;
-    --warning:#FFE08A;
-    --pink:#F28BB8; --pink-soft:#4A2238;
-    --cyan:#6FE0CF;
-    --chart-1:#9B82F0; --chart-2:#4FD1C0; --chart-3:#F07AB8; --chart-4:#F2B24A;
-    --chart-5:#7FA6FF; --chart-6:#A3D85A; --chart-7:#6FA3F0; --chart-8:#FF8A99;
-    --chart-grid:#2F2848;
-    --scroll-thumb:#4A4070;
+    --chart-1:#9B82F0; --chart-2:#2DD4BF; --chart-3:#F472B6; --chart-4:#FBBF24;
+    --chart-5:#6FA3F0; --chart-6:#A3E635; --chart-7:#FF9A66; --chart-8:#FB7185;
+    --chart-grid:#352E50;
+    --shadow-md:0 12px 32px rgba(0,0,0,.55);
+    --scroll-thumb:#463E69;
   }
 }
 
 /* ---------- Botón de tema (lo monta js/tema.js) ---------- */
-.tema-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:var(--r-pill);
-  border:0;background:var(--surface);color:var(--text-2);cursor:pointer;flex-shrink:0;}
+.tema-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:var(--r-pill);
+  border:none;background:var(--surface);color:var(--text-2);cursor:pointer;flex-shrink:0;}
 .tema-btn:hover{color:var(--text);background:var(--accent-bg);}
-.tema-btn svg{width:18px;height:18px;display:block;}
+.tema-btn svg{width:17px;height:17px;display:block;}
 /* El sol se ve en oscuro (para pasar a claro) y la luna en claro. */
 .tema-btn .tema-sol{display:none;}
 :root[data-theme="dark"] .tema-btn .tema-sol{display:block;}

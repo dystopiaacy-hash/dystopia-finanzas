@@ -1,16 +1,16 @@
 /* =====================================================================
-   Dystopia Finanzas — breakpoints globales (header, secciones y tablas).
+   Dystopia Finanzas — breakpoints globales (sidebar y tablas).
    ===================================================================== */
-/* Notebook 13" (1280–1440px): tablas más compactas, sin scroll horizontal de página */
+/* Notebook 13" (1280–1440px): sidebar más angosta y tablas más compactas, sin scroll horizontal de página */
 @media(max-width:1440px){
-  .appbar{padding:18px var(--sp-6);}
-  .nav-list{padding-left:var(--sp-6);padding-right:var(--sp-6);}
-  .main-inner{padding:12px var(--sp-6) 56px;}
+  .sidebar{width:216px;}
+  .main-inner{padding:var(--sp-6) var(--sp-5) 64px;}
   .data-table th,.data-table td{padding:0 var(--sp-2);}
   .data-table th:first-child,.data-table td:first-child{padding-left:var(--sp-3);}
   .data-table th:last-child,.data-table td:last-child{padding-right:var(--sp-3);}
   .data-table th{white-space:normal;line-height:1.2;letter-spacing:.02em;}
   .data-table td{max-width:180px;}
+  .sidebar-foot{flex-wrap:wrap;row-gap:var(--sp-1);}
 }
 @media(max-width:1280px){
   .data-table{font-size:var(--fs-meta);}
@@ -19,26 +19,40 @@
   .upcoming-row{grid-template-columns:64px 8px minmax(80px,112px) minmax(0,1fr) auto;gap:var(--sp-2);}
 }
 @media(max-width:860px){
-  #app{height:auto;min-height:100vh;overflow:visible;}
-  .appbar{padding:var(--sp-3) var(--sp-4);gap:var(--sp-3);}
-  .appbar-acc{gap:var(--sp-2);}
-  .perfil-txt{display:none;}
-  .brand{flex:1;min-width:0;}
+  #app{flex-direction:column;height:auto;min-height:100vh;}
+  .sidebar{width:100%;flex-direction:row;flex-wrap:nowrap;overflow:hidden;border-right:none;border-bottom:1px solid var(--border);align-items:center;}
+  .brand{padding:var(--sp-3) var(--sp-4);border-bottom:none;border-right:1px solid var(--border-soft);flex-shrink:0;}
+  .nav-subs{margin-bottom:0;}
+  .nav-list{flex:1;min-width:0;display:flex;align-items:center;overflow-x:auto;padding:var(--sp-2);}
+  .nav-subs{flex-direction:row;align-items:center;flex-shrink:0;margin:0 var(--sp-2) 0 0;padding-left:var(--sp-2);}
+  .nav-eyebrow{display:none;}
+  .nav-item{flex-shrink:0;width:200px;margin-bottom:0;}
+  /* "Salir" siempre visible: el pie queda fijo a la derecha de la barra. */
+  .sidebar-foot{flex-shrink:0;border-top:none;border-left:1px solid var(--border-soft);padding:var(--sp-2) var(--sp-4);}
+  .perfil{display:none;}
   .brand-txt .brand-sub{display:none;}
-  /* Secciones: desplegable con ☰ (arranca plegado y se cierra al elegir una). */
-  .menu-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;padding:0;
-    background:var(--surface);border:0;border-radius:var(--r-pill);color:var(--text-2);font-size:18px;line-height:1;cursor:pointer;}
-  .menu-toggle:hover{background:var(--accent-bg);color:var(--text);}
-  #app:not(.menu-abierto) .nav-list{display:none;}
-  .nav-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:var(--sp-1) var(--sp-4) var(--sp-3);}
-  .nav-item{min-width:0;}
-  .nav-item .nav-name{white-space:normal;overflow-wrap:anywhere;}
-  .nav-list .nav-eyebrow{grid-column:1 / -1;padding:var(--sp-2) var(--sp-2) 0;}
-  .main{overflow:visible;}
-  /* Aire abajo para que el botón flotante del chat no tape el último contenido ni los montos de la derecha. */
-  .main-inner{padding:var(--sp-2) var(--sp-4) 112px;}
-  .client-head h1{font-size:30px;}
+  .nav-sub svg{display:none;}
+  .main-inner{padding:var(--sp-4);}
   .form-grid2,.form-grid4{grid-template-columns:1fr;}
   .upcoming-row{grid-template-columns:56px 8px minmax(0,1fr) auto;}
   .upcoming-client{display:none;}
+}
+.menu-toggle{display:none;}
+/* Celular: la barra es marca + tema/Salir + ☰. El menú (áreas y secciones, en 2 columnas con texto entero)
+   arranca plegado y se despliega con ☰. */
+@media(max-width:600px){
+  .menu-toggle{display:inline-flex;align-items:center;justify-content:center;order:1;flex-shrink:0;width:44px;height:44px;margin:0 var(--sp-2);
+    background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--ink);font-size:20px;line-height:1;cursor:pointer;}
+  .menu-toggle:hover{background:var(--surface-2);}
+  .sidebar:not(.menu-abierto) .nav-list,.sidebar:not(.menu-abierto) .nav-areas{display:none;}
+  /* Aire abajo para que el botón flotante del chat no tape el último contenido ni los montos de la derecha. */
+  .main .main-inner{padding-bottom:112px;}
+  .sidebar{flex-wrap:wrap;overflow:visible;}
+  .brand{flex:1;min-width:0;border-right:none;}
+  .nav-list{order:50;flex:0 0 100%;display:grid;grid-template-columns:1fr 1fr;gap:2px var(--sp-2);overflow:visible;
+    border-top:1px solid var(--border-soft);padding:var(--sp-2);}
+  .nav-item{width:auto;min-width:0;}
+  .nav-item .nav-name{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
+  .nav-item .nav-niche{display:none;}
+  .nav-list .nav-eyebrow{display:block;grid-column:1 / -1;padding:var(--sp-2) var(--sp-2) 0;}
 }

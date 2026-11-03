@@ -1,5 +1,5 @@
-/* Layout (mismo header que Ventas): marca, áreas, perfil, sol/luna y Salir arriba;
-   debajo las secciones como pills (en celular, desplegable ☰) y la vista. */
+/* Layout (mismo diseño que Producto): sidebar con marca (y nav-areas), perfil,
+   navegación y pie (tema + Salir); header con título de la vista y rol. */
 import { esc } from './ui.js';
 import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMisNumeros, puedeCargar, vePagos, puedeVincular, soloSubeComprobante, puedeConfirmarComprobante, puedeVerLectura, etiquetaRol } from './sesion.js';
 import { botonTemaHtml, activarBotonTema } from './tema.js';
@@ -56,7 +56,7 @@ const VISTAS = [
 export function renderLayout(app, onSalir) {
   const inicial = esc((yo.nombre || yo.email || '?').trim().charAt(0));
   app.innerHTML = `
-    <header class="appbar">
+    <aside class="sidebar">
       <div class="brand">
         <div class="brand-logo" aria-hidden="true">D</div>
         <div class="brand-txt">
@@ -64,21 +64,23 @@ export function renderLayout(app, onSalir) {
           <div class="brand-sub">Finanzas</div>
         </div>
       </div>
+      <button type="button" class="menu-toggle" id="btn-menu" aria-label="Menú" aria-expanded="false" aria-controls="nav">☰</button>
       <nav id="nav-areas"></nav>
-      <div class="appbar-acc">
-        <div class="perfil" title="${esc(yo.email)}">
-          <div class="perfil-avatar" aria-hidden="true">${inicial}</div>
-          <div class="perfil-txt">
-            <div class="perfil-nombre" id="user-email">${esc(yo.nombre || yo.email)}</div>
-            <div class="perfil-dato">${esc(etiquetaRol())}</div>
-          </div>
+      <div class="perfil" title="${esc(yo.email)}">
+        <div class="perfil-avatar" aria-hidden="true">${inicial}</div>
+        <div class="perfil-txt">
+          <div class="perfil-nombre" id="user-email">${esc(yo.nombre || yo.email)}</div>
+          <div class="perfil-dato">${esc(etiquetaRol())}</div>
         </div>
-        ${botonTemaHtml()}
-        <button type="button" class="refresh-btn" id="btn-logout">Salir</button>
-        <button type="button" class="menu-toggle" id="btn-menu" aria-label="Menú" aria-expanded="false" aria-controls="nav">☰</button>
       </div>
-    </header>
-    <nav class="nav-list" id="nav" aria-label="Navegación"></nav>
+      <nav class="nav-list" id="nav" aria-label="Navegación"></nav>
+      <div class="sidebar-foot">
+        <div class="sidebar-foot-acc">
+          ${botonTemaHtml()}
+          <button type="button" class="refresh-btn" id="btn-logout">Salir</button>
+        </div>
+      </div>
+    </aside>
     <main class="main">
       <div class="main-inner">
         <header class="topbar view-head">
@@ -96,13 +98,14 @@ export function renderLayout(app, onSalir) {
   document.getElementById('btn-logout').onclick = onSalir;
   activarBotonTema();
   /* Celular: el menú arranca plegado (☰) y se cierra al elegir una pantalla. */
+  const aside = app.querySelector('.sidebar');
   const btnMenu = document.getElementById('btn-menu');
   const fijarMenu = abierto => {
-    app.classList.toggle('menu-abierto', abierto);
+    aside.classList.toggle('menu-abierto', abierto);
     btnMenu.setAttribute('aria-expanded', String(abierto));
   };
-  btnMenu.onclick = () => fijarMenu(!app.classList.contains('menu-abierto'));
-  document.getElementById('nav').addEventListener('click', e => { if (e.target.closest('a[href]')) fijarMenu(false); });
+  btnMenu.onclick = () => fijarMenu(!aside.classList.contains('menu-abierto'));
+  aside.addEventListener('click', e => { if (e.target.closest('a[href]')) fijarMenu(false); });
   window.addEventListener('hashchange', () => fijarMenu(false));
 }
 
