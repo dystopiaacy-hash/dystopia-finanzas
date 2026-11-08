@@ -1,165 +1,161 @@
-/* Mapa (solo fundador): cinta con la cadena del mes, una fila de 4 tarjetas iguales (Marketing, Ventas, Finanzas,
-   Seguimiento), franja de resultado Dystopia y «Próximamente» compacto. Solo lectura. */
-import { esc, hoyAR, fmtPct } from '../ui.js';
-import { usd } from '../datos.js';
+/* Mapa (solo fundador): canvas navegable de sistemas a pantalla completa. Cada área es un marco con su "pantalla" y
+   datos reales; filtros globales de cliente y mes. Solo lectura: nada se edita desde acá.
+   El overlay se agrega al <body> (tapa el menú de la app) y se retira al salir de #/mapa. */
+import { esc, hoyAR } from '../ui.js';
 import { mesesDe, etiquetaMes } from '../gastos.js';
-import { botonRecargar } from './comunes.js';
-import { CLIENTES, AREAS, PROXIMAMENTE, cargarBaseMapa, cargarMapa } from '../mapa.js';
+import { aplicarTema, temaActual } from '../tema.js';
+import { CLIENTES, cargarBaseMapa, cargarMapa, limpiarCache } from '../mapa.js';
+import { AREAS, INTRO, BOUNDS, posicion, enlaces, htmlMarco, htmlIntro, poolDe } from '../mapa-marcos2.js';
+import { crearMotor, rellenar } from '../mapa-motor.js';
 
-const ent = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const SIN = 'sin dato';
-const val = (v, fmt) => (v == null ? SIN : fmt(v));
-const dec1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',').replace(/,0$/, '');
+const I = (d, w = 17) => `<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const IC = {
+  marcos: I('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
+  luna: I('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
+  play: I('<path d="M7 4.5v15l12-7.5z"/>'), todo: I('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
+  izq: I('<path d="m15 5-7 7 7 7"/>'), der: I('<path d="m9 5 7 7-7 7"/>'), rec: I('<path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5"/>')
+};
 
-/* Monto compacto: US$ 29,4k / US$ 1,2M; debajo de 1.000 con centavos si los tiene. El exacto va en title. */
-function uc(v) {
-  const a = Math.abs(v), s = v < 0 ? '-' : '';
-  if (a >= 1e6) return `${s}US$ ${dec1(a / 1e6)}M`;
-  if (a >= 1e3) return `${s}US$ ${dec1(a / 1e3)}k`;
-  return usd(v, { centavos: false });
-}
-const exacto = v => usd(v, { centavos: true });
-/* Devuelve {t: texto visible, title: exacto} para montos, o solo texto para enteros. */
-const money = v => (v == null ? { t: SIN } : { t: uc(v), title: exacto(v) });
-const count = v => (v == null ? { t: SIN } : { t: ent(v) });
+let actual = null;   // el overlay montado (uno solo)
 
-const titulo = o => (o.title ? ` title="${esc(o.title)}"` : '');
-
-function boton(a) {
-  if (a.url) return `<a class="btn btn-sm mapa-abrir" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir ↗</a>`;
-  return `<a class="btn btn-sm mapa-abrir" href="${esc(a.ruta)}">Abrir</a>`;
-}
-
-/* sec: lista de [etiqueta, {t, title?}] (siempre 3 filas para alinear la fila de tarjetas). */
-function tarjeta(clase, area, { num, etiqueta, sec = [], aviso = '', nota = '' }) {
-  const a = AREAS[area];
-  const filas = sec.slice(0, 3);
-  while (filas.length < 3) filas.push([' ', { t: '' }]);
-  return `<article class="card mapa-card ${clase}">
-    <div class="mapa-card-t">${esc(a.titulo)}</div>
-    <div class="mapa-num${num.t === SIN ? ' mapa-sd' : ''}"${titulo(num)}>${esc(num.t)}</div>
-    <div class="mapa-etq">${esc(etiqueta)}</div>
-    <ul class="mapa-sec">${filas.map(([k, v]) => `<li><span>${esc(k)}</span><b class="${v.t === SIN ? 'mapa-sd' : ''}"${titulo(v)}>${esc(v.t)}</b></li>`).join('')}</ul>
-    <div class="mapa-avisos">${aviso ? `<div class="mapa-aviso">${esc(aviso)}</div>` : ''}${nota ? `<div class="mapa-nota">${esc(nota)}</div>` : ''}</div>
-    <p class="mapa-regla">${esc(a.regla)}</p>
-    ${a.responsable ? `<div class="mapa-resp">Responsable: ${esc(a.responsable)}</div>` : ''}
-    ${boton(a)}
-  </article>`;
-}
-
-/* Cadena del mes en una línea: solo los eslabones con dato. */
-function cinta(d) {
-  const m = d.marketing, v = d.ventas, f = d.finanzas;
-  const eslabones = [];
-  const add = (cond, t, title) => { if (cond) eslabones.push(`<span class="mapa-chip"${title ? ` title="${esc(title)}"` : ''}>${esc(t)}</span>`); };
-  add(m, `${ent(m && m.piezas)} piezas`);
-  add(v && v.agendadas != null, `${ent(v && v.agendadas)} agendas`);
-  add(v && v.cerradas != null, `${ent(v && v.cerradas)} cierres`);
-  add(f, `${f ? uc(f.cash) : ''} cobrado`, f && exacto(f.cash));
-  add(f, `${f ? uc(f.gananciaDys) : ''} Dystopia`, f && exacto(f.gananciaDys));
-  if (!eslabones.length) return '';
-  return `<div class="mapa-cinta" role="list" aria-label="Cadena del mes">${eslabones.join('<span class="mapa-sep" aria-hidden="true">→</span>')}</div>`;
+function esqueleto() {
+  const r = document.createElement('div');
+  r.id = 'mapa-root';
+  r.innerHTML = `
+    <div id="board"><div id="world">
+      <div class="glow" style="left:-1800px;top:-1600px"></div><div class="glow" style="left:2600px;top:600px"></div>
+      <div class="band" style="left:-90px;top:-300px;width:6040px;height:2580px"><span>Recorrido del cliente</span></div>
+      <svg id="links" aria-hidden="true"></svg><div id="frames"></div>
+    </div></div>
+    <header id="topbar" class="chrome">
+      <a class="ib" id="b-volver" href="#/resumen" title="Volver a la app">${IC.izq}<span class="tx">Volver</span></a>
+      <span class="vsep"></span><span class="logo big">D</span>
+      <div class="tt"><b>Mapa de sistemas</b><span id="tsub">Cargando…</span></div>
+      <span class="vsep"></span>
+      <select id="mapa-cli" aria-label="Cliente"><option value="">Todos</option>${CLIENTES.map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('')}</select>
+      <select id="mapa-mes" aria-label="Mes"></select>
+      <button type="button" class="ib" id="b-rec" title="Recargar los datos">${IC.rec}<span class="tx">Recargar</span></button>
+      <button type="button" class="ib" id="b-marcos" title="Marcos (F)">${IC.marcos}<span class="tx">Marcos</span></button>
+      <button type="button" class="ib" id="b-tema" title="Tema claro / oscuro">${IC.luna}</button>
+      <button type="button" class="ib p" id="b-pres" title="Presentar (P)">${IC.play}<span class="tx">Presentar</span></button>
+    </header>
+    <div id="hint" class="chrome"><span><kbd>Arrastrá</kbd> para moverte</span><span><kbd>Ctrl</kbd> + rueda o pellizco = zoom</span><span><kbd>1</kbd>–<kbd>8</kbd> salta a un marco</span></div>
+    <div id="tools" class="chrome">
+      <button type="button" class="ib sq" id="t-todo" data-tip="Ver todo (0)" aria-label="Ver todo">${IC.todo}</button>
+      <button type="button" class="ib sq" id="t-ant" data-tip="Marco anterior (←)" aria-label="Marco anterior">${IC.izq}</button>
+      <button type="button" class="ib sq" id="t-sig" data-tip="Marco siguiente (→)" aria-label="Marco siguiente">${IC.der}</button>
+    </div>
+    <aside id="panel" class="chrome" hidden>
+      <header><b>Marcos del tablero</b><button type="button" class="ib sq" id="panel-x" aria-label="Cerrar">×</button></header>
+      <input id="pbuscar" type="search" placeholder="Buscar un área…" aria-label="Buscar un área" autocomplete="off">
+      <div id="plist"><button type="button" class="pitem" data-go="0"><span class="pnum">00</span><span class="pn">Empieza aquí</span><kbd>←</kbd></button>
+        ${AREAS.map((a, i) => `<button type="button" class="pitem" data-go="${i + 1}"><span class="pnum">${String(i + 1).padStart(2, '0')}</span><span class="pn">${esc(a.nombre)}</span><kbd>${i + 1}</kbd></button>`).join('')}</div>
+    </aside>
+    <div id="mini" class="chrome"><canvas id="minic" width="420" height="256" style="width:210px;height:128px"></canvas></div>
+    <div id="zoom" class="chrome"><button type="button" class="ib sq" id="z-menos" aria-label="Alejar">−</button><button type="button" id="zpct" class="zp" title="Ver todo">100%</button><button type="button" class="ib sq" id="z-mas" aria-label="Acercar">+</button></div>
+    <div id="pres" class="chrome"><button type="button" class="ib sq" id="p-ant" aria-label="Anterior">${IC.izq}</button><span id="pcont">1 / 9</span><button type="button" class="ib sq" id="p-sig" aria-label="Siguiente">${IC.der}</button><span class="vsep"></span><button type="button" class="ib" id="p-salir">Salir</button></div>`;
+  return r;
 }
 
-function cuerpo(d, rotuloMes) {
-  const m = d.marketing, v = d.ventas, f = d.finanzas, s = d.seguimiento;
-  const plat = m ? Object.entries(m.porPlataforma).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
-  const secMkt = !m ? [['Por plataforma', { t: SIN }]] : plat.length ? plat.map(([k, c]) => [k, { t: ent(c) }]) : [['Por plataforma', { t: '0' }]];
-
-  const marketing = tarjeta('mapa-c-mkt', 'marketing', {
-    num: count(m && m.piezas), etiqueta: `piezas publicadas en ${rotuloMes}`, sec: secMkt
-  });
-  const faltanLlamadas = v && v.agendadas > 0 && v.presentadas === 0;
-  const ventas = tarjeta('mapa-c-vta', 'ventas', {
-    num: count(v && v.agendadas), etiqueta: `llamadas agendadas en ${rotuloMes}`,
-    sec: [['Presentadas', count(v && v.presentadas)], ['Cierres', count(v && v.cerradas)], ['Show up sin marcar', count(v && v.sinShowUp)]],
-    aviso: faltanLlamadas ? `Faltan cargar llamadas de ${rotuloMes}: hay agendadas pero ninguna marcada como presentada.` : ''
-  });
-  const gastosBajos = f && f.cash > 0 && f.gastos < f.cash * 0.01;
-  const finanzas = tarjeta('mapa-c-fin', 'finanzas', {
-    num: money(f && f.cash), etiqueta: `cash cobrado en ${rotuloMes}`,
-    sec: [['Gastos', money(f && f.gastos)], ['Ganancia del cliente', money(f && f.ganancia)]],
-    aviso: gastosBajos ? 'Gastos del mes sin cargar: la ganancia está sobreestimada.' : ''
-  });
-  const seguimiento = tarjeta('mapa-c-seg', 'seguimiento', {
-    num: count(s && s.activos), etiqueta: 'alumnos en seguimiento hoy',
-    sec: [['En onboarding', count(s && s.onboarding)], ['En renovación', count(s && s.renovacion)]],
-    nota: 'No cambia con el mes: es la foto de hoy.'
-  });
-
-  const a = AREAS.dystopia;
-  const dg = money(f && f.gananciaDys);
-  const resultado = `<section class="card mapa-dys">
-      <div class="mapa-dys-izq">
-        <div class="mapa-card-t">${esc(a.titulo)}</div>
-        <div class="mapa-dys-fila">
-          <div class="mapa-num mapa-dys-num${dg.t === SIN ? ' mapa-sd' : ''}"${titulo(dg)}>${esc(dg.t)}</div>
-          <div class="mapa-dys-pct">${f && f.pct != null ? `${esc(fmtPct(f.pct, 0))} <span>de la ganancia del cliente</span>` : ''}</div>
-        </div>
-        <div class="mapa-etq">ganancia de Dystopia en ${esc(rotuloMes)}</div>
-      </div>
-      <p class="mapa-regla mapa-dys-regla">${esc(a.regla)}</p>
-      ${boton(a)}
-    </section>`;
-
-  const prox = PROXIMAMENTE.map(t => `<span class="mapa-prox-chip"><b>${esc(t)}</b> · Próximamente</span>`).join('');
-
-  return `${cinta(d)}
-    <div class="mapa-grid">${marketing}${ventas}${finanzas}${seguimiento}</div>
-    ${resultado}
-    <div class="mapa-prox-fila" aria-label="Próximamente">${prox}</div>`;
-}
-
-function mesesDisponibles(base) {
-  const meses = mesesDe(base.ganancia);
-  const hoy = hoyAR().slice(0, 7);
-  if (!meses.includes(hoy)) meses.push(hoy);
-  return meses.sort().reverse();
+function desmontar() {
+  if (!actual) return;
+  const a = actual; actual = null;
+  a.motor.destroy();
+  window.removeEventListener('hashchange', a.onHash);
+  a.root.remove();
+  document.body.classList.remove('mapa-abierto');
 }
 
 export async function vistaMapa(el, vigente) {
-  el.innerHTML = '<div class="card empty-state"><div class="small">Cargando el mapa…</div></div>';
-  let base;
+  desmontar();
+  el.innerHTML = '<div class="loading-inline">Abriendo el mapa…</div>';
+  const root = esqueleto();
+  document.body.appendChild(root);
+  document.body.classList.add('mapa-abierto');
+
+  const rects = [{ ...INTRO }, ...AREAS.map((_, i) => posicion(i))];
+  const motor = crearMotor(root, { rects, bounds: BOUNDS });
+  const onHash = () => { if (!/^#\/mapa/.test(location.hash)) desmontar(); };
+  window.addEventListener('hashchange', onHash);
+  actual = { root, motor, onHash };
+
+  const q = s => root.querySelector(s);
+  const sel = { cli: '', ym: hoyAR().slice(0, 7) };
+  const tabs = {};          // área -> pestaña elegida (se conserva al recargar)
+  let base = null, pools = {}, primera = true, gen = 0;
+
+  const aTema = () => aplicarTema(temaActual() === 'dark' ? 'light' : 'dark');
+  q('#b-tema').onclick = aTema;
+
+  function mostrarTab(marco, id) {
+    const area = AREAS.find(a => `f-${a.id}` === marco.id);
+    if (!area) return;
+    tabs[area.id] = id;
+    marco.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === id));
+    marco.querySelectorAll('.view').forEach(v => { v.hidden = v.dataset.view !== id; });
+    const v = marco.querySelector(`.view[data-view="${id}"]`);
+    if (v) rellenar(v, (pools[area.id] || {})[id]);
+  }
+  root.addEventListener('click', e => {
+    const t = e.target.closest('.tab');
+    if (t) mostrarTab(t.closest('.frame'), t.dataset.tab);
+  });
+  const rellenarTodo = () => root.querySelectorAll('.frame').forEach(f => {
+    const area = AREAS.find(a => `f-${a.id}` === f.id);
+    const v = f.querySelector('.view:not([hidden])');
+    if (area && v) rellenar(v, (pools[area.id] || {})[v.dataset.view]);
+  });
+
+  function pintar(datos) {
+    const D = { d: datos, mesTxt: etiquetaMes(sel.ym), cliTxt: sel.cli ? (CLIENTES.find(c => c[0] === sel.cli) || [0, sel.cli])[1] : 'Todos los clientes' };
+    D.diasMes = new Date(+sel.ym.slice(0, 4), +sel.ym.slice(5, 7), 0).getDate();
+    pools = Object.fromEntries(AREAS.map(a => [a.id, poolDe(a, D)]));
+    q('#frames').innerHTML = htmlIntro(D) + AREAS.map((a, i) => htmlMarco(a, i, D)).join('');
+    for (const a of AREAS) {
+      const m = q(`#f-${a.id}`), t = tabs[a.id];
+      if (t && m.querySelector(`.tab[data-tab="${t}"]`)) {
+        m.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
+        m.querySelectorAll('.view').forEach(v => { v.hidden = v.dataset.view !== t; });
+      }
+    }
+    motor.flechas(enlaces(D));
+    rellenarTodo();
+    q('#tsub').textContent = `Datos reales · ${D.mesTxt} · ${D.cliTxt}`;
+    if (primera) { primera = false; motor.inicial(); setTimeout(() => q('#hint') && q('#hint').classList.add('off'), 9000); }
+    else motor.apply();
+  }
+
+  async function cargar() {
+    const mi = ++gen;
+    root.classList.add('cargando');
+    q('#tsub').textContent = 'Cargando datos…';
+    try {
+      const datos = await cargarMapa(sel.ym, sel.cli, base);
+      if (mi !== gen || !actual || actual.root !== root) return;
+      pintar(datos);
+    } catch (e) {
+      console.error(e);
+      if (mi === gen) q('#tsub').textContent = `No se pudo cargar: ${e.message || e}`;
+    }
+    if (mi === gen) root.classList.remove('cargando');
+  }
+
   try { base = await cargarBaseMapa(); } catch (e) {
-    el.innerHTML = `<div class="card nota aviso-ambar">No se pudo cargar: ${esc(e.message)}</div>`;
+    q('#tsub').textContent = `No se pudo cargar: ${e.message || e}`;
     return;
   }
-  if (!vigente()) return;
-  const meses = mesesDisponibles(base);
-  const sel = { cli: '', ym: hoyAR().slice(0, 7) };
-
-  const mostrar = async () => {
-    el.classList.add('mapa-cargando');
-    let datos;
-    try { datos = await cargarMapa(sel.ym, sel.cli, base); } catch (e) {
-      el.classList.remove('mapa-cargando');
-      el.innerHTML = `<div class="card nota aviso-ambar">No se pudo cargar el mapa: ${esc(e.message)}</div>`;
-      return;
-    }
-    if (!vigente()) return;
-    el.classList.remove('mapa-cargando');
-    const opcion = m => `<option value="${m}"${m === sel.ym ? ' selected' : ''}>${esc(etiquetaMes(m))}</option>`;
-    const abierto = sel.ym >= hoyAR().slice(0, 7);
-    el.innerHTML = `
-      <div class="filter-row cmp-filtros">
-        <span class="flabel">Cliente</span>
-        <select id="mapa-cli" aria-label="Cliente"><option value="">Todos</option>${CLIENTES.map(([id, nm]) => `<option value="${id}"${id === sel.cli ? ' selected' : ''}>${esc(nm)}</option>`).join('')}</select>
-        <span class="flabel">Mes</span>
-        <select id="mapa-mes" aria-label="Mes">${meses.map(opcion).join('')}</select>
-        <span class="grow"></span>
-        ${botonRecargar()}
-      </div>
-      ${abierto ? '<div class="card nota aviso-ambar">Mes en curso: los números cambian hasta el cierre.</div>' : ''}
-      ${cuerpo(datos, etiquetaMes(sel.ym))}
-      <div class="table-foot">Solo lectura. Montos compactos: pasá el mouse (o mantené apretado) para ver el exacto. Finanzas y Dystopia usan las mismas cuentas que Comparar y Cierre (mes cerrado = foto del cierre). Ventas sale de las métricas de Ventas (presentadas = columna Show up marcada «sí», que se completa días después de la llamada); Marketing cuenta piezas con estado PUBLICADO por fecha de publicación; Seguimiento cuenta alumnos activos, en onboarding o en renovación de hoy.</div>`;
-
-    const q = s => el.querySelector(s);
-    q('#mapa-cli').onchange = e => { sel.cli = e.target.value; mostrar(); };
-    q('#mapa-mes').onchange = e => { sel.ym = e.target.value; mostrar(); };
-    q('#btn-recargar').onclick = async () => {
-      try { base = await cargarBaseMapa(); } catch (e) { /* se queda con lo anterior */ }
-      mostrar();
-    };
+  if (!vigente() || !actual || actual.root !== root) return;
+  const meses = mesesDe(base.ganancia), hoy = hoyAR().slice(0, 7);
+  if (!meses.includes(hoy)) meses.push(hoy);
+  meses.sort().reverse();
+  q('#mapa-mes').innerHTML = meses.map(m => `<option value="${m}"${m === sel.ym ? ' selected' : ''}>${esc(etiquetaMes(m))}</option>`).join('');
+  q('#mapa-cli').onchange = e => { sel.cli = e.target.value; cargar(); };
+  q('#mapa-mes').onchange = e => { sel.ym = e.target.value; cargar(); };
+  q('#b-rec').onclick = async () => {
+    limpiarCache();
+    try { base = await cargarBaseMapa(); } catch (e) { /* se queda con lo anterior */ }
+    cargar();
   };
-  mostrar();
+  document.fonts && document.fonts.ready.then(() => { if (actual && actual.root === root) rellenarTodo(); });
+  cargar();
 }
