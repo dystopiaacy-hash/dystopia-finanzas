@@ -28,6 +28,8 @@ import { vistaIaUso } from './views/ia-uso.js';
 import { vistaWebinars } from './views/webinars.js';
 import { vistaCierre } from './views/cierre.js';
 import { vistaComparar } from './views/comparar.js';
+import { vistaMapa } from './views/mapa.js';
+import { veMapa } from './mapa.js';
 import { veCierre } from './cierre.js';
 import { veDystopia, veGastos, veIaUso, veWebinars } from './gastos.js';
 import { montarDystopita, desmontarDystopita } from './dystopita.js';
@@ -111,6 +113,11 @@ function registrarRutas() {
   const guardia = (permitido, fn) => params => (permitido() ? fn(params) : reemplazar(rutaInicio()));
 
   ruta('', () => reemplazar(rutaInicio()));
+  ruta('mapa', guardia(veMapa, () => {
+    renderNav({ vista: 'mapa' });
+    setHeader('Mapa', 'Las áreas de la agencia en el orden del recorrido del cliente, con números vivos');
+    montar(vistaMapa);
+  }));
   ruta('resumen', guardia(veFinanzas, () => {
     renderNav({ vista: 'resumen' });
     const unico = clienteUnico();

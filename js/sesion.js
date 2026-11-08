@@ -104,6 +104,7 @@ export function nombreCliente(id) {
 }
 
 export function rutaInicio() {
+  if (esFundador()) return 'mapa';   // los fundadores entran por el Mapa
   if (yo.rol === 'ventas') return 'cargar';
   return esEquipo() ? 'mis-numeros' : 'resumen';
 }

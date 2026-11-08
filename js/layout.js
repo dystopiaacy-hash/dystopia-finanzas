@@ -5,10 +5,12 @@ import { yo, esFundador, clienteUnico, veFinanzas, veAnalisis, veCobranzas, veMi
 import { botonTemaHtml, activarBotonTema } from './tema.js';
 import { veDystopia, veGastos, veIaUso, veWebinars } from './gastos.js';
 import { veCierre } from './cierre.js';
+import { veMapa } from './mapa.js';
 
 /* Íconos lineales (24x24, trazo fino) de cada pantalla. */
 const ico = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONOS = {
+  mapa: ico('<rect x="3" y="4" width="6" height="5" rx="1.5"/><rect x="15" y="4" width="6" height="5" rx="1.5"/><rect x="9" y="15" width="6" height="5" rx="1.5"/><path d="M9 6.5h6M18 9v3H12v3"/>'),
   resumen: ico('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   conciliacion: ico('<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>'),
   conceptos: ico('<path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>'),
@@ -32,6 +34,7 @@ const ICONOS = {
 
 /* [ruta, etiqueta, subtítulo, visible()] */
 const VISTAS = [
+  ['mapa', 'Mapa', 'Las áreas con números vivos', veMapa],
   ['resumen', 'Resumen agencia', 'Todos los clientes', veFinanzas],
   ['conciliacion', 'Conciliación', 'Opps contra Pagos', veAnalisis],
   ['conceptos', 'Cash por concepto', 'Torta por categoría', veAnalisis],
