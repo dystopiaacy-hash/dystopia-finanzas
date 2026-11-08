@@ -1,97 +1,113 @@
-/* Mapa (solo fundador): tarjetas por área en el orden del recorrido del cliente, unidas con flechas.
-   Cada tarjeta: número grande, 1 o 2 secundarios, regla del área y botón «Abrir». Solo lectura. */
+/* Mapa (solo fundador): cinta con la cadena del mes, una fila de 4 tarjetas iguales (Marketing, Ventas, Finanzas,
+   Seguimiento), franja de resultado Dystopia y «Próximamente» compacto. Solo lectura. */
 import { esc, hoyAR, fmtPct } from '../ui.js';
 import { usd } from '../datos.js';
 import { mesesDe, etiquetaMes } from '../gastos.js';
 import { botonRecargar } from './comunes.js';
 import { CLIENTES, AREAS, PROXIMAMENTE, cargarBaseMapa, cargarMapa } from '../mapa.js';
 
-const u = v => usd(v, { centavos: false });
 const ent = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const SIN = 'sin dato';
 const val = (v, fmt) => (v == null ? SIN : fmt(v));
+const dec1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',').replace(/,0$/, '');
 
-const FLECHA = '<svg viewBox="0 0 48 16" aria-hidden="true"><path d="M2 8h38M32 2l8 6-8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-/* dir: 'der' | 'abajo' | 'izq' (en celular todas apuntan hacia abajo). */
-function flecha(clase, dir, rotulo) {
-  return `<div class="mapa-flecha ${clase} mapa-${dir}" role="presentation">
-    <span class="mapa-flecha-svg">${FLECHA}</span>${rotulo ? `<span class="mapa-flecha-txt">${esc(rotulo)}</span>` : ''}</div>`;
+/* Monto compacto: US$ 29,4k / US$ 1,2M; debajo de 1.000 con centavos si los tiene. El exacto va en title. */
+function uc(v) {
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if (a >= 1e6) return `${s}US$ ${dec1(a / 1e6)}M`;
+  if (a >= 1e3) return `${s}US$ ${dec1(a / 1e3)}k`;
+  return usd(v, { centavos: false });
 }
+const exacto = v => usd(v, { centavos: true });
+/* Devuelve {t: texto visible, title: exacto} para montos, o solo texto para enteros. */
+const money = v => (v == null ? { t: SIN } : { t: uc(v), title: exacto(v) });
+const count = v => (v == null ? { t: SIN } : { t: ent(v) });
+
+const titulo = o => (o.title ? ` title="${esc(o.title)}"` : '');
 
 function boton(a) {
-  if (a.url) return `<a class="btn btn-sm mapa-abrir" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.abrir)} ↗</a>`;
-  return `<a class="btn btn-sm mapa-abrir" href="${esc(a.ruta)}">${esc(a.abrir)}</a>`;
+  if (a.url) return `<a class="btn btn-sm mapa-abrir" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Abrir ↗</a>`;
+  return `<a class="btn btn-sm mapa-abrir" href="${esc(a.ruta)}">Abrir</a>`;
 }
 
-/* sec: lista de [etiqueta, valorTexto]. */
-function tarjeta(clase, area, { numero, etiqueta, sec = [], nota = '' }) {
+/* sec: lista de [etiqueta, {t, title?}] (siempre 3 filas para alinear la fila de tarjetas). */
+function tarjeta(clase, area, { num, etiqueta, sec = [], aviso = '', nota = '' }) {
   const a = AREAS[area];
-  const nd = numero === SIN;
+  const filas = sec.slice(0, 3);
+  while (filas.length < 3) filas.push([' ', { t: '' }]);
   return `<article class="card mapa-card ${clase}">
     <div class="mapa-card-t">${esc(a.titulo)}</div>
-    <div class="mapa-num${nd ? ' mapa-sd' : ''}">${esc(numero)}</div>
+    <div class="mapa-num${num.t === SIN ? ' mapa-sd' : ''}"${titulo(num)}>${esc(num.t)}</div>
     <div class="mapa-etq">${esc(etiqueta)}</div>
-    <ul class="mapa-sec">${sec.map(([k, v]) => `<li><span>${esc(k)}</span><b class="${v === SIN ? 'mapa-sd' : ''}">${esc(v)}</b></li>`).join('')}</ul>
-    ${nota ? `<div class="mapa-nota">${esc(nota)}</div>` : ''}
+    <ul class="mapa-sec">${filas.map(([k, v]) => `<li><span>${esc(k)}</span><b class="${v.t === SIN ? 'mapa-sd' : ''}"${titulo(v)}>${esc(v.t)}</b></li>`).join('')}</ul>
+    <div class="mapa-avisos">${aviso ? `<div class="mapa-aviso">${esc(aviso)}</div>` : ''}${nota ? `<div class="mapa-nota">${esc(nota)}</div>` : ''}</div>
     <p class="mapa-regla">${esc(a.regla)}</p>
     ${a.responsable ? `<div class="mapa-resp">Responsable: ${esc(a.responsable)}</div>` : ''}
     ${boton(a)}
   </article>`;
 }
 
-function gris(titulo, clase) {
-  return `<article class="card mapa-card mapa-gris ${clase}">
-    <div class="mapa-card-t">${esc(titulo)}</div>
-    <div class="mapa-prox">Próximamente</div>
-    <p class="mapa-regla">Todavía no existe esta área.</p></article>`;
+/* Cadena del mes en una línea: solo los eslabones con dato. */
+function cinta(d) {
+  const m = d.marketing, v = d.ventas, f = d.finanzas;
+  const eslabones = [];
+  const add = (cond, t, title) => { if (cond) eslabones.push(`<span class="mapa-chip"${title ? ` title="${esc(title)}"` : ''}>${esc(t)}</span>`); };
+  add(m, `${ent(m && m.piezas)} piezas`);
+  add(v && v.agendadas != null, `${ent(v && v.agendadas)} agendas`);
+  add(v && v.cerradas != null, `${ent(v && v.cerradas)} cierres`);
+  add(f, `${f ? uc(f.cash) : ''} cobrado`, f && exacto(f.cash));
+  add(f, `${f ? uc(f.gananciaDys) : ''} Dystopia`, f && exacto(f.gananciaDys));
+  if (!eslabones.length) return '';
+  return `<div class="mapa-cinta" role="list" aria-label="Cadena del mes">${eslabones.join('<span class="mapa-sep" aria-hidden="true">→</span>')}</div>`;
 }
 
 function cuerpo(d, rotuloMes) {
   const m = d.marketing, v = d.ventas, f = d.finanzas, s = d.seguimiento;
-  const plat = m ? Object.entries(m.porPlataforma).sort((a, b) => b[1] - a[1]).map(([k, c]) => `${k} ${c}`).join(' · ') : '';
+  const plat = m ? Object.entries(m.porPlataforma).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
+  const secMkt = !m ? [['Por plataforma', { t: SIN }]] : plat.length ? plat.map(([k, c]) => [k, { t: ent(c) }]) : [['Por plataforma', { t: '0' }]];
+
   const marketing = tarjeta('mapa-c-mkt', 'marketing', {
-    numero: val(m && m.piezas, ent), etiqueta: `piezas publicadas en ${rotuloMes}`,
-    sec: [['Por plataforma', m ? (plat || '0') : SIN]]
+    num: count(m && m.piezas), etiqueta: `piezas publicadas en ${rotuloMes}`, sec: secMkt
   });
+  const faltanLlamadas = v && v.agendadas > 0 && v.presentadas === 0;
   const ventas = tarjeta('mapa-c-vta', 'ventas', {
-    numero: val(v && v.agendadas, ent), etiqueta: `llamadas agendadas en ${rotuloMes}`,
-    sec: [['Hechas (presentadas)', val(v && v.presentadas, ent)], ['Cierres', val(v && v.cerradas, ent)]]
+    num: count(v && v.agendadas), etiqueta: `llamadas agendadas en ${rotuloMes}`,
+    sec: [['Presentadas', count(v && v.presentadas)], ['Cierres', count(v && v.cerradas)], ['Show up sin marcar', count(v && v.sinShowUp)]],
+    aviso: faltanLlamadas ? `Faltan cargar llamadas de ${rotuloMes}: hay agendadas pero ninguna marcada como presentada.` : ''
   });
+  const gastosBajos = f && f.cash > 0 && f.gastos < f.cash * 0.01;
   const finanzas = tarjeta('mapa-c-fin', 'finanzas', {
-    numero: val(f && f.cash, u), etiqueta: `cash cobrado en ${rotuloMes}`,
-    sec: [['Gastos', val(f && f.gastos, u)], ['Ganancia del cliente', val(f && f.ganancia, u)]]
+    num: money(f && f.cash), etiqueta: `cash cobrado en ${rotuloMes}`,
+    sec: [['Gastos', money(f && f.gastos)], ['Ganancia del cliente', money(f && f.ganancia)]],
+    aviso: gastosBajos ? 'Gastos del mes sin cargar: la ganancia está sobreestimada.' : ''
   });
   const seguimiento = tarjeta('mapa-c-seg', 'seguimiento', {
-    numero: val(s && s.activos, ent), etiqueta: 'alumnos en seguimiento hoy',
-    sec: [['En onboarding', val(s && s.onboarding, ent)], ['En renovación', val(s && s.renovacion, ent)]],
+    num: count(s && s.activos), etiqueta: 'alumnos en seguimiento hoy',
+    sec: [['En onboarding', count(s && s.onboarding)], ['En renovación', count(s && s.renovacion)]],
     nota: 'No cambia con el mes: es la foto de hoy.'
   });
-  const dystopia = tarjeta('mapa-c-dys', 'dystopia', {
-    numero: val(f && f.gananciaDys, u), etiqueta: `ganancia de Dystopia en ${rotuloMes}`,
-    sec: [['% sobre la ganancia', f && f.pct != null ? fmtPct(f.pct, 0) : SIN]]
-  });
 
-  /* Rótulos que encadenan el recorrido (solo los números que existen). */
-  const hechas = v && v.presentadas != null ? `${ent(v.presentadas)} llamadas` : null;
-  const rVentas = [hechas, v && v.cerradas != null ? `${ent(v.cerradas)} cierres` : null, f ? `${u(f.cash)} cobrado` : null].filter(Boolean).join(' → ');
-  const r1 = m && v && v.agendadas != null ? `${ent(m.piezas)} piezas → ${ent(v.agendadas)} agendas` : '';
-  const r3 = s ? `${ent(s.activos)} alumnos activos` : '';
-  const r4 = f ? `${u(f.gananciaDys)} para Dystopia` : '';
+  const a = AREAS.dystopia;
+  const dg = money(f && f.gananciaDys);
+  const resultado = `<section class="card mapa-dys">
+      <div class="mapa-dys-izq">
+        <div class="mapa-card-t">${esc(a.titulo)}</div>
+        <div class="mapa-dys-fila">
+          <div class="mapa-num mapa-dys-num${dg.t === SIN ? ' mapa-sd' : ''}"${titulo(dg)}>${esc(dg.t)}</div>
+          <div class="mapa-dys-pct">${f && f.pct != null ? `${esc(fmtPct(f.pct, 0))} <span>de la ganancia del cliente</span>` : ''}</div>
+        </div>
+        <div class="mapa-etq">ganancia de Dystopia en ${esc(rotuloMes)}</div>
+      </div>
+      <p class="mapa-regla mapa-dys-regla">${esc(a.regla)}</p>
+      ${boton(a)}
+    </section>`;
 
-  return `<div class="mapa-grid">
-      ${marketing}
-      ${flecha('mapa-f1', 'der', r1)}
-      ${ventas}
-      ${flecha('mapa-f2', 'der', rVentas)}
-      ${finanzas}
-      ${flecha('mapa-f3', 'abajo', 'Del cobro al acompañamiento')}
-      ${seguimiento}
-      ${flecha('mapa-f4', 'izq', r3 || r4 ? [r3, r4].filter(Boolean).join(' · ') : '')}
-      ${dystopia}
-    </div>
-    <div class="card-titulo">Próximamente</div>
-    <div class="mapa-prox-fila">${PROXIMAMENTE.map(t => gris(t, '')).join('')}</div>`;
+  const prox = PROXIMAMENTE.map(t => `<span class="mapa-prox-chip"><b>${esc(t)}</b> · Próximamente</span>`).join('');
+
+  return `${cinta(d)}
+    <div class="mapa-grid">${marketing}${ventas}${finanzas}${seguimiento}</div>
+    ${resultado}
+    <div class="mapa-prox-fila" aria-label="Próximamente">${prox}</div>`;
 }
 
 function mesesDisponibles(base) {
@@ -135,7 +151,7 @@ export async function vistaMapa(el, vigente) {
       </div>
       ${abierto ? '<div class="card nota aviso-ambar">Mes en curso: los números cambian hasta el cierre.</div>' : ''}
       ${cuerpo(datos, etiquetaMes(sel.ym))}
-      <div class="table-foot">Solo lectura. Finanzas y Dystopia usan las mismas cuentas que Comparar y Cierre (mes cerrado = foto del cierre). Ventas sale de las métricas de Ventas; Marketing cuenta piezas con estado PUBLICADO por fecha de publicación; Seguimiento cuenta alumnos activos, en onboarding o en renovación de hoy.</div>`;
+      <div class="table-foot">Solo lectura. Montos compactos: pasá el mouse (o mantené apretado) para ver el exacto. Finanzas y Dystopia usan las mismas cuentas que Comparar y Cierre (mes cerrado = foto del cierre). Ventas sale de las métricas de Ventas (presentadas = columna Show up marcada «sí», que se completa días después de la llamada); Marketing cuenta piezas con estado PUBLICADO por fecha de publicación; Seguimiento cuenta alumnos activos, en onboarding o en renovación de hoy.</div>`;
 
     const q = s => el.querySelector(s);
     q('#mapa-cli').onchange = e => { sel.cli = e.target.value; mostrar(); };

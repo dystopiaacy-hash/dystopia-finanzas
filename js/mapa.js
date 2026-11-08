@@ -73,7 +73,7 @@ async function ventas(ym, cli) {
   const { desde, hasta } = finMes(ym);
   const [met, cierres] = await Promise.all([
     todas(() => {
-      let q = sb.from('fin_v_metricas_ventas').select('cliente_id,periodo,agendadas,presentadas,cerradas').eq('periodo', ym).order('cliente_id');
+      let q = sb.from('fin_v_metricas_ventas').select('cliente_id,periodo,agendadas,presentadas,cerradas,sin_show_up,agendadas_a_futuro').eq('periodo', ym).order('cliente_id');
       if (cli) q = q.eq('cliente_id', cli);
       return q;
     }),
@@ -88,12 +88,14 @@ async function ventas(ym, cli) {
   /* Clientes sin llamadas cargadas: sus cierres salen de fin_cierres (como el dashboard de Ventas). */
   const soloCierres = (cierres || []).filter(f => !conLlamadas.has(f.cliente_id) && cuenta(f)).length;
   const hayAlgo = met.length > 0 || soloCierres > 0;
-  if (!hayAlgo) return { agendadas: null, presentadas: null, cerradas: null };
+  if (!hayAlgo) return { agendadas: null, presentadas: null, cerradas: null, sinShowUp: null, futuras: null };
   const suma = campo => (met.length ? met.reduce((a, f) => a + n(f[campo]), 0) : null);
   return {
     agendadas: suma('agendadas'),
     presentadas: suma('presentadas'),
-    cerradas: (suma('cerradas') ?? 0) + soloCierres
+    cerradas: (suma('cerradas') ?? 0) + soloCierres,
+    sinShowUp: suma('sin_show_up'),        // agendadas con la columna «Show up» vacía (se completa días después)
+    futuras: suma('agendadas_a_futuro')    // agendadas con fecha posterior a hoy
   };
 }
 
