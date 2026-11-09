@@ -9,6 +9,7 @@ import { gastosMes, gastosCargados, categorias, gastoBaja, editaGastos, nombreEn
 import { vacio, botonRecargar, etiquetarTablas } from './comunes.js';
 import { abrirFormGasto } from './gastos-form.js';
 import { abrirCategorias } from './gastos-categorias.js';
+import { vistaDesglose } from './gastos-desglose.js';
 
 const u = n => usd(n, { centavos: true });
 /* Filas de IA automática: hasta 4 decimales (US$ 0,0034), mínimo 2. El resto y los totales, 2 decimales. */
@@ -29,7 +30,20 @@ const tablaTot = (titulo, cabecera, cuerpo) => `<div><div class="card-titulo">${
   <thead><tr><th>${esc(cabecera)}</th><th class="num clave">Total</th><th class="num">Dystopia</th><th class="num">Cliente</th></tr></thead>
   <tbody>${cuerpo || '<tr><td colspan="4">Sin gastos</td></tr>'}</tbody></table></div></div>`;
 
+/* Pestañas: «Lista» (lo de siempre) y «Desglose y ROAS» (js/views/gastos-desglose.js). */
+let pestana = 'lista';
+const tabsHtml = () => `<div class="filter-row"><button type="button" class="btn btn-sm${pestana === 'lista' ? ' btn-accent' : ''}" data-pest="lista">Lista</button>
+  <button type="button" class="btn btn-sm${pestana === 'desglose' ? ' btn-accent' : ''}" data-pest="desglose">Desglose y ROAS</button></div>`;
+function bindTabs(el, vigente) {
+  for (const b of el.querySelectorAll('[data-pest]')) b.onclick = () => { pestana = b.dataset.pest; vistaGastos(el, vigente); };
+}
+
 export async function vistaGastos(el, vigente) {
+  if (pestana === 'desglose') {
+    el.innerHTML = `${tabsHtml()}<div id="gd-cont"></div>`;
+    bindTabs(el, vigente);
+    return vistaDesglose(el.querySelector('#gd-cont'), vigente);
+  }
   const [filas, cargados, cats] = await Promise.all([gastosMes(), gastosCargados(), categorias()]);
   if (!vigente()) return;
   const puede = editaGastos();
@@ -49,7 +63,7 @@ export async function vistaGastos(el, vigente) {
     const sinCom = f.filter(x => x.falta_comision);
     const bajas = cargados.filter(g => !g.activo);
 
-    el.innerHTML = `
+    el.innerHTML = `${tabsHtml()}
       <div class="filter-row">
         <span class="flabel">Mes</span>
         <select id="f-mes"><option value="">Todos</option>${meses.map(m => `<option value="${m}"${m === estado.mes ? ' selected' : ''}>${esc(etiquetaMes(m))}</option>`).join('')}</select>
@@ -99,6 +113,7 @@ export async function vistaGastos(el, vigente) {
           <td>${puede ? `<button type="button" class="btn btn-sm" data-reactivar="${g.id}">Reactivar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
 
     etiquetarTablas(el);
+    bindTabs(el, vigente);
     el.querySelector('#f-mes').onchange = e => { estado.mes = e.target.value; pintar(); };
     el.querySelector('#f-ent').onchange = e => { estado.entidad = e.target.value; pintar(); };
     el.querySelector('#f-cat').onchange = e => { estado.cat = e.target.value; pintar(); };

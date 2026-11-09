@@ -15,3 +15,9 @@ supabase/.temp/
 
 # Sheets de Finanzas convertidos: tienen datos de personas, no se commitean.
 insumos/
+
+# CSV de comparar-planillas (nombres, telefonos, mails de alumnos).
+datos/
+
+# 282: trazabilidad sep-oct 2026 (nombres y chats de alumnos), generada por scripts/generar-282.mjs.
+migraciones/282_trazabilidad_sep_oct_2026.sql
